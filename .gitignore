@@ -2,6 +2,11 @@
 node_modules/
 package-lock.json
 
+# Environment variables (API keys, secrets)
+.env
+.env.local
+.env.*.local
+
 # Reports (generated files)
 reports/*.md
 reports/*.pdf
