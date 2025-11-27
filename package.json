@@ -1,0 +1,27 @@
+{
+    "name": "pair-trading",
+    "version": "1.0.0",
+    "description": "Pair trading analysis tool for cryptocurrency pairs with statistical metrics, volume indicators, and mean reversion analysis",
+    "main": "lib/pairAnalysis.js",
+    "scripts": {
+        "start": "node recent_tokens_api.js",
+        "dev": "nodemon recent_tokens_api.js",
+        "analyze": "node scripts/analyzePair.js",
+        "analyze-multi": "node scripts/analyzeMultiplePairs.js",
+        "analyze-batch": "node scripts/pair_obv_analysis.js",
+        "update-trade-report": "node scripts/generate_comprehensive_trade_report.js",
+        "test": "jest",
+        "test:watch": "jest --watch"
+    },
+    "dependencies": {
+        "axios": "^1.6.0",
+        "dotenv": "^17.2.3",
+        "express": "^4.18.2",
+        "hyperliquid": "^1.7.7",
+        "indicatorts": "^2.2.2"
+    },
+    "devDependencies": {
+        "jest": "^30.2.0",
+        "nodemon": "^3.0.1"
+    }
+}

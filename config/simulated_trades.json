@@ -1,0 +1,36 @@
+{
+  "HYPE_ZEC_SIMULATED": {
+    "symbol1": "HYPE",
+    "symbol2": "ZEC",
+    "entryDate": "2025-12-25T14:00:00Z",
+    "entryPrice1": 0.15,
+    "entryPrice2": 499.83,
+    "weight1": 0.6,
+    "weight2": 0.4,
+    "direction": "long",
+    "simulated": true
+  },
+  "LTC_BTC_SIMULATED": {
+    "symbol1": "LTC",
+    "symbol2": "BTC",
+    "entryDate": "2025-12-25T14:00:00Z",
+    "entryPrice1": 87.23,
+    "entryPrice2": 91520.01,
+    "weight1": 0.6,
+    "weight2": 0.4,
+    "direction": "long",
+    "simulated": true
+  },
+  "TAO_BTC_SIMULATED": {
+    "symbol1": "TAO",
+    "symbol2": "BTC",
+    "entryDate": "2025-12-25T14:00:00Z",
+    "entryPrice1": 308.20,
+    "entryPrice2": 91520.01,
+    "weight1": 0.6,
+    "weight2": 0.4,
+    "direction": "long",
+    "simulated": true
+  }
+}
+

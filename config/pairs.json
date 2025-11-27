@@ -1,0 +1,38 @@
+{
+  "defaultPairs": [
+    {
+      "name": "HYPE/ZEC",
+      "symbol1": "HYPE",
+      "symbol2": "ZEC",
+      "direction": "long",
+      "leftSide": "HYPE"
+    },
+    {
+      "name": "LTC/BTC",
+      "symbol1": "LTC",
+      "symbol2": "BTC",
+      "direction": "long",
+      "leftSide": "LTC"
+    },
+    {
+      "name": "TAO/BTC",
+      "symbol1": "TAO",
+      "symbol2": "BTC",
+      "direction": "long",
+      "leftSide": "TAO"
+    }
+  ],
+  "timeframes": [7, 30, 90, 180],
+  "obvTimeframes": [7, 30],
+  "zScoreWindow": 30,
+  "apiSettings": {
+    "rateLimitDelay": 2000,
+    "timeframeDelay": 1500,
+    "hyperliquidRequired": true
+  },
+  "pdfSettings": {
+    "maxFileSizeMB": 10,
+    "timeoutSeconds": 30
+  }
+}
+

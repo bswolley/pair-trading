@@ -1,0 +1,38 @@
+# Dependencies
+node_modules/
+package-lock.json
+
+# Reports (generated files)
+reports/*.md
+reports/*.pdf
+!reports/README.md
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Archive (old files)
+archive/
+
+# Temporary files
+*.tmp
+*.temp
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Generated reports
+pair_reports/
+pair_reports_pdf/
+
