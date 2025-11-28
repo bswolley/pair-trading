@@ -402,7 +402,7 @@ async function main() {
     const halfLifeFactor = 1 / Math.max(pair.halfLife, 0.5); // Avoid division by very small numbers
     pair.score = pair.correlation * halfLifeFactor * pair.meanReversionRate * 100;
   }
-  
+
   // Sort by composite score (best pairs first)
   fittingPairs.sort((a, b) => b.score - a.score);
 
@@ -419,12 +419,12 @@ async function main() {
     const z = pair.zScore.toFixed(2).padStart(7);
     console.log(`  ${pairName} | ${sector} | ${score} | ${corr} | ${hl}  | ${z}`);
   }
-  
+
   // Select top 3 pairs from each sector for watchlist
   const TOP_PER_SECTOR = 3;
   const watchlistPairs = [];
   const sectorCounts = {};
-  
+
   for (const pair of fittingPairs) {
     sectorCounts[pair.sector] = sectorCounts[pair.sector] || 0;
     if (sectorCounts[pair.sector] < TOP_PER_SECTOR) {
@@ -432,10 +432,14 @@ async function main() {
       sectorCounts[pair.sector]++;
     }
   }
+
+  // Thresholds for entry/exit
+  const ENTRY_THRESHOLD = 1.5;  // Enter when |Z| > 1.5
+  const EXIT_THRESHOLD = 0.5;   // Exit when |Z| < 0.5
   
   console.log(`\n📋 Watchlist: Top ${TOP_PER_SECTOR} pairs per sector (${watchlistPairs.length} total)`);
-  console.log('  Pair                  | Sector      | Score | Corr  | HalfLife | Z-Score');
-  console.log('  ----------------------|-------------|-------|-------|----------|--------');
+  console.log('  Pair                  | Sector      | Quality | Corr  | HL    | Z-Score | Signal');
+  console.log('  ----------------------|-------------|---------|-------|-------|---------|-------');
   
   // Group by sector for display
   const watchlistBySector = {};
@@ -448,11 +452,13 @@ async function main() {
     for (const pair of pairs) {
       const pairName = `${pair.asset1}/${pair.asset2}`.padEnd(20);
       const sectorPad = sector.padEnd(11);
-      const score = pair.score.toFixed(2).padStart(5);
-      const corr = pair.correlation.toFixed(3);
-      const hl = pair.halfLife < 100 ? pair.halfLife.toFixed(1).padStart(6) + 'd' : '    Inf';
-      const z = pair.zScore.toFixed(2).padStart(7);
-      console.log(`  ${pairName} | ${sectorPad} | ${score} | ${corr} | ${hl}  | ${z}`);
+      const score = pair.score.toFixed(1).padStart(6);
+      const corr = pair.correlation.toFixed(2);
+      const hl = pair.halfLife.toFixed(1).padStart(4) + 'd';
+      const z = pair.zScore.toFixed(2).padStart(6);
+      const signal = Math.min(Math.abs(pair.zScore) / ENTRY_THRESHOLD, 1.0);
+      const signalPct = (signal * 100).toFixed(0).padStart(4) + '%';
+      console.log(`  ${pairName} | ${sectorPad} | ${score} | ${corr}  | ${hl} | ${z}  | ${signalPct}`);
     }
   }
 
@@ -487,30 +493,56 @@ async function main() {
   const outputPath = path.join(__dirname, '../config/discovered_pairs.json');
   fs.writeFileSync(outputPath, JSON.stringify(output, null, 2));
   console.log(`\n✅ All pairs saved to ${outputPath}`);
-  
+
   // Save watchlist (top 3 per sector)
+  
   const watchlist = {
     timestamp: new Date().toISOString(),
     description: `Top ${TOP_PER_SECTOR} pairs per sector by composite score`,
-    scoringFormula: 'correlation × (1/halfLife) × meanReversionRate × 100',
+    scoringFormula: 'qualityScore = correlation × (1/halfLife) × meanReversionRate × 100',
+    signalFormula: 'signalStrength = |zScore| / entryThreshold (0-1, 1 = ready)',
     totalPairs: watchlistPairs.length,
-    pairs: watchlistPairs.map(p => ({
-      pair: `${p.asset1}/${p.asset2}`,
-      asset1: p.asset1,
-      asset2: p.asset2,
-      sector: p.sector,
-      score: parseFloat(p.score.toFixed(2)),
-      correlation: parseFloat(p.correlation.toFixed(3)),
-      beta: parseFloat(p.beta.toFixed(3)),
-      halfLife: parseFloat(p.halfLife.toFixed(1)),
-      zScore: parseFloat(p.zScore.toFixed(2)),
-      meanReversionRate: parseFloat(p.meanReversionRate.toFixed(3)),
-      // Entry thresholds (to be monitored)
-      entryThreshold: 1.5,  // Enter when |Z| > 1.5
-      exitThreshold: 0.5    // Exit when |Z| < 0.5
-    }))
+    pairs: watchlistPairs.map(p => {
+      const signalStrength = Math.min(Math.abs(p.zScore) / ENTRY_THRESHOLD, 1.0);
+      const direction = p.zScore < 0 ? 'long' : 'short'; // Negative Z = asset1 undervalued = long asset1
+      const isReady = Math.abs(p.zScore) >= ENTRY_THRESHOLD;
+      
+      return {
+        pair: `${p.asset1}/${p.asset2}`,
+        asset1: p.asset1,
+        asset2: p.asset2,
+        sector: p.sector,
+        // Quality metrics (stable)
+        qualityScore: parseFloat(p.score.toFixed(2)),
+        correlation: parseFloat(p.correlation.toFixed(3)),
+        beta: parseFloat(p.beta.toFixed(3)),
+        halfLife: parseFloat(p.halfLife.toFixed(1)),
+        meanReversionRate: parseFloat(p.meanReversionRate.toFixed(3)),
+        // Signal metrics (changes frequently)
+        zScore: parseFloat(p.zScore.toFixed(2)),
+        signalStrength: parseFloat(signalStrength.toFixed(2)),
+        direction,  // 'long' = long asset1/short asset2, 'short' = short asset1/long asset2
+        isReady,
+        // Thresholds
+        entryThreshold: ENTRY_THRESHOLD,
+        exitThreshold: EXIT_THRESHOLD
+      };
+    })
   };
   
+  // Show actionable pairs (signal strength > 0.8)
+  const actionablePairs = watchlist.pairs.filter(p => p.signalStrength >= 0.8);
+  if (actionablePairs.length > 0) {
+    console.log(`\n🎯 Actionable now (signal ≥ 80%):`);
+    for (const p of actionablePairs) {
+      const status = p.isReady ? '🟢 READY' : '🟡 CLOSE';
+      const dir = p.direction === 'long' ? `Long ${p.asset1}` : `Short ${p.asset1}`;
+      console.log(`  ${status} ${p.pair} | Z=${p.zScore} | ${dir}`);
+    }
+  } else {
+    console.log(`\n⏳ No pairs at entry threshold yet (all |Z| < ${ENTRY_THRESHOLD * 0.8})`);
+  }
+
   const watchlistPath = path.join(__dirname, '../config/watchlist.json');
   fs.writeFileSync(watchlistPath, JSON.stringify(watchlist, null, 2));
   console.log(`✅ Watchlist saved to ${watchlistPath}`);
