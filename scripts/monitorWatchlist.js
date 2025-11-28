@@ -325,12 +325,18 @@ function formatStatusReport(activeTrades, entries, exits, history) {
       const pnlSign = pnl >= 0 ? '+' : '';
       const pnlEmoji = pnl >= 0 ? '🟢' : '🔴';
       const days = ((Date.now() - new Date(t.entryTime)) / (1000*60*60*24)).toFixed(1);
+      const zEntry = t.entryZScore?.toFixed(2) || '?';
       const zNow = t.currentZ?.toFixed(2) || '?';
+      const zDelta = t.currentZ && t.entryZScore 
+        ? (Math.abs(t.currentZ) - Math.abs(t.entryZScore)).toFixed(2)
+        : '?';
+      const zArrow = parseFloat(zDelta) < 0 ? '↓' : parseFloat(zDelta) > 0 ? '↑' : '→';
       const dir = t.direction === 'long' ? 'L' : 'S';
       
       msg += `${pnlEmoji} ${t.pair}\n`;
       msg += `   ${dir} ${t.longAsset} ${t.longWeight?.toFixed(0)}%/${t.shortAsset} ${t.shortWeight?.toFixed(0)}%\n`;
-      msg += `   Z:${zNow} HL:${t.halfLife?.toFixed(1)}d ${pnlSign}${pnl.toFixed(2)}% ${days}d\n\n`;
+      msg += `   Z: ${zEntry}→${zNow} (${zArrow}${Math.abs(parseFloat(zDelta)).toFixed(2)})\n`;
+      msg += `   HL:${t.halfLife?.toFixed(1)}d | ${pnlSign}${pnl.toFixed(2)}% | ${days}d\n\n`;
     });
     
     const pSign = portfolioPnL >= 0 ? '+' : '';
