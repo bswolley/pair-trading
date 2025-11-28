@@ -17,6 +17,7 @@
         "trades": "node scripts/showTrades.js",
         "exit": "node scripts/exitTrade.js",
         "history": "node scripts/showHistory.js",
+        "bot": "node scripts/telegramBot.js",
         "update-trade-report": "node scripts/generate_comprehensive_trade_report.js",
         "test": "jest",
         "test:watch": "jest --watch"
