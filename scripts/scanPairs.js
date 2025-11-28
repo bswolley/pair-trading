@@ -271,8 +271,12 @@ function evaluatePairs(candidatePairs, priceMap, minCorrelation) {
     try {
       const fitness = checkPairFitness(aligned1, aligned2);
 
-      // Check thresholds
-      if (fitness.correlation >= minCorrelation && fitness.isCointegrated) {
+      // Check thresholds: correlation > min, cointegrated, half-life <= 45 days
+      const passesCorrelation = fitness.correlation >= minCorrelation;
+      const passesCointegration = fitness.isCointegrated;
+      const passesHalfLife = fitness.halfLife <= 45;
+      
+      if (passesCorrelation && passesCointegration && passesHalfLife) {
         fittingPairs.push({
           sector: pair.sector,
           asset1: pair.asset1.symbol,
@@ -285,14 +289,20 @@ function evaluatePairs(candidatePairs, priceMap, minCorrelation) {
           correlation: fitness.correlation,
           beta: fitness.beta,
           isCointegrated: fitness.isCointegrated,
+          halfLife: fitness.halfLife,
           zScore: fitness.zScore,
           meanReversionRate: fitness.meanReversionRate
         });
       } else {
+        let reason = 'low_correlation';
+        if (!passesCointegration) reason = 'not_cointegrated';
+        else if (!passesHalfLife) reason = 'slow_halflife';
+        
         rejectedPairs.push({
           ...pair,
-          reason: !fitness.isCointegrated ? 'not_cointegrated' : 'low_correlation',
+          reason,
           correlation: fitness.correlation,
+          halfLife: fitness.halfLife,
           isCointegrated: fitness.isCointegrated
         });
       }
@@ -311,7 +321,7 @@ async function main() {
   console.log('🔍 Pairs Scanner (with statistical filtering)\n');
   console.log(`Thresholds:`);
   console.log(`  Liquidity: Volume > $${(minVolume / 1000).toFixed(0)}k, OI > $${(minOI / 1000).toFixed(0)}k`);
-  console.log(`  Pair fitness: Correlation > ${minCorr}, Cointegrated = true\n`);
+  console.log(`  Pair fitness: Correlation > ${minCorr}, Cointegrated = true, Half-life ≤ 45 days\n`);
 
   // Load sector mapping
   const { symbolToSector, sectors } = loadSectorMap();
@@ -390,16 +400,16 @@ async function main() {
 
   // Show top 15 pairs
   console.log('\nTop 15 fitting pairs (by correlation):');
-  console.log('  Pair                  | Sector | Corr  | Coint | Z-Score | MeanRev');
-  console.log('  ----------------------|--------|-------|-------|---------|--------');
+  console.log('  Pair                  | Sector | Corr  | HalfLife | Z-Score | MeanRev');
+  console.log('  ----------------------|--------|-------|----------|---------|--------');
   for (const pair of fittingPairs.slice(0, 15)) {
     const pairName = `${pair.asset1}/${pair.asset2}`.padEnd(20);
     const sector = pair.sector.padEnd(6);
     const corr = pair.correlation.toFixed(3);
-    const coint = pair.isCointegrated ? 'Yes' : 'No ';
+    const hl = pair.halfLife < 100 ? pair.halfLife.toFixed(1).padStart(6) + 'd' : '    Inf';
     const z = pair.zScore.toFixed(2).padStart(7);
     const mr = (pair.meanReversionRate * 100).toFixed(0).padStart(5) + '%';
-    console.log(`  ${pairName} | ${sector} | ${corr} | ${coint}   | ${z} | ${mr}`);
+    console.log(`  ${pairName} | ${sector} | ${corr} | ${hl}  | ${z} | ${mr}`);
   }
 
   // Disconnect SDK
@@ -410,7 +420,7 @@ async function main() {
   // Save results
   const output = {
     timestamp: new Date().toISOString(),
-    thresholds: { minVolume, minOI, minCorrelation: minCorr },
+    thresholds: { minVolume, minOI, minCorrelation: minCorr, maxHalfLife: 45 },
     lookbackDays: DEFAULT_LOOKBACK_DAYS,
     totalAssets: universe.length,
     filteredAssets: filtered.length,
@@ -422,6 +432,7 @@ async function main() {
       sector: p.sector,
       correlation: parseFloat(p.correlation.toFixed(3)),
       beta: parseFloat(p.beta.toFixed(3)),
+      halfLife: parseFloat(p.halfLife.toFixed(1)),
       zScore: parseFloat(p.zScore.toFixed(2)),
       meanReversionRate: parseFloat(p.meanReversionRate.toFixed(3)),
       fundingSpread: parseFloat(p.fundingSpread.toFixed(2))
