@@ -275,7 +275,7 @@ function evaluatePairs(candidatePairs, priceMap, minCorrelation) {
       const passesCorrelation = fitness.correlation >= minCorrelation;
       const passesCointegration = fitness.isCointegrated;
       const passesHalfLife = fitness.halfLife <= 45;
-      
+
       if (passesCorrelation && passesCointegration && passesHalfLife) {
         fittingPairs.push({
           sector: pair.sector,
@@ -297,7 +297,7 @@ function evaluatePairs(candidatePairs, priceMap, minCorrelation) {
         let reason = 'low_correlation';
         if (!passesCointegration) reason = 'not_cointegrated';
         else if (!passesHalfLife) reason = 'slow_halflife';
-        
+
         rejectedPairs.push({
           ...pair,
           reason,
@@ -395,21 +395,65 @@ async function main() {
     console.log(`  ${sector}: ${count} pairs`);
   }
 
-  // Sort by correlation (best pairs first)
-  fittingPairs.sort((a, b) => b.correlation - a.correlation);
+  // Calculate composite score for each pair
+  // Score = correlation × (1 / halfLife) × meanReversionRate × 100
+  // Higher = better (high corr, fast reversion, good mean reversion rate)
+  for (const pair of fittingPairs) {
+    const halfLifeFactor = 1 / Math.max(pair.halfLife, 0.5); // Avoid division by very small numbers
+    pair.score = pair.correlation * halfLifeFactor * pair.meanReversionRate * 100;
+  }
+  
+  // Sort by composite score (best pairs first)
+  fittingPairs.sort((a, b) => b.score - a.score);
 
-  // Show top 15 pairs
-  console.log('\nTop 15 fitting pairs (by correlation):');
-  console.log('  Pair                  | Sector | Corr  | HalfLife | Z-Score | MeanRev');
-  console.log('  ----------------------|--------|-------|----------|---------|--------');
+  // Show top 15 pairs by score
+  console.log('\nTop 15 fitting pairs (by composite score):');
+  console.log('  Pair                  | Sector | Score | Corr  | HalfLife | Z-Score');
+  console.log('  ----------------------|--------|-------|-------|----------|--------');
   for (const pair of fittingPairs.slice(0, 15)) {
     const pairName = `${pair.asset1}/${pair.asset2}`.padEnd(20);
     const sector = pair.sector.padEnd(6);
+    const score = pair.score.toFixed(2).padStart(5);
     const corr = pair.correlation.toFixed(3);
     const hl = pair.halfLife < 100 ? pair.halfLife.toFixed(1).padStart(6) + 'd' : '    Inf';
     const z = pair.zScore.toFixed(2).padStart(7);
-    const mr = (pair.meanReversionRate * 100).toFixed(0).padStart(5) + '%';
-    console.log(`  ${pairName} | ${sector} | ${corr} | ${hl}  | ${z} | ${mr}`);
+    console.log(`  ${pairName} | ${sector} | ${score} | ${corr} | ${hl}  | ${z}`);
+  }
+  
+  // Select top 3 pairs from each sector for watchlist
+  const TOP_PER_SECTOR = 3;
+  const watchlistPairs = [];
+  const sectorCounts = {};
+  
+  for (const pair of fittingPairs) {
+    sectorCounts[pair.sector] = sectorCounts[pair.sector] || 0;
+    if (sectorCounts[pair.sector] < TOP_PER_SECTOR) {
+      watchlistPairs.push(pair);
+      sectorCounts[pair.sector]++;
+    }
+  }
+  
+  console.log(`\n📋 Watchlist: Top ${TOP_PER_SECTOR} pairs per sector (${watchlistPairs.length} total)`);
+  console.log('  Pair                  | Sector      | Score | Corr  | HalfLife | Z-Score');
+  console.log('  ----------------------|-------------|-------|-------|----------|--------');
+  
+  // Group by sector for display
+  const watchlistBySector = {};
+  for (const pair of watchlistPairs) {
+    if (!watchlistBySector[pair.sector]) watchlistBySector[pair.sector] = [];
+    watchlistBySector[pair.sector].push(pair);
+  }
+  
+  for (const [sector, pairs] of Object.entries(watchlistBySector).sort()) {
+    for (const pair of pairs) {
+      const pairName = `${pair.asset1}/${pair.asset2}`.padEnd(20);
+      const sectorPad = sector.padEnd(11);
+      const score = pair.score.toFixed(2).padStart(5);
+      const corr = pair.correlation.toFixed(3);
+      const hl = pair.halfLife < 100 ? pair.halfLife.toFixed(1).padStart(6) + 'd' : '    Inf';
+      const z = pair.zScore.toFixed(2).padStart(7);
+      console.log(`  ${pairName} | ${sectorPad} | ${score} | ${corr} | ${hl}  | ${z}`);
+    }
   }
 
   // Disconnect SDK
@@ -417,7 +461,7 @@ async function main() {
   await sdk.disconnect();
   restoreConsole(saved);
 
-  // Save results
+  // Save all discovered pairs
   const output = {
     timestamp: new Date().toISOString(),
     thresholds: { minVolume, minOI, minCorrelation: minCorr, maxHalfLife: 45 },
@@ -430,6 +474,7 @@ async function main() {
     pairs: fittingPairs.map(p => ({
       pair: `${p.asset1}/${p.asset2}`,
       sector: p.sector,
+      score: parseFloat(p.score.toFixed(2)),
       correlation: parseFloat(p.correlation.toFixed(3)),
       beta: parseFloat(p.beta.toFixed(3)),
       halfLife: parseFloat(p.halfLife.toFixed(1)),
@@ -441,7 +486,34 @@ async function main() {
 
   const outputPath = path.join(__dirname, '../config/discovered_pairs.json');
   fs.writeFileSync(outputPath, JSON.stringify(output, null, 2));
-  console.log(`\n✅ Results saved to ${outputPath}`);
+  console.log(`\n✅ All pairs saved to ${outputPath}`);
+  
+  // Save watchlist (top 3 per sector)
+  const watchlist = {
+    timestamp: new Date().toISOString(),
+    description: `Top ${TOP_PER_SECTOR} pairs per sector by composite score`,
+    scoringFormula: 'correlation × (1/halfLife) × meanReversionRate × 100',
+    totalPairs: watchlistPairs.length,
+    pairs: watchlistPairs.map(p => ({
+      pair: `${p.asset1}/${p.asset2}`,
+      asset1: p.asset1,
+      asset2: p.asset2,
+      sector: p.sector,
+      score: parseFloat(p.score.toFixed(2)),
+      correlation: parseFloat(p.correlation.toFixed(3)),
+      beta: parseFloat(p.beta.toFixed(3)),
+      halfLife: parseFloat(p.halfLife.toFixed(1)),
+      zScore: parseFloat(p.zScore.toFixed(2)),
+      meanReversionRate: parseFloat(p.meanReversionRate.toFixed(3)),
+      // Entry thresholds (to be monitored)
+      entryThreshold: 1.5,  // Enter when |Z| > 1.5
+      exitThreshold: 0.5    // Exit when |Z| < 0.5
+    }))
+  };
+  
+  const watchlistPath = path.join(__dirname, '../config/watchlist.json');
+  fs.writeFileSync(watchlistPath, JSON.stringify(watchlist, null, 2));
+  console.log(`✅ Watchlist saved to ${watchlistPath}`);
 
   return output;
 }
