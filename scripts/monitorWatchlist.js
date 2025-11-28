@@ -282,7 +282,7 @@ function checkExitConditions(trade, fitness) {
 /**
  * Format status report for Telegram
  */
-function formatStatusReport(activeTrades, entries, exits, history) {
+function formatStatusReport(activeTrades, entries, exits, history, approaching = []) {
   const time = new Date().toLocaleString('en-US', { 
     timeZone: 'UTC', 
     hour12: false,
@@ -360,6 +360,16 @@ function formatStatusReport(activeTrades, entries, exits, history) {
     const pSign = portfolioPnL >= 0 ? '+' : '';
     const pEmoji = portfolioPnL >= 0 ? '💰' : '📉';
     msg += `${pEmoji} Total: ${pSign}${portfolioPnL.toFixed(2)}%\n`;
+  }
+  
+  // Approaching entry (top 3)
+  if (approaching.length > 0) {
+    msg += `\n🎯 APPROACHING ENTRY\n`;
+    approaching.slice(0, 3).forEach(p => {
+      const pct = ((Math.abs(p.zScore) / ENTRY_THRESHOLD) * 100).toFixed(0);
+      const dir = p.zScore < 0 ? 'L' : 'S';
+      msg += `   ${p.pair} (${p.sector}) Z:${p.zScore.toFixed(2)} [${pct}%] ${dir}\n`;
+    });
   }
   
   // Historical stats
@@ -445,6 +455,8 @@ async function main() {
   // ===== CHECK WATCHLIST FOR ENTRIES =====
   console.log('📊 Checking watchlist...\n');
   
+  const approaching = []; // Track pairs approaching entry
+  
   for (const pair of watchlist.pairs) {
     if (activePairs.has(pair.pair)) continue;
     if (activeTrades.trades.length >= MAX_CONCURRENT_TRADES) {
@@ -484,10 +496,23 @@ async function main() {
     } else {
       const pct = (Math.abs(z) / ENTRY_THRESHOLD * 100).toFixed(0);
       console.log(`  ⏳ ${pair.pair}: Z=${z.toFixed(2)} (${pct}%)`);
+      
+      // Track approaching pairs (>50% toward entry)
+      if (Math.abs(z) >= ENTRY_THRESHOLD * 0.5) {
+        approaching.push({
+          pair: pair.pair,
+          sector: pair.sector,
+          zScore: z,
+          proximity: Math.abs(z) / ENTRY_THRESHOLD
+        });
+      }
     }
     
     await new Promise(r => setTimeout(r, 200));
   }
+  
+  // Sort approaching by proximity to entry (highest first)
+  approaching.sort((a, b) => b.proximity - a.proximity);
   
   // Disconnect
   const saved2 = suppressConsole();
@@ -510,10 +535,10 @@ async function main() {
     currentPnL: t.currentPnL || 0
   }));
   
-  const report = formatStatusReport(tradesWithPnL, entries, exits, history);
+  const report = formatStatusReport(tradesWithPnL, entries, exits, history, approaching);
   console.log(report);
   
-  if (!DRY_RUN && (entries.length > 0 || exits.length > 0 || activeTrades.trades.length > 0)) {
+  if (!DRY_RUN && (entries.length > 0 || exits.length > 0 || activeTrades.trades.length > 0 || approaching.length > 0)) {
     await sendTelegram(report);
     console.log('📱 Status sent to Telegram\n');
   }
