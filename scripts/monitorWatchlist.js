@@ -209,9 +209,17 @@ function formatAlertMessage(pair, type) {
   const emoji = type === 'entry' ? '🟢' : '🔴';
   const action = type === 'entry' ? 'ENTRY SIGNAL' : 'EXIT SIGNAL';
   
-  const directionText = pair.direction === 'long'
-    ? `Long ${pair.asset1} / Short ${pair.asset2}`
-    : `Short ${pair.asset1} / Long ${pair.asset2}`;
+  // Calculate beta-weighted position sizes
+  const absBeta = Math.abs(pair.beta);
+  const weight1 = 1 / (1 + absBeta);
+  const weight2 = absBeta / (1 + absBeta);
+  
+  // Determine which asset is long/short
+  const isLong = pair.direction === 'long';
+  const longAsset = isLong ? pair.asset1 : pair.asset2;
+  const shortAsset = isLong ? pair.asset2 : pair.asset1;
+  const longWeight = isLong ? weight1 : weight2;
+  const shortWeight = isLong ? weight2 : weight1;
   
   const cointStatus = pair.isCointegrated ? '✅ Yes' : '❌ No';
   const halfLifeText = pair.halfLife < 100 ? `${pair.halfLife.toFixed(1)}d` : 'N/A';
@@ -221,10 +229,13 @@ function formatAlertMessage(pair, type) {
 <b>Pair:</b> ${pair.pair}
 <b>Sector:</b> ${pair.sector}
 
+💰 <b>Position (beta-weighted)</b>
+├ Long ${longAsset}: <b>${(longWeight * 100).toFixed(1)}%</b>
+└ Short ${shortAsset}: <b>${(shortWeight * 100).toFixed(1)}%</b>
+
 📊 <b>Signal</b>
 ├ Z-Score: <b>${pair.zScore.toFixed(2)}</b>
-├ Signal: ${(pair.signalStrength * 100).toFixed(0)}%
-└ Direction: <b>${directionText}</b>
+└ Signal Strength: ${(pair.signalStrength * 100).toFixed(0)}%
 
 📈 <b>Statistics</b>
 ├ Correlation: ${pair.correlation.toFixed(3)}
