@@ -325,18 +325,30 @@ function formatStatusReport(activeTrades, entries, exits, history) {
       const pnlSign = pnl >= 0 ? '+' : '';
       const pnlEmoji = pnl >= 0 ? '🟢' : '🔴';
       const days = ((Date.now() - new Date(t.entryTime)) / (1000*60*60*24)).toFixed(1);
+      
+      // Z-score delta
       const zEntry = t.entryZScore?.toFixed(2) || '?';
       const zNow = t.currentZ?.toFixed(2) || '?';
       const zDelta = t.currentZ && t.entryZScore 
         ? (Math.abs(t.currentZ) - Math.abs(t.entryZScore)).toFixed(2)
         : '?';
       const zArrow = parseFloat(zDelta) < 0 ? '↓' : parseFloat(zDelta) > 0 ? '↑' : '→';
+      
+      // Half-life delta
+      const hlEntry = t.halfLife?.toFixed(1) || '?';
+      const hlNow = t.currentHalfLife?.toFixed(1) || hlEntry;
+      const hlDelta = t.currentHalfLife && t.halfLife
+        ? (t.currentHalfLife - t.halfLife).toFixed(1)
+        : '0';
+      const hlArrow = parseFloat(hlDelta) < 0 ? '↓' : parseFloat(hlDelta) > 0 ? '↑' : '→';
+      
       const dir = t.direction === 'long' ? 'L' : 'S';
       
       msg += `${pnlEmoji} ${t.pair}\n`;
       msg += `   ${dir} ${t.longAsset} ${t.longWeight?.toFixed(0)}%/${t.shortAsset} ${t.shortWeight?.toFixed(0)}%\n`;
       msg += `   Z: ${zEntry}→${zNow} (${zArrow}${Math.abs(parseFloat(zDelta)).toFixed(2)})\n`;
-      msg += `   HL:${t.halfLife?.toFixed(1)}d | ${pnlSign}${pnl.toFixed(2)}% | ${days}d\n\n`;
+      msg += `   HL: ${hlEntry}→${hlNow}d (${hlArrow}${Math.abs(parseFloat(hlDelta)).toFixed(1)})\n`;
+      msg += `   ${pnlSign}${pnl.toFixed(2)}% | ${days}d\n\n`;
     });
     
     const pSign = portfolioPnL >= 0 ? '+' : '';
@@ -397,6 +409,7 @@ async function main() {
       trade.currentZ = fit.zScore;
       trade.currentPnL = calcPnL(trade, prices);
       trade.currentCorrelation = fit.correlation;
+      trade.currentHalfLife = fit.halfLife;
       
       // Check all exit conditions
       const exitCheck = checkExitConditions(trade, fit);
