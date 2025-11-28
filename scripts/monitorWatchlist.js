@@ -364,11 +364,13 @@ function formatStatusReport(activeTrades, entries, exits, history, approaching =
   
   // Approaching entry (top 3)
   if (approaching.length > 0) {
-    msg += `\n🎯 APPROACHING ENTRY\n`;
+    msg += `\n🎯 APPROACHING ENTRY\n\n`;
     approaching.slice(0, 3).forEach(p => {
-      const pct = ((Math.abs(p.zScore) / ENTRY_THRESHOLD) * 100).toFixed(0);
-      const dir = p.zScore < 0 ? 'L' : 'S';
-      msg += `   ${p.pair} (${p.sector}) Z:${p.zScore.toFixed(2)} [${pct}%] ${dir}\n`;
+      const pct = (p.proximity * 100).toFixed(0);
+      const ready = p.proximity >= 1 ? '🟡 READY' : '⏳';
+      msg += `${ready} ${p.pair} (${p.sector})\n`;
+      msg += `   L ${p.longAsset} ${p.longWeight?.toFixed(0)}% / S ${p.shortAsset} ${p.shortWeight?.toFixed(0)}%\n`;
+      msg += `   Z:${p.zScore.toFixed(2)} [${pct}%] | HL:${p.halfLife?.toFixed(1)}d | Corr:${p.correlation?.toFixed(2)}\n\n`;
     });
   }
   
@@ -487,12 +489,26 @@ async function main() {
       
       if (atMaxTrades) {
         console.log(`  🟡 ${pair.pair}: READY (Z=${z.toFixed(2)}, ${dir}) - at max trades`);
-        // Still track as approaching (at 100%)
+        // Still track as approaching (at 100%) with full stats
+        const fit = validation.fit30d;
+        const absBeta = Math.abs(fit.beta);
+        const w1 = (1 / (1 + absBeta)) * 100;
+        const w2 = (absBeta / (1 + absBeta)) * 100;
         approaching.push({
           pair: pair.pair,
+          asset1: pair.asset1,
+          asset2: pair.asset2,
           sector: pair.sector,
           zScore: z,
-          proximity: Math.abs(z) / ENTRY_THRESHOLD
+          proximity: Math.abs(z) / ENTRY_THRESHOLD,
+          correlation: fit.correlation,
+          halfLife: fit.halfLife,
+          beta: fit.beta,
+          direction: z < 0 ? 'long' : 'short',
+          longAsset: z < 0 ? pair.asset1 : pair.asset2,
+          shortAsset: z < 0 ? pair.asset2 : pair.asset1,
+          longWeight: z < 0 ? w1 : w2,
+          shortWeight: z < 0 ? w2 : w1
         });
       } else {
         console.log(`  🟢 ${pair.pair}: ENTRY (Z=${z.toFixed(2)}, ${dir} ${pair.asset1})`);
@@ -512,11 +528,25 @@ async function main() {
       
       // Track approaching pairs (>50% toward entry)
       if (Math.abs(z) >= ENTRY_THRESHOLD * 0.5) {
+        const fit = validation.fit30d;
+        const absBeta = Math.abs(fit.beta);
+        const w1 = (1 / (1 + absBeta)) * 100;
+        const w2 = (absBeta / (1 + absBeta)) * 100;
         approaching.push({
           pair: pair.pair,
+          asset1: pair.asset1,
+          asset2: pair.asset2,
           sector: pair.sector,
           zScore: z,
-          proximity: Math.abs(z) / ENTRY_THRESHOLD
+          proximity: Math.abs(z) / ENTRY_THRESHOLD,
+          correlation: fit.correlation,
+          halfLife: fit.halfLife,
+          beta: fit.beta,
+          direction: z < 0 ? 'long' : 'short',
+          longAsset: z < 0 ? pair.asset1 : pair.asset2,
+          shortAsset: z < 0 ? pair.asset2 : pair.asset1,
+          longWeight: z < 0 ? w1 : w2,
+          shortWeight: z < 0 ? w2 : w1
         });
       }
     }
