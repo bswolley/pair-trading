@@ -12,6 +12,10 @@
         "scan": "node scripts/scanPairs.js",
         "monitor": "node scripts/monitorWatchlist.js",
         "monitor:dry": "node scripts/monitorWatchlist.js --dry-run",
+        "enter": "node scripts/enterTrade.js",
+        "trades": "node scripts/showTrades.js",
+        "exit": "node scripts/exitTrade.js",
+        "history": "node scripts/showHistory.js",
         "update-trade-report": "node scripts/generate_comprehensive_trade_report.js",
         "test": "jest",
         "test:watch": "jest --watch"

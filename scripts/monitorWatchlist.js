@@ -309,6 +309,59 @@ async function main() {
     await new Promise(resolve => setTimeout(resolve, 300));
   }
   
+  // Check active trades for exit signals
+  const activeTradesPath = path.join(__dirname, '../config/active_trades_sim.json');
+  let activeTrades = { trades: [] };
+  if (fs.existsSync(activeTradesPath)) {
+    activeTrades = JSON.parse(fs.readFileSync(activeTradesPath, 'utf8'));
+  }
+  
+  if (activeTrades.trades.length > 0) {
+    console.log(`\n📋 Checking ${activeTrades.trades.length} active trade(s)...\n`);
+    
+    for (const trade of activeTrades.trades) {
+      const tradeResult = await checkPair(sdk, {
+        pair: trade.pair,
+        asset1: trade.asset1,
+        asset2: trade.asset2,
+        entryThreshold: trade.entryThreshold,
+        exitThreshold: trade.exitThreshold,
+        qualityScore: 0
+      });
+      
+      if (tradeResult.error) {
+        console.log(`  ❌ ${trade.pair}: ${tradeResult.error}`);
+        continue;
+      }
+      
+      const isExitSignal = Math.abs(tradeResult.zScore) <= trade.exitThreshold;
+      const status = isExitSignal ? '🔴 EXIT NOW' : '⏳ Holding';
+      console.log(`  ${status} ${trade.pair}: Z=${tradeResult.zScore.toFixed(2)} (entry was Z=${trade.entryZScore.toFixed(2)})`);
+      
+      if (isExitSignal) {
+        // Calculate P&L for alert
+        const currentLongPrice = trade.direction === 'long' ? tradeResult.zScore : tradeResult.zScore; // placeholder
+        
+        const exitAlert = `🔴 <b>EXIT SIGNAL - Active Trade</b>
+
+<b>Pair:</b> ${trade.pair}
+
+📊 <b>Signal</b>
+├ Entry Z: ${trade.entryZScore.toFixed(2)}
+├ Current Z: ${tradeResult.zScore.toFixed(2)}
+└ Exit threshold: ${trade.exitThreshold}
+
+<b>⚠️ Consider closing this position!</b>
+<code>npm run exit ${trade.pair}</code>`;
+        
+        await sendTelegramMessage(exitAlert);
+        console.log(`  📱 Exit alert sent for ${trade.pair}`);
+      }
+      
+      await new Promise(resolve => setTimeout(resolve, 300));
+    }
+  }
+  
   // Disconnect
   const saved2 = suppressConsole();
   await sdk.disconnect();

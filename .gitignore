@@ -45,3 +45,7 @@ pair_reports_pdf/
 config/alert_state.json
 config/monitor_results.json
 
+# Simulated trades (local state)
+config/active_trades_sim.json
+config/trade_history.json
+
