@@ -50,11 +50,11 @@ if (corrIdx !== -1 && args[corrIdx + 1]) {
 function loadSectorMap() {
   const configPath = path.join(__dirname, '../config/sectors.json');
   const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
-  
+
   // Build reverse map: symbol -> sector
   const symbolToSector = {};
   const sectors = config._sectors || [];
-  
+
   for (const sector of sectors) {
     if (config[sector]) {
       for (const symbol of config[sector]) {
@@ -62,7 +62,7 @@ function loadSectorMap() {
       }
     }
   }
-  
+
   return { symbolToSector, sectors, config };
 }
 
@@ -72,8 +72,8 @@ function loadSectorMap() {
 function suppressConsole() {
   const originalLog = console.log;
   const originalError = console.error;
-  console.log = () => {};
-  console.error = () => {};
+  console.log = () => { };
+  console.error = () => { };
   return { originalLog, originalError };
 }
 
@@ -88,12 +88,12 @@ function restoreConsole({ originalLog, originalError }) {
  */
 async function fetchUniverse() {
   const sdk = new Hyperliquid();
-  
+
   const saved = suppressConsole();
   try {
     await sdk.connect();
     restoreConsole(saved);
-    
+
     // Get metadata (asset info)
     const meta = await sdk.info.perpetuals.getMeta();
     const assetMap = {};
@@ -103,24 +103,24 @@ async function fetchUniverse() {
         szDecimals: asset.szDecimals
       };
     });
-    
+
     // Get market data (prices, volumes, OI, funding)
     const marketData = await sdk.info.perpetuals.getMetaAndAssetCtxs();
-    
+
     const assets = [];
-    
+
     if (marketData && marketData[1]) {
       for (let i = 0; i < marketData[1].length; i++) {
         const ctx = marketData[1][i];
         const info = assetMap[i];
-        
+
         if (!info) continue;
-        
+
         const markPx = parseFloat(ctx.markPx || 0);
         const volume24h = parseFloat(ctx.dayNtlVlm || 0);
         const openInterest = parseFloat(ctx.openInterest || 0) * markPx;
         const funding = parseFloat(ctx.funding || 0);
-        
+
         assets.push({
           symbol: info.name,
           price: markPx,
@@ -131,9 +131,9 @@ async function fetchUniverse() {
         });
       }
     }
-    
+
     return { assets, sdk };
-    
+
   } catch (error) {
     restoreConsole(saved);
     throw error;
@@ -151,12 +151,12 @@ async function fetchHistoricalPrices(sdk, symbols, days) {
   const priceMap = new Map();
   const endTime = Date.now();
   const startTime = endTime - ((days + 5) * 24 * 60 * 60 * 1000);
-  
+
   // Batch fetch with rate limiting
   const batchSize = 5;
   for (let i = 0; i < symbols.length; i += batchSize) {
     const batch = symbols.slice(i, i + batchSize);
-    
+
     const promises = batch.map(async (symbol) => {
       try {
         const data = await sdk.info.getCandleSnapshot(`${symbol}-PERP`, '1d', startTime, endTime);
@@ -171,20 +171,20 @@ async function fetchHistoricalPrices(sdk, symbols, days) {
         return { symbol, prices: null };
       }
     });
-    
+
     const results = await Promise.all(promises);
     for (const { symbol, prices } of results) {
       if (prices && prices.length >= days * 0.8) { // Allow 20% missing data
         priceMap.set(symbol, prices);
       }
     }
-    
+
     // Rate limit between batches
     if (i + batchSize < symbols.length) {
       await new Promise(resolve => setTimeout(resolve, 500));
     }
   }
-  
+
   return priceMap;
 }
 
@@ -201,7 +201,7 @@ function filterByLiquidity(assets, minVol, minOI) {
 function groupBySector(assets, symbolToSector) {
   const groups = {};
   const unmapped = [];
-  
+
   for (const asset of assets) {
     const sector = symbolToSector[asset.symbol];
     if (sector) {
@@ -211,7 +211,7 @@ function groupBySector(assets, symbolToSector) {
       unmapped.push(asset.symbol);
     }
   }
-  
+
   return { groups, unmapped };
 }
 
@@ -220,13 +220,13 @@ function groupBySector(assets, symbolToSector) {
  */
 function generateCandidatePairs(sectorGroups) {
   const pairs = [];
-  
+
   for (const [sector, assets] of Object.entries(sectorGroups)) {
     if (assets.length < 2) continue;
-    
+
     // Sort by volume (most liquid first)
     assets.sort((a, b) => b.volume24h - a.volume24h);
-    
+
     // Generate all combinations
     for (let i = 0; i < assets.length; i++) {
       for (let j = i + 1; j < assets.length; j++) {
@@ -238,7 +238,7 @@ function generateCandidatePairs(sectorGroups) {
       }
     }
   }
-  
+
   return pairs;
 }
 
@@ -248,29 +248,29 @@ function generateCandidatePairs(sectorGroups) {
 function evaluatePairs(candidatePairs, priceMap, minCorrelation) {
   const fittingPairs = [];
   const rejectedPairs = [];
-  
+
   for (const pair of candidatePairs) {
     const prices1 = priceMap.get(pair.asset1.symbol);
     const prices2 = priceMap.get(pair.asset2.symbol);
-    
+
     if (!prices1 || !prices2) {
       rejectedPairs.push({ ...pair, reason: 'missing_data' });
       continue;
     }
-    
+
     // Align arrays to same length
     const minLen = Math.min(prices1.length, prices2.length);
     const aligned1 = prices1.slice(-minLen);
     const aligned2 = prices2.slice(-minLen);
-    
+
     if (minLen < 15) {
       rejectedPairs.push({ ...pair, reason: 'insufficient_data' });
       continue;
     }
-    
+
     try {
       const fitness = checkPairFitness(aligned1, aligned2);
-      
+
       // Check thresholds
       if (fitness.correlation >= minCorrelation && fitness.isCointegrated) {
         fittingPairs.push({
@@ -300,7 +300,7 @@ function evaluatePairs(candidatePairs, priceMap, minCorrelation) {
       rejectedPairs.push({ ...pair, reason: 'calc_error', error: error.message });
     }
   }
-  
+
   return { fittingPairs, rejectedPairs };
 }
 
@@ -312,23 +312,23 @@ async function main() {
   console.log(`Thresholds:`);
   console.log(`  Liquidity: Volume > $${(minVolume / 1000).toFixed(0)}k, OI > $${(minOI / 1000).toFixed(0)}k`);
   console.log(`  Pair fitness: Correlation > ${minCorr}, Cointegrated = true\n`);
-  
+
   // Load sector mapping
   const { symbolToSector, sectors } = loadSectorMap();
   console.log(`Loaded ${Object.keys(symbolToSector).length} symbols across ${sectors.length} sectors\n`);
-  
+
   // Step 1: Fetch universe (keep SDK connected)
   console.log('Fetching Hyperliquid perpetuals...');
   const { assets: universe, sdk } = await fetchUniverse();
   console.log(`  Found ${universe.length} perpetuals\n`);
-  
+
   // Step 2: Filter by liquidity
   const filtered = filterByLiquidity(universe, minVolume, minOI);
   console.log(`After liquidity filter: ${filtered.length} assets\n`);
-  
+
   // Step 3: Group by sector
   const { groups, unmapped } = groupBySector(filtered, symbolToSector);
-  
+
   console.log('Assets by sector:');
   for (const sector of sectors) {
     const count = groups[sector]?.length || 0;
@@ -337,33 +337,33 @@ async function main() {
       console.log(`  ${sector}: ${count} (${symbols})`);
     }
   }
-  
+
   if (unmapped.length > 0) {
     console.log(`\n⚠️  Unmapped symbols (add to config/sectors.json): ${unmapped.join(', ')}`);
   }
-  
+
   // Step 4: Generate candidate pairs
   const candidatePairs = generateCandidatePairs(groups);
   console.log(`\nGenerated ${candidatePairs.length} candidate pairs\n`);
-  
+
   // Step 5: Fetch historical prices for all symbols in candidates
   const symbolsNeeded = new Set();
   for (const pair of candidatePairs) {
     symbolsNeeded.add(pair.asset1.symbol);
     symbolsNeeded.add(pair.asset2.symbol);
   }
-  
+
   console.log(`Fetching ${DEFAULT_LOOKBACK_DAYS}d historical prices for ${symbolsNeeded.size} assets...`);
   const priceMap = await fetchHistoricalPrices(sdk, [...symbolsNeeded], DEFAULT_LOOKBACK_DAYS);
   console.log(`  Got price data for ${priceMap.size} assets\n`);
-  
+
   // Step 6: Evaluate pairs
   console.log('Evaluating pair fitness (correlation + cointegration)...');
   const { fittingPairs, rejectedPairs } = evaluatePairs(candidatePairs, priceMap, minCorr);
-  
+
   console.log(`  ✅ Fitting pairs: ${fittingPairs.length}`);
   console.log(`  ❌ Rejected pairs: ${rejectedPairs.length}\n`);
-  
+
   // Rejection breakdown
   const rejectionReasons = {};
   for (const r of rejectedPairs) {
@@ -373,21 +373,21 @@ async function main() {
   for (const [reason, count] of Object.entries(rejectionReasons)) {
     console.log(`  ${reason}: ${count}`);
   }
-  
+
   // Summary by sector
   const pairsBySector = {};
   for (const pair of fittingPairs) {
     pairsBySector[pair.sector] = (pairsBySector[pair.sector] || 0) + 1;
   }
-  
+
   console.log('\nFitting pairs by sector:');
   for (const [sector, count] of Object.entries(pairsBySector).sort((a, b) => b[1] - a[1])) {
     console.log(`  ${sector}: ${count} pairs`);
   }
-  
+
   // Sort by correlation (best pairs first)
   fittingPairs.sort((a, b) => b.correlation - a.correlation);
-  
+
   // Show top 15 pairs
   console.log('\nTop 15 fitting pairs (by correlation):');
   console.log('  Pair                  | Sector | Corr  | Coint | Z-Score | MeanRev');
@@ -401,12 +401,12 @@ async function main() {
     const mr = (pair.meanReversionRate * 100).toFixed(0).padStart(5) + '%';
     console.log(`  ${pairName} | ${sector} | ${corr} | ${coint}   | ${z} | ${mr}`);
   }
-  
+
   // Disconnect SDK
   const saved = suppressConsole();
   await sdk.disconnect();
   restoreConsole(saved);
-  
+
   // Save results
   const output = {
     timestamp: new Date().toISOString(),
@@ -427,11 +427,11 @@ async function main() {
       fundingSpread: parseFloat(p.fundingSpread.toFixed(2))
     }))
   };
-  
+
   const outputPath = path.join(__dirname, '../config/discovered_pairs.json');
   fs.writeFileSync(outputPath, JSON.stringify(output, null, 2));
   console.log(`\n✅ Results saved to ${outputPath}`);
-  
+
   return output;
 }
 
