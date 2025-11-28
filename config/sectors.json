@@ -1,0 +1,68 @@
+{
+  "_description": "Sector mapping for Hyperliquid perpetuals. Edit to adjust categorization.",
+  "_sectors": ["L1", "L2", "DeFi", "Meme", "AI", "Gaming", "Infrastructure", "Exchange", "RWA", "Other"],
+  
+  "L1": [
+    "BTC", "ETH", "SOL", "AVAX", "ADA", "DOT", "ATOM", "NEAR", "SUI", "APT",
+    "TON", "TRX", "XRP", "ALGO", "FTM", "HBAR", "ICP", "INJ", "SEI", "TIA",
+    "CELO", "CFX", "IOTA", "KAS", "MINA", "NEO", "XLM", "ZEC", "BCH", "BSV",
+    "LTC", "ETC", "BERA", "MOVE", "INIT", "S", "MON", "HYPER"
+  ],
+  
+  "L2": [
+    "ARB", "OP", "MATIC", "POL", "STRK", "MANTA", "BLAST", "LINEA", "ZK",
+    "SCROLL", "BASE", "MNT", "METIS", "ZETA", "TAIKO", "MODE", "DYM",
+    "CANTO", "MERL", "STX", "OMNI", "AERO"
+  ],
+  
+  "DeFi": [
+    "AAVE", "UNI", "SUSHI", "CRV", "MKR", "COMP", "SNX", "DYDX", "GMX",
+    "LDO", "PENDLE", "FXS", "RDNT", "JUP", "ONDO", "ENA", "ETHFI", "MORPHO",
+    "EIGEN", "RUNE", "CAKE", "BADGER", "BNT", "RSR", "1INCH", "BAL",
+    "JTO", "PYTH", "W", "USUAL", "RESOLV", "LISTA", "MAV", "STG", "ZRO",
+    "LAYER", "REZ", "SYRUP"
+  ],
+  
+  "Meme": [
+    "DOGE", "kSHIB", "kPEPE", "kFLOKI", "kBONK", "WIF", "BOME", "MEW",
+    "POPCAT", "MYRO", "MEME", "TURBO", "kNEIRO", "NEIROETH", "kDOGS",
+    "BRETT", "PNUT", "MOODENG", "FARTCOIN", "GOAT", "CHILLGUY", "SPX",
+    "HPOS", "kLUNC", "TRUMP", "MELANIA", "PEOPLE", "APE", "PENGU",
+    "HMSTR", "NOT", "CATI", "PURR", "TST", "VINE", "BABY", "ANIME"
+  ],
+  
+  "AI": [
+    "FET", "RENDER", "RNDR", "TAO", "VIRTUAL", "AI16Z", "AIXBT", "GRIFFAIN",
+    "ZEREBRO", "GRASS", "IO", "WLD", "AR", "FIL", "KAITO", "PROMPT",
+    "SOPH", "NIL", "0G"
+  ],
+  
+  "Gaming": [
+    "IMX", "GALA", "SAND", "ILV", "YGG", "PIXEL", "BIGTIME", "MAVIA",
+    "SUPER", "NXPC", "PRIME", "XAI", "BEAM", "PORTAL", "NFTI", "RON",
+    "LOOM", "GMT"
+  ],
+  
+  "Infrastructure": [
+    "LINK", "PYTH", "TRB", "BAND", "API3", "ENS", "GAS", "BLZ", "ORBS",
+    "TNSR", "CYBER", "APEX", "HYPE", "NTRN", "SAGA", "SCR", "PROVE",
+    "IP", "WCT", "HEMI"
+  ],
+  
+  "Exchange": [
+    "BNB", "FTT", "OKB", "CRO", "KCS", "HT", "MX", "GT", "UNIBOT", "FRIEND",
+    "BANANA", "PUMP", "LAUNCHCOIN", "RLB"
+  ],
+  
+  "RWA": [
+    "ONDO", "PAXG", "POLYX", "OM", "USTC", "USUAL", "STBL", "MET",
+    "OGN", "REQ", "SKY"
+  ],
+  
+  "Other": [
+    "2Z", "ACE", "ALT", "ARK", "ASTER", "AVNT", "BIO", "BLUR", "CC",
+    "DOOD", "JELLY", "MEGA", "ME", "OX", "PANDORA", "SHIA", "STRAX",
+    "VVV", "WLFI", "XPL", "YZY", "ZEN", "ZORA"
+  ]
+}
+

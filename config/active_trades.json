@@ -1,13 +1,12 @@
 {
-  "ETH_SOL": {
-    "symbol1": "ETH",
-    "symbol2": "SOL",
-    "entryDate": "2025-11-21T13:00:00Z",
-    "entryPrice1": 2704.9,
-    "entryPrice2": 124.88,
-    "weight1": 0.57,
-    "weight2": 0.43,
+  "SUI_XLM": {
+    "symbol1": "SUI",
+    "symbol2": "XLM",
+    "entryDate": "2025-11-28T10:33:00Z",
+    "entryPrice1": 1.5563,
+    "entryPrice2": 0.25971,
+    "weight1": 0.53,
+    "weight2": 0.47,
     "direction": "long"
   }
 }
-

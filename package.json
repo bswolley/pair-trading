@@ -9,6 +9,7 @@
         "analyze": "node scripts/analyzePair.js",
         "analyze-multi": "node scripts/analyzeMultiplePairs.js",
         "analyze-batch": "node scripts/pair_obv_analysis.js",
+        "scan": "node scripts/scanPairs.js",
         "update-trade-report": "node scripts/generate_comprehensive_trade_report.js",
         "test": "jest",
         "test:watch": "jest --watch"
