@@ -66,12 +66,11 @@ async function sendTelegram(message) {
   try {
     await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
       chat_id: TELEGRAM_CHAT_ID,
-      text: message,
-      parse_mode: 'HTML'
+      text: message
     });
     return true;
   } catch (e) {
-    console.error('Telegram error:', e.message);
+    console.error('Telegram error:', e.response?.data?.description || e.message);
     return false;
   }
 }
@@ -197,22 +196,22 @@ async function enterTrade(pair, fitness, priceData) {
   }
   
   // Send Telegram
-  const msg = `🤖 <b>AUTO ENTRY</b>
+  const msg = `🤖 AUTO ENTRY
 
-<b>Pair:</b> ${pair.pair}
-<b>Sector:</b> ${pair.sector}
+Pair: ${pair.pair}
+Sector: ${pair.sector}
 
-💰 <b>Position</b>
-├ Long ${longAsset}: <b>${(longWeight * 100).toFixed(1)}%</b> @ $${longPrice.toFixed(6)}
-└ Short ${shortAsset}: <b>${(shortWeight * 100).toFixed(1)}%</b> @ $${shortPrice.toFixed(6)}
+💰 Position
+  Long ${longAsset}: ${(longWeight * 100).toFixed(1)}% @ $${longPrice.toFixed(6)}
+  Short ${shortAsset}: ${(shortWeight * 100).toFixed(1)}% @ $${shortPrice.toFixed(6)}
 
-📊 <b>Entry Stats</b>
-├ Z-Score: ${fitness.zScore.toFixed(2)}
-├ Correlation: ${fitness.correlation.toFixed(3)}
-├ Beta: ${fitness.beta.toFixed(3)}
-└ Half-life: ${fitness.halfLife.toFixed(1)}d
+📊 Stats
+  Z-Score: ${fitness.zScore.toFixed(2)}
+  Correlation: ${fitness.correlation.toFixed(3)}
+  Beta: ${fitness.beta.toFixed(3)}
+  Half-life: ${fitness.halfLife.toFixed(1)}d
 
-<i>Exit target: |Z| < 0.5</i>`;
+Exit when |Z| drops below 0.5`;
   
   await sendTelegram(msg);
   
@@ -277,20 +276,20 @@ async function exitTrade(trade, fitness, priceData) {
   const pnlEmoji = totalPnL >= 0 ? '✅' : '❌';
   const pnlSign = totalPnL >= 0 ? '+' : '';
   
-  const msg = `🤖 <b>AUTO EXIT</b> ${pnlEmoji}
+  const msg = `🤖 AUTO EXIT ${pnlEmoji}
 
-<b>Pair:</b> ${trade.pair}
-<b>Duration:</b> ${daysInTrade} days
+Pair: ${trade.pair}
+Duration: ${daysInTrade} days
 
-📊 <b>Result</b>
-├ Entry Z: ${trade.entryZScore.toFixed(2)} → Exit Z: ${fitness.zScore.toFixed(2)}
-├ Long ${trade.longAsset}: ${longPnL * 100 >= 0 ? '+' : ''}${(longPnL * 100).toFixed(2)}%
-├ Short ${trade.shortAsset}: ${shortPnL * 100 >= 0 ? '+' : ''}${(shortPnL * 100).toFixed(2)}%
-└ <b>Total: ${pnlSign}${totalPnL.toFixed(2)}%</b>
+📊 Result
+  Entry Z: ${trade.entryZScore.toFixed(2)} → Exit Z: ${fitness.zScore.toFixed(2)}
+  Long ${trade.longAsset}: ${longPnL * 100 >= 0 ? '+' : ''}${(longPnL * 100).toFixed(2)}%
+  Short ${trade.shortAsset}: ${shortPnL * 100 >= 0 ? '+' : ''}${(shortPnL * 100).toFixed(2)}%
+  Total: ${pnlSign}${totalPnL.toFixed(2)}%
 
-📈 <b>Stats</b>
-├ Win Rate: ${history.stats.winRate}% (${history.stats.wins}W/${history.stats.losses}L)
-└ Cumulative: ${history.stats.totalPnL >= 0 ? '+' : ''}${history.stats.totalPnL.toFixed(2)}%`;
+📈 Stats
+  Win Rate: ${history.stats.winRate}% (${history.stats.wins}W/${history.stats.losses}L)
+  Cumulative: ${history.stats.totalPnL >= 0 ? '+' : ''}${history.stats.totalPnL.toFixed(2)}%`;
   
   await sendTelegram(msg);
   
