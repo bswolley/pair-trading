@@ -180,7 +180,13 @@ async function checkPair(sdk, pair) {
       asset2: pair.asset2,
       sector: pair.sector,
       qualityScore: pair.qualityScore,
-      // Updated values
+      // Statistical metrics (from fitness check)
+      correlation: fitness.correlation,
+      beta: fitness.beta,
+      halfLife: fitness.halfLife,
+      isCointegrated: fitness.isCointegrated,
+      meanReversionRate: fitness.meanReversionRate,
+      // Signal metrics
       zScore: fitness.zScore,
       signalStrength,
       direction,
@@ -207,16 +213,27 @@ function formatAlertMessage(pair, type) {
     ? `Long ${pair.asset1} / Short ${pair.asset2}`
     : `Short ${pair.asset1} / Long ${pair.asset2}`;
   
+  const cointStatus = pair.isCointegrated ? '✅ Yes' : '❌ No';
+  const halfLifeText = pair.halfLife < 100 ? `${pair.halfLife.toFixed(1)}d` : 'N/A';
+  
   return `${emoji} <b>${action}</b>
 
 <b>Pair:</b> ${pair.pair}
 <b>Sector:</b> ${pair.sector}
-<b>Z-Score:</b> ${pair.zScore.toFixed(2)}
-<b>Signal:</b> ${(pair.signalStrength * 100).toFixed(0)}%
 
-<b>Direction:</b> ${directionText}
+📊 <b>Signal</b>
+├ Z-Score: <b>${pair.zScore.toFixed(2)}</b>
+├ Signal: ${(pair.signalStrength * 100).toFixed(0)}%
+└ Direction: <b>${directionText}</b>
 
-<i>Quality: ${pair.qualityScore} | Threshold: ${pair.entryThreshold}</i>`;
+📈 <b>Statistics</b>
+├ Correlation: ${pair.correlation.toFixed(3)}
+├ Beta: ${pair.beta.toFixed(3)}
+├ Half-life: ${halfLifeText}
+├ Cointegrated: ${cointStatus}
+└ Mean Rev Rate: ${(pair.meanReversionRate * 100).toFixed(0)}%
+
+<i>Quality Score: ${pair.qualityScore}</i>`;
 }
 
 /**
