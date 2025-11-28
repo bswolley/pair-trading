@@ -283,54 +283,65 @@ function checkExitConditions(trade, fitness) {
  * Format status report for Telegram
  */
 function formatStatusReport(activeTrades, entries, exits, history) {
-  const time = new Date().toLocaleString('en-US', { timeZone: 'UTC', hour12: false });
-  let msg = `📊 PAIR TRADING BOT\n${time} UTC\n\n`;
+  const time = new Date().toLocaleString('en-US', { 
+    timeZone: 'UTC', 
+    hour12: false,
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  });
+  
+  let msg = `━━━━━━━━━━━━━━━━━━━━\n`;
+  msg += `📊 STATUS • ${time} UTC\n`;
+  msg += `━━━━━━━━━━━━━━━━━━━━\n\n`;
   
   // Actions this run
   if (entries.length > 0 || exits.length > 0) {
     msg += `⚡ ACTIONS\n`;
     entries.forEach(e => {
       const dir = e.direction === 'long' ? `Long ${e.asset1}` : `Short ${e.asset1}`;
-      msg += `  ✅ ${e.pair} - ${dir}\n`;
+      msg += `✅ ${e.pair} → ${dir}\n`;
     });
     exits.forEach(e => {
       const sign = e.totalPnL >= 0 ? '+' : '';
       const emoji = e.exitEmoji || '🔴';
       const reason = e.exitReason || 'EXIT';
-      msg += `  ${emoji} ${e.pair} [${reason}] ${sign}${e.totalPnL.toFixed(2)}% (${e.daysInTrade}d)\n`;
+      msg += `${emoji} ${e.pair} [${reason}] ${sign}${e.totalPnL.toFixed(2)}%\n`;
     });
     msg += `\n`;
   }
   
-  // Active trades with full details
-  msg += `📈 ACTIVE TRADES (${activeTrades.length})\n`;
+  // Active trades - compact format
   if (activeTrades.length === 0) {
-    msg += `  No active trades\n`;
+    msg += `📈 No active trades\n`;
   } else {
     let portfolioPnL = 0;
+    msg += `📈 POSITIONS (${activeTrades.length})\n\n`;
+    
     activeTrades.forEach(t => {
       const pnl = t.currentPnL || 0;
       portfolioPnL += pnl;
       const pnlSign = pnl >= 0 ? '+' : '';
+      const pnlEmoji = pnl >= 0 ? '🟢' : '🔴';
       const days = ((Date.now() - new Date(t.entryTime)) / (1000*60*60*24)).toFixed(1);
-      const zEntry = t.entryZScore?.toFixed(2) || '?';
       const zNow = t.currentZ?.toFixed(2) || '?';
+      const dir = t.direction === 'long' ? 'L' : 'S';
       
-      msg += `\n  ${t.pair} (${t.sector})\n`;
-      msg += `    ${t.direction === 'long' ? 'Long' : 'Short'} ${t.longAsset} ${t.longWeight?.toFixed(0)}% / ${t.shortAsset} ${t.shortWeight?.toFixed(0)}%\n`;
-      msg += `    Z: ${zEntry} → ${zNow} | Corr: ${t.correlation?.toFixed(2)} | HL: ${t.halfLife?.toFixed(1)}d\n`;
-      msg += `    P&L: ${pnlSign}${pnl.toFixed(2)}% | Duration: ${days}d\n`;
+      msg += `${pnlEmoji} ${t.pair}\n`;
+      msg += `   ${dir} ${t.longAsset} ${t.longWeight?.toFixed(0)}%/${t.shortAsset} ${t.shortWeight?.toFixed(0)}%\n`;
+      msg += `   Z:${zNow} HL:${t.halfLife?.toFixed(1)}d ${pnlSign}${pnl.toFixed(2)}% ${days}d\n\n`;
     });
+    
     const pSign = portfolioPnL >= 0 ? '+' : '';
-    msg += `\n  💰 Portfolio: ${pSign}${portfolioPnL.toFixed(2)}%\n`;
+    const pEmoji = portfolioPnL >= 0 ? '💰' : '📉';
+    msg += `${pEmoji} Total: ${pSign}${portfolioPnL.toFixed(2)}%\n`;
   }
   
   // Historical stats
   if (history.stats.totalTrades > 0) {
     const cumSign = history.stats.totalPnL >= 0 ? '+' : '';
-    msg += `\n📜 HISTORY\n`;
-    msg += `  ${history.stats.wins}W/${history.stats.losses}L (${history.stats.winRate}%)\n`;
-    msg += `  Cumulative: ${cumSign}${history.stats.totalPnL.toFixed(2)}%\n`;
+    msg += `\n📜 ${history.stats.wins}W/${history.stats.losses}L • ${cumSign}${history.stats.totalPnL.toFixed(2)}%\n`;
   }
   
   return msg;
