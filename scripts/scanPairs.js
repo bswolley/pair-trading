@@ -436,18 +436,18 @@ async function main() {
   // Thresholds for entry/exit
   const ENTRY_THRESHOLD = 1.5;  // Enter when |Z| > 1.5
   const EXIT_THRESHOLD = 0.5;   // Exit when |Z| < 0.5
-  
+
   console.log(`\n📋 Watchlist: Top ${TOP_PER_SECTOR} pairs per sector (${watchlistPairs.length} total)`);
   console.log('  Pair                  | Sector      | Quality | Corr  | HL    | Z-Score | Signal');
   console.log('  ----------------------|-------------|---------|-------|-------|---------|-------');
-  
+
   // Group by sector for display
   const watchlistBySector = {};
   for (const pair of watchlistPairs) {
     if (!watchlistBySector[pair.sector]) watchlistBySector[pair.sector] = [];
     watchlistBySector[pair.sector].push(pair);
   }
-  
+
   for (const [sector, pairs] of Object.entries(watchlistBySector).sort()) {
     for (const pair of pairs) {
       const pairName = `${pair.asset1}/${pair.asset2}`.padEnd(20);
@@ -495,7 +495,7 @@ async function main() {
   console.log(`\n✅ All pairs saved to ${outputPath}`);
 
   // Save watchlist (top 3 per sector)
-  
+
   const watchlist = {
     timestamp: new Date().toISOString(),
     description: `Top ${TOP_PER_SECTOR} pairs per sector by composite score`,
@@ -506,7 +506,7 @@ async function main() {
       const signalStrength = Math.min(Math.abs(p.zScore) / ENTRY_THRESHOLD, 1.0);
       const direction = p.zScore < 0 ? 'long' : 'short'; // Negative Z = asset1 undervalued = long asset1
       const isReady = Math.abs(p.zScore) >= ENTRY_THRESHOLD;
-      
+
       return {
         pair: `${p.asset1}/${p.asset2}`,
         asset1: p.asset1,
@@ -529,7 +529,7 @@ async function main() {
       };
     })
   };
-  
+
   // Show actionable pairs (signal strength > 0.8)
   const actionablePairs = watchlist.pairs.filter(p => p.signalStrength >= 0.8);
   if (actionablePairs.length > 0) {
