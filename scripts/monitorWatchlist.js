@@ -234,16 +234,17 @@ function formatStatusReport(activeTrades, entries, exits, history) {
   if (entries.length > 0 || exits.length > 0) {
     msg += `⚡ ACTIONS\n`;
     entries.forEach(e => {
-      msg += `  ✅ Entered ${e.pair} (${e.direction} ${e.direction === 'long' ? e.asset1 : e.asset1})\n`;
+      const dir = e.direction === 'long' ? `Long ${e.asset1}` : `Short ${e.asset1}`;
+      msg += `  ✅ ${e.pair} - ${dir}\n`;
     });
     exits.forEach(e => {
       const sign = e.totalPnL >= 0 ? '+' : '';
-      msg += `  🔴 Exited ${e.pair} (${sign}${e.totalPnL.toFixed(2)}%)\n`;
+      msg += `  🔴 ${e.pair} - ${sign}${e.totalPnL.toFixed(2)}% (${e.daysInTrade}d)\n`;
     });
     msg += `\n`;
   }
   
-  // Active trades
+  // Active trades with full details
   msg += `📈 ACTIVE TRADES (${activeTrades.length})\n`;
   if (activeTrades.length === 0) {
     msg += `  No active trades\n`;
@@ -252,13 +253,18 @@ function formatStatusReport(activeTrades, entries, exits, history) {
     activeTrades.forEach(t => {
       const pnl = t.currentPnL || 0;
       portfolioPnL += pnl;
-      const sign = pnl >= 0 ? '+' : '';
-      const dir = t.direction === 'long' ? 'L' : 'S';
+      const pnlSign = pnl >= 0 ? '+' : '';
       const days = ((Date.now() - new Date(t.entryTime)) / (1000*60*60*24)).toFixed(1);
-      msg += `  ${t.pair} | ${dir} | Z:${t.currentZ?.toFixed(2) || '?'} | ${sign}${pnl.toFixed(2)}% | ${days}d\n`;
+      const zEntry = t.entryZScore?.toFixed(2) || '?';
+      const zNow = t.currentZ?.toFixed(2) || '?';
+      
+      msg += `\n  ${t.pair} (${t.sector})\n`;
+      msg += `    ${t.direction === 'long' ? 'Long' : 'Short'} ${t.longAsset} ${t.longWeight?.toFixed(0)}% / ${t.shortAsset} ${t.shortWeight?.toFixed(0)}%\n`;
+      msg += `    Z: ${zEntry} → ${zNow} | Corr: ${t.correlation?.toFixed(2)} | HL: ${t.halfLife?.toFixed(1)}d\n`;
+      msg += `    P&L: ${pnlSign}${pnl.toFixed(2)}% | Duration: ${days}d\n`;
     });
     const pSign = portfolioPnL >= 0 ? '+' : '';
-    msg += `\n  Portfolio: ${pSign}${portfolioPnL.toFixed(2)}%\n`;
+    msg += `\n  💰 Portfolio: ${pSign}${portfolioPnL.toFixed(2)}%\n`;
   }
   
   // Historical stats
