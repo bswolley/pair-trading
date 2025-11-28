@@ -31,8 +31,11 @@ const MANUAL_MODE = args.includes('--manual');
 // Thresholds
 const ENTRY_THRESHOLD = 1.5;
 const EXIT_THRESHOLD = 0.5;
-const MIN_CORRELATION_7D = 0.5;  // Looser for 7d
+const STOP_LOSS_THRESHOLD = 3.0;  // Exit if Z diverges too much
+const MIN_CORRELATION_7D = 0.5;   // Looser for 7d
 const MIN_CORRELATION_30D = 0.6;
+const CORRELATION_BREAKDOWN = 0.4; // Exit if correlation collapses
+const HALFLIFE_MULTIPLIER = 2;     // Exit if duration > 2x half-life
 
 /**
  * Helpers
@@ -224,6 +227,59 @@ function calcPnL(trade, prices) {
 }
 
 /**
+ * Check all exit conditions for a trade
+ * Returns: { shouldExit: boolean, reason: string, emoji: string }
+ */
+function checkExitConditions(trade, fitness) {
+  const currentZ = Math.abs(fitness.zScore);
+  const daysInTrade = (Date.now() - new Date(trade.entryTime)) / (1000 * 60 * 60 * 24);
+  const maxDuration = (trade.halfLife || 15) * HALFLIFE_MULTIPLIER;
+  
+  // 1. PROFIT TARGET - Mean reversion complete
+  if (currentZ <= EXIT_THRESHOLD) {
+    return { 
+      shouldExit: true, 
+      reason: 'TARGET', 
+      emoji: '🎯',
+      message: `Mean reversion complete (Z=${fitness.zScore.toFixed(2)})`
+    };
+  }
+  
+  // 2. STOP LOSS - Divergence accelerating
+  if (currentZ >= STOP_LOSS_THRESHOLD) {
+    return { 
+      shouldExit: true, 
+      reason: 'STOP_LOSS', 
+      emoji: '🛑',
+      message: `Stop loss triggered (Z=${fitness.zScore.toFixed(2)} > ${STOP_LOSS_THRESHOLD})`
+    };
+  }
+  
+  // 3. TIME STOP - Exceeded 2x expected half-life
+  if (daysInTrade > maxDuration) {
+    return { 
+      shouldExit: true, 
+      reason: 'TIME_STOP', 
+      emoji: '⏰',
+      message: `Time stop (${daysInTrade.toFixed(1)}d > ${maxDuration.toFixed(0)}d max)`
+    };
+  }
+  
+  // 4. BREAKDOWN - Correlation collapsed
+  if (fitness.correlation < CORRELATION_BREAKDOWN) {
+    return { 
+      shouldExit: true, 
+      reason: 'BREAKDOWN', 
+      emoji: '💔',
+      message: `Correlation breakdown (${fitness.correlation.toFixed(2)} < ${CORRELATION_BREAKDOWN})`
+    };
+  }
+  
+  // No exit condition met
+  return { shouldExit: false, reason: null, emoji: null, message: null };
+}
+
+/**
  * Format status report for Telegram
  */
 function formatStatusReport(activeTrades, entries, exits, history) {
@@ -239,7 +295,9 @@ function formatStatusReport(activeTrades, entries, exits, history) {
     });
     exits.forEach(e => {
       const sign = e.totalPnL >= 0 ? '+' : '';
-      msg += `  🔴 ${e.pair} - ${sign}${e.totalPnL.toFixed(2)}% (${e.daysInTrade}d)\n`;
+      const emoji = e.exitEmoji || '🔴';
+      const reason = e.exitReason || 'EXIT';
+      msg += `  ${emoji} ${e.pair} [${reason}] ${sign}${e.totalPnL.toFixed(2)}% (${e.daysInTrade}d)\n`;
     });
     msg += `\n`;
   }
@@ -321,18 +379,26 @@ async function main() {
       const fit = checkPairFitness(prices.prices1_30d, prices.prices2_30d);
       trade.currentZ = fit.zScore;
       trade.currentPnL = calcPnL(trade, prices);
+      trade.currentCorrelation = fit.correlation;
       
-      const isExit = Math.abs(fit.zScore) <= EXIT_THRESHOLD;
+      // Check all exit conditions
+      const exitCheck = checkExitConditions(trade, fit);
       const sign = trade.currentPnL >= 0 ? '+' : '';
+      const daysIn = ((Date.now() - new Date(trade.entryTime)) / (1000*60*60*24)).toFixed(1);
       
-      if (isExit) {
-        console.log(`  🔴 ${trade.pair}: EXIT (Z=${fit.zScore.toFixed(2)}, ${sign}${trade.currentPnL.toFixed(2)}%)`);
+      if (exitCheck.shouldExit) {
+        console.log(`  ${exitCheck.emoji} ${trade.pair}: ${exitCheck.reason} (${sign}${trade.currentPnL.toFixed(2)}%)`);
+        console.log(`     ${exitCheck.message}`);
         if (!MANUAL_MODE && !DRY_RUN) {
           const exited = exitTrade(trade, fit, prices, activeTrades, history);
-          if (exited) exits.push(exited);
+          if (exited) {
+            exited.exitReason = exitCheck.reason;
+            exited.exitEmoji = exitCheck.emoji;
+            exits.push(exited);
+          }
         }
       } else {
-        console.log(`  ⏳ ${trade.pair}: Z=${fit.zScore.toFixed(2)}, ${sign}${trade.currentPnL.toFixed(2)}%`);
+        console.log(`  ⏳ ${trade.pair}: Z=${fit.zScore.toFixed(2)}, Corr=${fit.correlation.toFixed(2)}, ${sign}${trade.currentPnL.toFixed(2)}% (${daysIn}d)`);
       }
       
       await new Promise(r => setTimeout(r, 200));
