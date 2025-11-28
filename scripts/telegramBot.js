@@ -130,25 +130,25 @@ Bot runs automatically every hour.`,
  * Format script output for Telegram
  */
 function formatOutput(output) {
-  return output
-    // Remove ANSI colors
-    .replace(/\x1b\[[0-9;]*m/g, '')
-    // Remove dotenv noise
-    .replace(/\[dotenv.*?\n/g, '')
-    // Remove WebSocket noise
-    .replace(/Native WebSocket.*?\n/g, '')
-    .replace(/WebSocket disconnected.*?\n/g, '')
-    .replace(/Manual disconnect.*?\n/g, '')
-    // Remove box drawing characters
-    .replace(/[├└│─]/g, ' ')
-    .replace(/────+/g, '---')
-    // Remove HTML tags (we're not using HTML parse mode)
-    .replace(/<\/?b>/g, '')
-    .replace(/<\/?i>/g, '')
-    // Clean up extra whitespace
-    .replace(/\n{3,}/g, '\n\n')
-    .trim()
-    .slice(0, 4000);
+    return output
+        // Remove ANSI colors
+        .replace(/\x1b\[[0-9;]*m/g, '')
+        // Remove dotenv noise
+        .replace(/\[dotenv.*?\n/g, '')
+        // Remove WebSocket noise
+        .replace(/Native WebSocket.*?\n/g, '')
+        .replace(/WebSocket disconnected.*?\n/g, '')
+        .replace(/Manual disconnect.*?\n/g, '')
+        // Remove box drawing characters
+        .replace(/[├└│─]/g, ' ')
+        .replace(/────+/g, '---')
+        // Remove HTML tags (we're not using HTML parse mode)
+        .replace(/<\/?b>/g, '')
+        .replace(/<\/?i>/g, '')
+        // Clean up extra whitespace
+        .replace(/\n{3,}/g, '\n\n')
+        .trim()
+        .slice(0, 4000);
 }
 
 /**

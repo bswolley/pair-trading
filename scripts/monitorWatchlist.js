@@ -350,7 +350,7 @@ function formatStatusReport(activeTrades, entries, exits, history) {
         : '0';
       const corrArrow = parseFloat(corrDelta) > 0 ? '↑' : parseFloat(corrDelta) < 0 ? '↓' : '→';
       
-      msg += `${pnlEmoji} ${t.pair}\n`;
+      msg += `${pnlEmoji} ${t.pair} (${t.sector})\n`;
       msg += `   L ${t.longAsset} ${t.longWeight?.toFixed(0)}% / S ${t.shortAsset} ${t.shortWeight?.toFixed(0)}%\n`;
       msg += `   Z: ${zEntry}→${zNow} (${zArrow}${Math.abs(parseFloat(zDelta)).toFixed(2)})\n`;
       msg += `   HL: ${hlEntry}→${hlNow}d | Corr: ${corrEntry}→${corrNow}\n`;
