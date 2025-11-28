@@ -27,8 +27,17 @@ if (args.length < 2) {
   process.exit(1);
 }
 
-const baseSymbol = args[0].toUpperCase();
-const underlyingSymbol = args[1].toUpperCase();
+// Preserve 'k' prefix for Hyperliquid's kilo tokens (kSHIB, kBONK, etc.)
+const normalizeSymbol = (sym) => {
+  const upper = sym.toUpperCase();
+  // If it starts with K and the rest is a known kilo-token, use lowercase k
+  if (upper.startsWith('K') && ['KSHIB', 'KBONK', 'KPEPE', 'KFLOKI', 'KNEIRO', 'KDOGS', 'KLUNC'].includes(upper)) {
+    return 'k' + upper.slice(1);
+  }
+  return upper;
+};
+const baseSymbol = normalizeSymbol(args[0]);
+const underlyingSymbol = normalizeSymbol(args[1]);
 const direction = (args[2] || 'long').toLowerCase();
 
 if (!['long', 'short'].includes(direction)) {
