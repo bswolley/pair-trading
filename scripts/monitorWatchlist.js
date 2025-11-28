@@ -1,23 +1,15 @@
 #!/usr/bin/env node
 
 /**
- * Watchlist Monitor - Automated pair trading system
+ * Pair Trading Bot - Automated monitoring and trading
  * 
- * Monitors watchlist pairs, automatically enters trades on entry signals,
- * and exits trades on exit signals. Sends Telegram notifications.
+ * Hourly: Check watchlist for entries, check active trades for exits
+ * Sends a single status report to Telegram after each run.
  * 
  * Usage: 
  *   node scripts/monitorWatchlist.js              # Auto-trade mode
- *   node scripts/monitorWatchlist.js --manual     # Alert-only mode (no auto-trading)
- *   node scripts/monitorWatchlist.js --dry-run    # Test mode (no alerts, no trades)
- * 
- * Environment variables:
- *   TELEGRAM_BOT_TOKEN - Telegram bot token
- *   TELEGRAM_CHAT_ID   - Chat ID for notifications
- *   MAX_CONCURRENT_TRADES - Max simultaneous trades (default: 5)
- * 
- * Schedule with cron (every hour):
- *   0 * * * * cd /path/to/pair-trading && node scripts/monitorWatchlist.js
+ *   node scripts/monitorWatchlist.js --manual     # Alert-only mode
+ *   node scripts/monitorWatchlist.js --dry-run    # Test mode
  */
 
 const fs = require('fs');
@@ -32,37 +24,33 @@ const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 const MAX_CONCURRENT_TRADES = parseInt(process.env.MAX_CONCURRENT_TRADES) || 5;
 
-// CLI args
 const args = process.argv.slice(2);
 const DRY_RUN = args.includes('--dry-run');
 const MANUAL_MODE = args.includes('--manual');
 
+// Thresholds
+const ENTRY_THRESHOLD = 1.5;
+const EXIT_THRESHOLD = 0.5;
+const MIN_CORRELATION_7D = 0.5;  // Looser for 7d
+const MIN_CORRELATION_30D = 0.6;
+
 /**
- * Console helpers
+ * Helpers
  */
 function suppressConsole() {
-  const originalLog = console.log;
-  const originalError = console.error;
+  const orig = { log: console.log, error: console.error };
   console.log = () => {};
   console.error = () => {};
-  return { originalLog, originalError };
+  return orig;
 }
 
-function restoreConsole({ originalLog, originalError }) {
-  console.log = originalLog;
-  console.error = originalError;
+function restoreConsole(orig) {
+  console.log = orig.log;
+  console.error = orig.error;
 }
 
-/**
- * Send Telegram message
- */
 async function sendTelegram(message) {
-  if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) return false;
-  if (DRY_RUN) {
-    console.log('📱 [DRY RUN] Would send:', message.substring(0, 50) + '...');
-    return true;
-  }
-  
+  if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID || DRY_RUN) return false;
   try {
     await axios.post(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
       chat_id: TELEGRAM_CHAT_ID,
@@ -70,65 +58,49 @@ async function sendTelegram(message) {
     });
     return true;
   } catch (e) {
-    console.error('Telegram error:', e.response?.data?.description || e.message);
+    console.error('Telegram:', e.response?.data?.description || e.message);
     return false;
   }
 }
 
-/**
- * File operations
- */
 function loadJSON(filename) {
-  const filepath = path.join(__dirname, '../config', filename);
-  if (fs.existsSync(filepath)) {
-    return JSON.parse(fs.readFileSync(filepath, 'utf8'));
-  }
-  return null;
+  const fp = path.join(__dirname, '../config', filename);
+  return fs.existsSync(fp) ? JSON.parse(fs.readFileSync(fp, 'utf8')) : null;
 }
 
 function saveJSON(filename, data) {
-  const filepath = path.join(__dirname, '../config', filename);
-  fs.writeFileSync(filepath, JSON.stringify(data, null, 2));
+  fs.writeFileSync(path.join(__dirname, '../config', filename), JSON.stringify(data, null, 2));
 }
 
 /**
- * Fetch prices for a pair
+ * Fetch prices (7d and 30d)
  */
-async function fetchPrices(sdk, sym1, sym2, days = 30) {
+async function fetchPrices(sdk, sym1, sym2) {
   const endTime = Date.now();
-  const startTime = endTime - ((days + 5) * 24 * 60 * 60 * 1000);
+  const startTime = endTime - (35 * 24 * 60 * 60 * 1000);
   
   try {
-    const [data1, data2] = await Promise.all([
+    const [d1, d2] = await Promise.all([
       sdk.info.getCandleSnapshot(`${sym1}-PERP`, '1d', startTime, endTime),
       sdk.info.getCandleSnapshot(`${sym2}-PERP`, '1d', startTime, endTime)
     ]);
     
-    if (!data1?.length || !data2?.length) return null;
+    if (!d1?.length || !d2?.length) return null;
     
-    const map1 = new Map();
-    const map2 = new Map();
+    const m1 = new Map(), m2 = new Map();
+    d1.forEach(c => m1.set(new Date(c.t).toISOString().split('T')[0], parseFloat(c.c)));
+    d2.forEach(c => m2.set(new Date(c.t).toISOString().split('T')[0], parseFloat(c.c)));
     
-    data1.forEach(c => {
-      const date = new Date(c.t).toISOString().split('T')[0];
-      map1.set(date, parseFloat(c.c));
-    });
-    
-    data2.forEach(c => {
-      const date = new Date(c.t).toISOString().split('T')[0];
-      map2.set(date, parseFloat(c.c));
-    });
-    
-    const commonDates = [...map1.keys()].filter(d => map2.has(d)).sort();
-    if (commonDates.length < 15) return null;
-    
-    const selectedDates = commonDates.slice(-days);
+    const dates = [...m1.keys()].filter(d => m2.has(d)).sort();
+    if (dates.length < 10) return null;
     
     return {
-      prices1: selectedDates.map(d => map1.get(d)),
-      prices2: selectedDates.map(d => map2.get(d)),
-      currentPrice1: map1.get(commonDates[commonDates.length - 1]),
-      currentPrice2: map2.get(commonDates[commonDates.length - 1])
+      prices1_30d: dates.slice(-30).map(d => m1.get(d)),
+      prices2_30d: dates.slice(-30).map(d => m2.get(d)),
+      prices1_7d: dates.slice(-7).map(d => m1.get(d)),
+      prices2_7d: dates.slice(-7).map(d => m2.get(d)),
+      currentPrice1: m1.get(dates[dates.length - 1]),
+      currentPrice2: m2.get(dates[dates.length - 1])
     };
   } catch (e) {
     return null;
@@ -136,35 +108,51 @@ async function fetchPrices(sdk, sym1, sym2, days = 30) {
 }
 
 /**
- * Enter a trade
+ * Validate entry signal on multiple timeframes
  */
-async function enterTrade(pair, fitness, priceData) {
-  const activeTrades = loadJSON('active_trades_sim.json') || { trades: [] };
+function validateEntry(prices) {
+  const fit30d = checkPairFitness(prices.prices1_30d, prices.prices2_30d);
   
-  // Check if already in trade
-  if (activeTrades.trades.find(t => t.pair === pair.pair)) {
-    console.log(`  ⚠️  Already in trade for ${pair.pair}`);
-    return false;
+  let fit7d = null;
+  try {
+    if (prices.prices1_7d.length >= 7 && prices.prices2_7d.length >= 7) {
+      fit7d = checkPairFitness(prices.prices1_7d, prices.prices2_7d);
+    }
+  } catch (e) {
+    // 7d validation is optional
   }
   
-  // Check max trades
-  if (activeTrades.trades.length >= MAX_CONCURRENT_TRADES) {
-    console.log(`  ⚠️  Max concurrent trades (${MAX_CONCURRENT_TRADES}) reached`);
-    return false;
-  }
+  // Both timeframes must show signal in same direction
+  const signal30d = Math.abs(fit30d.zScore) >= ENTRY_THRESHOLD;
+  const signal7d = fit7d && Math.abs(fit7d.zScore) >= ENTRY_THRESHOLD * 0.8; // Slightly looser
+  const sameDirection = fit7d && (fit30d.zScore * fit7d.zScore > 0);
   
-  // Calculate position weights
+  // Validation checks
+  const valid = signal30d && 
+                fit30d.correlation >= MIN_CORRELATION_30D &&
+                fit30d.isCointegrated &&
+                fit30d.halfLife <= 30 &&
+                (!fit7d || (signal7d && sameDirection)); // 7d confirms if available
+  
+  return {
+    valid,
+    fit30d,
+    fit7d,
+    reason: !signal30d ? 'no_signal' :
+            fit30d.correlation < MIN_CORRELATION_30D ? 'low_corr' :
+            !fit30d.isCointegrated ? 'not_coint' :
+            fit30d.halfLife > 30 ? 'slow_reversion' :
+            (fit7d && !sameDirection) ? 'conflicting_tf' : 'ok'
+  };
+}
+
+/**
+ * Enter trade
+ */
+function enterTrade(pair, fitness, prices, activeTrades) {
   const absBeta = Math.abs(fitness.beta);
-  const weight1 = 1 / (1 + absBeta);
-  const weight2 = absBeta / (1 + absBeta);
-  
-  const direction = fitness.zScore < 0 ? 'long' : 'short';
-  const longAsset = direction === 'long' ? pair.asset1 : pair.asset2;
-  const shortAsset = direction === 'long' ? pair.asset2 : pair.asset1;
-  const longWeight = direction === 'long' ? weight1 : weight2;
-  const shortWeight = direction === 'long' ? weight2 : weight1;
-  const longPrice = direction === 'long' ? priceData.currentPrice1 : priceData.currentPrice2;
-  const shortPrice = direction === 'long' ? priceData.currentPrice2 : priceData.currentPrice1;
+  const w1 = 1 / (1 + absBeta), w2 = absBeta / (1 + absBeta);
+  const dir = fitness.zScore < 0 ? 'long' : 'short';
   
   const trade = {
     pair: pair.pair,
@@ -173,248 +161,224 @@ async function enterTrade(pair, fitness, priceData) {
     sector: pair.sector,
     entryTime: new Date().toISOString(),
     entryZScore: fitness.zScore,
-    entryPrice1: priceData.currentPrice1,
-    entryPrice2: priceData.currentPrice2,
+    entryPrice1: prices.currentPrice1,
+    entryPrice2: prices.currentPrice2,
     correlation: fitness.correlation,
     beta: fitness.beta,
     halfLife: fitness.halfLife,
-    isCointegrated: fitness.isCointegrated,
-    direction,
-    longAsset,
-    shortAsset,
-    longWeight: longWeight * 100,
-    shortWeight: shortWeight * 100,
-    longEntryPrice: longPrice,
-    shortEntryPrice: shortPrice,
-    entryThreshold: 1.5,
-    exitThreshold: 0.5
+    direction: dir,
+    longAsset: dir === 'long' ? pair.asset1 : pair.asset2,
+    shortAsset: dir === 'long' ? pair.asset2 : pair.asset1,
+    longWeight: (dir === 'long' ? w1 : w2) * 100,
+    shortWeight: (dir === 'long' ? w2 : w1) * 100,
+    longEntryPrice: dir === 'long' ? prices.currentPrice1 : prices.currentPrice2,
+    shortEntryPrice: dir === 'long' ? prices.currentPrice2 : prices.currentPrice1
   };
   
-  if (!DRY_RUN) {
-    activeTrades.trades.push(trade);
-    saveJSON('active_trades_sim.json', activeTrades);
-  }
-  
-  // Send Telegram
-  const msg = `🤖 AUTO ENTRY
-
-Pair: ${pair.pair}
-Sector: ${pair.sector}
-
-💰 Position
-  Long ${longAsset}: ${(longWeight * 100).toFixed(1)}% @ $${longPrice.toFixed(6)}
-  Short ${shortAsset}: ${(shortWeight * 100).toFixed(1)}% @ $${shortPrice.toFixed(6)}
-
-📊 Stats
-  Z-Score: ${fitness.zScore.toFixed(2)}
-  Correlation: ${fitness.correlation.toFixed(3)}
-  Beta: ${fitness.beta.toFixed(3)}
-  Half-life: ${fitness.halfLife.toFixed(1)}d
-
-Exit when |Z| drops below 0.5`;
-  
-  await sendTelegram(msg);
-  
-  return true;
+  activeTrades.trades.push(trade);
+  return trade;
 }
 
 /**
- * Exit a trade
+ * Exit trade and record to history
  */
-async function exitTrade(trade, fitness, priceData) {
-  const activeTrades = loadJSON('active_trades_sim.json') || { trades: [] };
-  const tradeIndex = activeTrades.trades.findIndex(t => t.pair === trade.pair);
+function exitTrade(trade, fitness, prices, activeTrades, history) {
+  const idx = activeTrades.trades.findIndex(t => t.pair === trade.pair);
+  if (idx === -1) return null;
   
-  if (tradeIndex === -1) return false;
+  const curLong = trade.direction === 'long' ? prices.currentPrice1 : prices.currentPrice2;
+  const curShort = trade.direction === 'long' ? prices.currentPrice2 : prices.currentPrice1;
   
-  // Get current prices
-  const currentLongPrice = trade.direction === 'long' ? priceData.currentPrice1 : priceData.currentPrice2;
-  const currentShortPrice = trade.direction === 'long' ? priceData.currentPrice2 : priceData.currentPrice1;
+  const longPnL = ((curLong - trade.longEntryPrice) / trade.longEntryPrice) * (trade.longWeight / 100) * 100;
+  const shortPnL = ((trade.shortEntryPrice - curShort) / trade.shortEntryPrice) * (trade.shortWeight / 100) * 100;
+  const totalPnL = longPnL + shortPnL;
+  const days = ((Date.now() - new Date(trade.entryTime)) / (1000 * 60 * 60 * 24)).toFixed(1);
   
-  // Calculate P&L
-  const longPnL = ((currentLongPrice - trade.longEntryPrice) / trade.longEntryPrice) * (trade.longWeight / 100);
-  const shortPnL = ((trade.shortEntryPrice - currentShortPrice) / trade.shortEntryPrice) * (trade.shortWeight / 100);
-  const totalPnL = (longPnL + shortPnL) * 100;
-  
-  // Time in trade
-  const entryDate = new Date(trade.entryTime);
-  const daysInTrade = ((Date.now() - entryDate) / (1000 * 60 * 60 * 24)).toFixed(1);
-  
-  // Update history
-  const history = loadJSON('trade_history.json') || { trades: [], stats: { totalTrades: 0, wins: 0, losses: 0, totalPnL: 0 } };
-  
-  const historyRecord = {
+  const record = {
     ...trade,
     exitTime: new Date().toISOString(),
     exitZScore: fitness.zScore,
-    exitPrice1: priceData.currentPrice1,
-    exitPrice2: priceData.currentPrice2,
-    longExitPrice: currentLongPrice,
-    shortExitPrice: currentShortPrice,
-    longPnL: longPnL * 100,
-    shortPnL: shortPnL * 100,
     totalPnL,
-    daysInTrade: parseFloat(daysInTrade)
+    daysInTrade: parseFloat(days)
   };
   
-  if (!DRY_RUN) {
-    history.trades.push(historyRecord);
-    history.stats.totalTrades++;
-    if (totalPnL >= 0) history.stats.wins++;
-    else history.stats.losses++;
-    history.stats.totalPnL += totalPnL;
-    history.stats.winRate = (history.stats.wins / history.stats.totalTrades * 100).toFixed(1);
-    history.stats.avgPnL = (history.stats.totalPnL / history.stats.totalTrades).toFixed(2);
-    saveJSON('trade_history.json', history);
-    
-    // Remove from active trades
-    activeTrades.trades.splice(tradeIndex, 1);
-    saveJSON('active_trades_sim.json', activeTrades);
+  history.trades.push(record);
+  history.stats.totalTrades++;
+  if (totalPnL >= 0) history.stats.wins++; else history.stats.losses++;
+  history.stats.totalPnL = (history.stats.totalPnL || 0) + totalPnL;
+  history.stats.winRate = ((history.stats.wins / history.stats.totalTrades) * 100).toFixed(1);
+  
+  activeTrades.trades.splice(idx, 1);
+  return { ...record, totalPnL };
+}
+
+/**
+ * Calculate current P&L for a trade
+ */
+function calcPnL(trade, prices) {
+  const curLong = trade.direction === 'long' ? prices.currentPrice1 : prices.currentPrice2;
+  const curShort = trade.direction === 'long' ? prices.currentPrice2 : prices.currentPrice1;
+  const longPnL = ((curLong - trade.longEntryPrice) / trade.longEntryPrice) * (trade.longWeight / 100) * 100;
+  const shortPnL = ((trade.shortEntryPrice - curShort) / trade.shortEntryPrice) * (trade.shortWeight / 100) * 100;
+  return longPnL + shortPnL;
+}
+
+/**
+ * Format status report for Telegram
+ */
+function formatStatusReport(activeTrades, entries, exits, history) {
+  const time = new Date().toLocaleString('en-US', { timeZone: 'UTC', hour12: false });
+  let msg = `📊 PAIR TRADING BOT\n${time} UTC\n\n`;
+  
+  // Actions this run
+  if (entries.length > 0 || exits.length > 0) {
+    msg += `⚡ ACTIONS\n`;
+    entries.forEach(e => {
+      msg += `  ✅ Entered ${e.pair} (${e.direction} ${e.direction === 'long' ? e.asset1 : e.asset1})\n`;
+    });
+    exits.forEach(e => {
+      const sign = e.totalPnL >= 0 ? '+' : '';
+      msg += `  🔴 Exited ${e.pair} (${sign}${e.totalPnL.toFixed(2)}%)\n`;
+    });
+    msg += `\n`;
   }
   
-  // Send Telegram
-  const pnlEmoji = totalPnL >= 0 ? '✅' : '❌';
-  const pnlSign = totalPnL >= 0 ? '+' : '';
+  // Active trades
+  msg += `📈 ACTIVE TRADES (${activeTrades.length})\n`;
+  if (activeTrades.length === 0) {
+    msg += `  No active trades\n`;
+  } else {
+    let portfolioPnL = 0;
+    activeTrades.forEach(t => {
+      const pnl = t.currentPnL || 0;
+      portfolioPnL += pnl;
+      const sign = pnl >= 0 ? '+' : '';
+      const dir = t.direction === 'long' ? 'L' : 'S';
+      const days = ((Date.now() - new Date(t.entryTime)) / (1000*60*60*24)).toFixed(1);
+      msg += `  ${t.pair} | ${dir} | Z:${t.currentZ?.toFixed(2) || '?'} | ${sign}${pnl.toFixed(2)}% | ${days}d\n`;
+    });
+    const pSign = portfolioPnL >= 0 ? '+' : '';
+    msg += `\n  Portfolio: ${pSign}${portfolioPnL.toFixed(2)}%\n`;
+  }
   
-  const msg = `🤖 AUTO EXIT ${pnlEmoji}
-
-Pair: ${trade.pair}
-Duration: ${daysInTrade} days
-
-📊 Result
-  Entry Z: ${trade.entryZScore.toFixed(2)} → Exit Z: ${fitness.zScore.toFixed(2)}
-  Long ${trade.longAsset}: ${longPnL * 100 >= 0 ? '+' : ''}${(longPnL * 100).toFixed(2)}%
-  Short ${trade.shortAsset}: ${shortPnL * 100 >= 0 ? '+' : ''}${(shortPnL * 100).toFixed(2)}%
-  Total: ${pnlSign}${totalPnL.toFixed(2)}%
-
-📈 Stats
-  Win Rate: ${history.stats.winRate}% (${history.stats.wins}W/${history.stats.losses}L)
-  Cumulative: ${history.stats.totalPnL >= 0 ? '+' : ''}${history.stats.totalPnL.toFixed(2)}%`;
+  // Historical stats
+  if (history.stats.totalTrades > 0) {
+    const cumSign = history.stats.totalPnL >= 0 ? '+' : '';
+    msg += `\n📜 HISTORY\n`;
+    msg += `  ${history.stats.wins}W/${history.stats.losses}L (${history.stats.winRate}%)\n`;
+    msg += `  Cumulative: ${cumSign}${history.stats.totalPnL.toFixed(2)}%\n`;
+  }
   
-  await sendTelegram(msg);
-  
-  return true;
+  return msg;
 }
 
 /**
  * Main
  */
 async function main() {
-  const startTime = Date.now();
-  
   console.log('🤖 Pair Trading Bot\n');
   console.log(`Time: ${new Date().toISOString()}`);
-  console.log(`Mode: ${DRY_RUN ? 'DRY RUN' : MANUAL_MODE ? 'MANUAL (alerts only)' : 'AUTO-TRADE'}`);
-  console.log(`Max concurrent trades: ${MAX_CONCURRENT_TRADES}\n`);
+  console.log(`Mode: ${DRY_RUN ? 'DRY RUN' : MANUAL_MODE ? 'MANUAL' : 'AUTO-TRADE'}\n`);
   
-  // Load data
   const watchlist = loadJSON('watchlist.json');
   if (!watchlist) {
-    console.error('❌ Watchlist not found. Run: npm run scan');
+    console.error('❌ No watchlist. Run: npm run scan');
     process.exit(1);
   }
   
-  const activeTrades = loadJSON('active_trades_sim.json') || { trades: [] };
+  let activeTrades = loadJSON('active_trades_sim.json') || { trades: [] };
+  let history = loadJSON('trade_history.json') || { trades: [], stats: { totalTrades: 0, wins: 0, losses: 0, totalPnL: 0 } };
   
   console.log(`Watchlist: ${watchlist.pairs.length} pairs`);
   console.log(`Active trades: ${activeTrades.trades.length}\n`);
   
-  // Connect to Hyperliquid
   const sdk = new Hyperliquid();
   const saved = suppressConsole();
   await sdk.connect();
   restoreConsole(saved);
   
-  let entriesExecuted = 0;
-  let exitsExecuted = 0;
+  const entries = [];
+  const exits = [];
+  const activePairs = new Set(activeTrades.trades.map(t => t.pair));
   
-  // ========== CHECK ACTIVE TRADES FOR EXIT SIGNALS ==========
+  // ===== CHECK ACTIVE TRADES FOR EXITS =====
   if (activeTrades.trades.length > 0) {
     console.log('📋 Checking active trades...\n');
     
     for (const trade of [...activeTrades.trades]) {
-      const priceData = await fetchPrices(sdk, trade.asset1, trade.asset2);
-      
-      if (!priceData) {
-        console.log(`  ❌ ${trade.pair}: Failed to fetch prices`);
+      const prices = await fetchPrices(sdk, trade.asset1, trade.asset2);
+      if (!prices) {
+        console.log(`  ❌ ${trade.pair}: fetch failed`);
         continue;
       }
       
-      const fitness = checkPairFitness(priceData.prices1, priceData.prices2);
-      const isExitSignal = Math.abs(fitness.zScore) <= trade.exitThreshold;
+      const fit = checkPairFitness(prices.prices1_30d, prices.prices2_30d);
+      trade.currentZ = fit.zScore;
+      trade.currentPnL = calcPnL(trade, prices);
       
-      // Calculate current P&L
-      const currentLongPrice = trade.direction === 'long' ? priceData.currentPrice1 : priceData.currentPrice2;
-      const currentShortPrice = trade.direction === 'long' ? priceData.currentPrice2 : priceData.currentPrice1;
-      const longPnL = ((currentLongPrice - trade.longEntryPrice) / trade.longEntryPrice) * (trade.longWeight / 100);
-      const shortPnL = ((trade.shortEntryPrice - currentShortPrice) / trade.shortEntryPrice) * (trade.shortWeight / 100);
-      const totalPnL = (longPnL + shortPnL) * 100;
-      const pnlSign = totalPnL >= 0 ? '+' : '';
+      const isExit = Math.abs(fit.zScore) <= EXIT_THRESHOLD;
+      const sign = trade.currentPnL >= 0 ? '+' : '';
       
-      if (isExitSignal) {
-        console.log(`  🔴 ${trade.pair}: EXIT SIGNAL (Z=${fitness.zScore.toFixed(2)}, P&L=${pnlSign}${totalPnL.toFixed(2)}%)`);
-        
+      if (isExit) {
+        console.log(`  🔴 ${trade.pair}: EXIT (Z=${fit.zScore.toFixed(2)}, ${sign}${trade.currentPnL.toFixed(2)}%)`);
         if (!MANUAL_MODE && !DRY_RUN) {
-          const exited = await exitTrade(trade, fitness, priceData);
-          if (exited) {
-            console.log(`     ✅ Auto-exited`);
-            exitsExecuted++;
-          }
-        } else if (MANUAL_MODE) {
-          console.log(`     ⚠️  Manual mode - run: npm run exit ${trade.pair}`);
+          const exited = exitTrade(trade, fit, prices, activeTrades, history);
+          if (exited) exits.push(exited);
         }
       } else {
-        console.log(`  ⏳ ${trade.pair}: Holding (Z=${fitness.zScore.toFixed(2)}, P&L=${pnlSign}${totalPnL.toFixed(2)}%)`);
+        console.log(`  ⏳ ${trade.pair}: Z=${fit.zScore.toFixed(2)}, ${sign}${trade.currentPnL.toFixed(2)}%`);
       }
       
-      await new Promise(r => setTimeout(r, 300));
+      await new Promise(r => setTimeout(r, 200));
     }
     console.log('');
   }
   
-  // ========== CHECK WATCHLIST FOR ENTRY SIGNALS ==========
+  // ===== CHECK WATCHLIST FOR ENTRIES =====
   console.log('📊 Checking watchlist...\n');
   
-  // Get pairs we're already in
-  const activePairs = new Set(activeTrades.trades.map(t => t.pair));
-  
   for (const pair of watchlist.pairs) {
-    // Skip if already in trade
-    if (activePairs.has(pair.pair)) {
+    if (activePairs.has(pair.pair)) continue;
+    if (activeTrades.trades.length >= MAX_CONCURRENT_TRADES) {
+      console.log(`  ⚠️ Max trades (${MAX_CONCURRENT_TRADES}) reached`);
+      break;
+    }
+    
+    const prices = await fetchPrices(sdk, pair.asset1, pair.asset2);
+    if (!prices) {
+      console.log(`  ❌ ${pair.pair}: fetch failed`);
       continue;
     }
     
-    const priceData = await fetchPrices(sdk, pair.asset1, pair.asset2);
-    
-    if (!priceData) {
-      console.log(`  ❌ ${pair.pair}: Failed to fetch prices`);
+    let validation;
+    try {
+      validation = validateEntry(prices);
+    } catch (e) {
+      console.log(`  ❌ ${pair.pair}: validation error`);
       continue;
     }
     
-    const fitness = checkPairFitness(priceData.prices1, priceData.prices2);
-    const signalStrength = Math.min(Math.abs(fitness.zScore) / 1.5, 1.0);
-    const isEntrySignal = Math.abs(fitness.zScore) >= 1.5;
+    const z = validation.fit30d.zScore;
+    const signal = Math.abs(z) >= ENTRY_THRESHOLD;
     
-    if (isEntrySignal) {
-      const direction = fitness.zScore < 0 ? 'Long' : 'Short';
-      console.log(`  🟢 ${pair.pair}: ENTRY SIGNAL (Z=${fitness.zScore.toFixed(2)}, ${direction} ${pair.asset1})`);
+    if (signal && validation.valid) {
+      const dir = z < 0 ? 'Long' : 'Short';
+      console.log(`  🟢 ${pair.pair}: ENTRY (Z=${z.toFixed(2)}, ${dir} ${pair.asset1})`);
       
       if (!MANUAL_MODE && !DRY_RUN) {
-        const entered = await enterTrade(pair, fitness, priceData);
-        if (entered) {
-          console.log(`     ✅ Auto-entered`);
-          entriesExecuted++;
-          activePairs.add(pair.pair);
-        }
-      } else if (MANUAL_MODE) {
-        console.log(`     ⚠️  Manual mode - run: npm run enter ${pair.pair}`);
+        const trade = enterTrade(pair, validation.fit30d, prices, activeTrades);
+        entries.push(trade);
+        activePairs.add(pair.pair);
+        console.log(`     ✅ Entered`);
       }
+    } else if (signal && !validation.valid) {
+      console.log(`  ⚠️ ${pair.pair}: Signal but failed validation (${validation.reason})`);
     } else {
-      const signalPct = (signalStrength * 100).toFixed(0);
-      console.log(`  ⏳ ${pair.pair}: Z=${fitness.zScore.toFixed(2)} (${signalPct}%)`);
+      const pct = (Math.abs(z) / ENTRY_THRESHOLD * 100).toFixed(0);
+      console.log(`  ⏳ ${pair.pair}: Z=${z.toFixed(2)} (${pct}%)`);
     }
     
-    await new Promise(r => setTimeout(r, 300));
+    await new Promise(r => setTimeout(r, 200));
   }
   
   // Disconnect
@@ -422,24 +386,31 @@ async function main() {
   await sdk.disconnect();
   restoreConsole(saved2);
   
-  // Summary
-  console.log('\n' + '─'.repeat(50));
-  console.log('\n📈 Summary\n');
-  
-  const finalTrades = loadJSON('active_trades_sim.json') || { trades: [] };
-  const history = loadJSON('trade_history.json') || { stats: { totalTrades: 0, wins: 0, losses: 0, totalPnL: 0 } };
-  
-  console.log(`  Entries executed: ${entriesExecuted}`);
-  console.log(`  Exits executed: ${exitsExecuted}`);
-  console.log(`  Active trades: ${finalTrades.trades.length}`);
-  
-  if (history.stats.totalTrades > 0) {
-    console.log(`\n  📊 Historical Performance`);
-    console.log(`     Win Rate: ${history.stats.winRate}% (${history.stats.wins}W/${history.stats.losses}L)`);
-    console.log(`     Cumulative P&L: ${history.stats.totalPnL >= 0 ? '+' : ''}${history.stats.totalPnL.toFixed(2)}%`);
+  // Save state
+  if (!DRY_RUN) {
+    saveJSON('active_trades_sim.json', activeTrades);
+    saveJSON('trade_history.json', history);
   }
   
-  console.log(`\n✅ Done in ${((Date.now() - startTime) / 1000).toFixed(1)}s\n`);
+  // ===== SEND STATUS REPORT =====
+  console.log('\n' + '─'.repeat(50) + '\n');
+  
+  // Update current P&L for report
+  const tradesWithPnL = activeTrades.trades.map(t => ({
+    ...t,
+    currentZ: t.currentZ,
+    currentPnL: t.currentPnL || 0
+  }));
+  
+  const report = formatStatusReport(tradesWithPnL, entries, exits, history);
+  console.log(report);
+  
+  if (!DRY_RUN && (entries.length > 0 || exits.length > 0 || activeTrades.trades.length > 0)) {
+    await sendTelegram(report);
+    console.log('📱 Status sent to Telegram\n');
+  }
+  
+  console.log('✅ Done\n');
 }
 
 main().catch(err => {
