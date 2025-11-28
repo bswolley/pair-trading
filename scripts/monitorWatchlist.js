@@ -326,7 +326,7 @@ function formatStatusReport(activeTrades, entries, exits, history) {
       const pnlEmoji = pnl >= 0 ? '🟢' : '🔴';
       const days = ((Date.now() - new Date(t.entryTime)) / (1000*60*60*24)).toFixed(1);
       
-      // Z-score delta
+      // Z-score delta (↓ = good, moving to exit)
       const zEntry = t.entryZScore?.toFixed(2) || '?';
       const zNow = t.currentZ?.toFixed(2) || '?';
       const zDelta = t.currentZ && t.entryZScore 
@@ -334,7 +334,7 @@ function formatStatusReport(activeTrades, entries, exits, history) {
         : '?';
       const zArrow = parseFloat(zDelta) < 0 ? '↓' : parseFloat(zDelta) > 0 ? '↑' : '→';
       
-      // Half-life delta
+      // Half-life delta (↓ = good, faster reversion)
       const hlEntry = t.halfLife?.toFixed(1) || '?';
       const hlNow = t.currentHalfLife?.toFixed(1) || hlEntry;
       const hlDelta = t.currentHalfLife && t.halfLife
@@ -342,12 +342,18 @@ function formatStatusReport(activeTrades, entries, exits, history) {
         : '0';
       const hlArrow = parseFloat(hlDelta) < 0 ? '↓' : parseFloat(hlDelta) > 0 ? '↑' : '→';
       
-      const dir = t.direction === 'long' ? 'L' : 'S';
+      // Correlation delta (↓ = bad, relationship weakening)
+      const corrEntry = t.correlation?.toFixed(2) || '?';
+      const corrNow = t.currentCorrelation?.toFixed(2) || corrEntry;
+      const corrDelta = t.currentCorrelation && t.correlation
+        ? (t.currentCorrelation - t.correlation).toFixed(2)
+        : '0';
+      const corrArrow = parseFloat(corrDelta) > 0 ? '↑' : parseFloat(corrDelta) < 0 ? '↓' : '→';
       
       msg += `${pnlEmoji} ${t.pair}\n`;
-      msg += `   ${dir} ${t.longAsset} ${t.longWeight?.toFixed(0)}%/${t.shortAsset} ${t.shortWeight?.toFixed(0)}%\n`;
+      msg += `   L ${t.longAsset} ${t.longWeight?.toFixed(0)}% / S ${t.shortAsset} ${t.shortWeight?.toFixed(0)}%\n`;
       msg += `   Z: ${zEntry}→${zNow} (${zArrow}${Math.abs(parseFloat(zDelta)).toFixed(2)})\n`;
-      msg += `   HL: ${hlEntry}→${hlNow}d (${hlArrow}${Math.abs(parseFloat(hlDelta)).toFixed(1)})\n`;
+      msg += `   HL: ${hlEntry}→${hlNow}d | Corr: ${corrEntry}→${corrNow}\n`;
       msg += `   ${pnlSign}${pnl.toFixed(2)}% | ${days}d\n\n`;
     });
     
