@@ -1,2903 +1,2087 @@
 {
-  "timestamp": "2025-11-28T10:21:08.736Z",
+  "timestamp": "2025-11-28T10:27:32.717Z",
   "thresholds": {
     "minVolume": 500000,
-    "minOI": 100000
+    "minOI": 100000,
+    "minCorrelation": 0.6
   },
+  "lookbackDays": 30,
   "totalAssets": 221,
   "filteredAssets": 88,
-  "totalPairs": 576,
+  "candidatePairs": 582,
+  "fittingPairs": 229,
   "pairsBySector": {
-    "L1": 325,
-    "DeFi": 66,
-    "Exchange": 3,
-    "L2": 15,
-    "Meme": 105,
-    "Infrastructure": 10,
-    "AI": 21,
-    "Other": 21,
-    "RWA": 10
+    "L1": 119,
+    "DeFi": 38,
+    "Exchange": 2,
+    "L2": 4,
+    "Meme": 54,
+    "Infrastructure": 1,
+    "AI": 9,
+    "Other": 1,
+    "RWA": 1
   },
   "pairs": [
     {
-      "pair": "BTC/ETH",
-      "sector": "L1",
-      "fundingSpread": 4.36
-    },
-    {
-      "pair": "BTC/SOL",
-      "sector": "L1",
-      "fundingSpread": 34.54
-    },
-    {
-      "pair": "BTC/ZEC",
-      "sector": "L1",
-      "fundingSpread": 9.38
-    },
-    {
-      "pair": "BTC/XRP",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "BTC/MON",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "BTC/SUI",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "BTC/AVAX",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "BTC/BCH",
-      "sector": "L1",
-      "fundingSpread": 6.4
-    },
-    {
-      "pair": "BTC/LTC",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "BTC/TIA",
-      "sector": "L1",
-      "fundingSpread": 42.82
-    },
-    {
-      "pair": "BTC/ADA",
-      "sector": "L1",
-      "fundingSpread": 18.7
-    },
-    {
-      "pair": "BTC/APT",
-      "sector": "L1",
-      "fundingSpread": 56.6
-    },
-    {
-      "pair": "BTC/NEAR",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "BTC/TON",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "BTC/XLM",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "BTC/SEI",
-      "sector": "L1",
-      "fundingSpread": 2.65
-    },
-    {
-      "pair": "BTC/DOT",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "BTC/INJ",
-      "sector": "L1",
-      "fundingSpread": 15.65
-    },
-    {
-      "pair": "BTC/TRX",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "BTC/KAS",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "BTC/ATOM",
-      "sector": "L1",
-      "fundingSpread": 9.59
-    },
-    {
-      "pair": "BTC/BERA",
-      "sector": "L1",
-      "fundingSpread": 45.02
-    },
-    {
-      "pair": "BTC/HBAR",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "BTC/ETC",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "BTC/ICP",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "ETH/SOL",
-      "sector": "L1",
-      "fundingSpread": 30.17
-    },
-    {
-      "pair": "ETH/ZEC",
-      "sector": "L1",
-      "fundingSpread": 5.02
-    },
-    {
-      "pair": "ETH/XRP",
-      "sector": "L1",
-      "fundingSpread": -4.36
-    },
-    {
-      "pair": "ETH/MON",
-      "sector": "L1",
-      "fundingSpread": -4.36
-    },
-    {
-      "pair": "ETH/SUI",
-      "sector": "L1",
-      "fundingSpread": -4.36
-    },
-    {
-      "pair": "ETH/AVAX",
-      "sector": "L1",
-      "fundingSpread": -4.36
-    },
-    {
-      "pair": "ETH/BCH",
-      "sector": "L1",
-      "fundingSpread": 2.03
-    },
-    {
-      "pair": "ETH/LTC",
-      "sector": "L1",
-      "fundingSpread": -4.36
-    },
-    {
-      "pair": "ETH/TIA",
-      "sector": "L1",
-      "fundingSpread": 38.45
-    },
-    {
-      "pair": "ETH/ADA",
-      "sector": "L1",
-      "fundingSpread": 14.34
-    },
-    {
-      "pair": "ETH/APT",
-      "sector": "L1",
-      "fundingSpread": 52.23
-    },
-    {
-      "pair": "ETH/NEAR",
-      "sector": "L1",
-      "fundingSpread": -4.36
-    },
-    {
-      "pair": "ETH/TON",
-      "sector": "L1",
-      "fundingSpread": -4.36
-    },
-    {
-      "pair": "ETH/XLM",
-      "sector": "L1",
-      "fundingSpread": -4.36
-    },
-    {
-      "pair": "ETH/SEI",
-      "sector": "L1",
-      "fundingSpread": -1.71
-    },
-    {
-      "pair": "ETH/DOT",
-      "sector": "L1",
-      "fundingSpread": -4.36
-    },
-    {
-      "pair": "ETH/INJ",
-      "sector": "L1",
-      "fundingSpread": 11.28
-    },
-    {
-      "pair": "ETH/TRX",
-      "sector": "L1",
-      "fundingSpread": -4.36
-    },
-    {
-      "pair": "ETH/KAS",
-      "sector": "L1",
-      "fundingSpread": -4.36
-    },
-    {
-      "pair": "ETH/ATOM",
-      "sector": "L1",
-      "fundingSpread": 5.22
-    },
-    {
-      "pair": "ETH/BERA",
-      "sector": "L1",
-      "fundingSpread": 40.66
-    },
-    {
-      "pair": "ETH/HBAR",
-      "sector": "L1",
-      "fundingSpread": -4.36
-    },
-    {
-      "pair": "ETH/ETC",
-      "sector": "L1",
-      "fundingSpread": -4.36
-    },
-    {
-      "pair": "ETH/ICP",
-      "sector": "L1",
-      "fundingSpread": -4.36
-    },
-    {
-      "pair": "SOL/ZEC",
-      "sector": "L1",
-      "fundingSpread": -25.16
-    },
-    {
-      "pair": "SOL/XRP",
-      "sector": "L1",
-      "fundingSpread": -34.54
-    },
-    {
-      "pair": "SOL/MON",
-      "sector": "L1",
-      "fundingSpread": -34.54
-    },
-    {
-      "pair": "SOL/SUI",
-      "sector": "L1",
-      "fundingSpread": -34.54
-    },
-    {
-      "pair": "SOL/AVAX",
-      "sector": "L1",
-      "fundingSpread": -34.54
-    },
-    {
-      "pair": "SOL/BCH",
-      "sector": "L1",
-      "fundingSpread": -28.14
-    },
-    {
-      "pair": "SOL/LTC",
-      "sector": "L1",
-      "fundingSpread": -34.54
-    },
-    {
-      "pair": "SOL/TIA",
-      "sector": "L1",
-      "fundingSpread": 8.28
-    },
-    {
-      "pair": "SOL/ADA",
-      "sector": "L1",
-      "fundingSpread": -15.84
-    },
-    {
-      "pair": "SOL/APT",
-      "sector": "L1",
-      "fundingSpread": 22.06
-    },
-    {
-      "pair": "SOL/NEAR",
-      "sector": "L1",
-      "fundingSpread": -34.54
-    },
-    {
-      "pair": "SOL/TON",
-      "sector": "L1",
-      "fundingSpread": -34.54
-    },
-    {
-      "pair": "SOL/XLM",
-      "sector": "L1",
-      "fundingSpread": -34.54
-    },
-    {
-      "pair": "SOL/SEI",
-      "sector": "L1",
-      "fundingSpread": -31.89
-    },
-    {
-      "pair": "SOL/DOT",
-      "sector": "L1",
-      "fundingSpread": -34.54
-    },
-    {
-      "pair": "SOL/INJ",
-      "sector": "L1",
-      "fundingSpread": -18.89
-    },
-    {
-      "pair": "SOL/TRX",
-      "sector": "L1",
-      "fundingSpread": -34.54
-    },
-    {
-      "pair": "SOL/KAS",
-      "sector": "L1",
-      "fundingSpread": -34.54
-    },
-    {
-      "pair": "SOL/ATOM",
-      "sector": "L1",
-      "fundingSpread": -24.95
-    },
-    {
-      "pair": "SOL/BERA",
-      "sector": "L1",
-      "fundingSpread": 10.48
-    },
-    {
-      "pair": "SOL/HBAR",
-      "sector": "L1",
-      "fundingSpread": -34.54
-    },
-    {
-      "pair": "SOL/ETC",
-      "sector": "L1",
-      "fundingSpread": -34.54
-    },
-    {
-      "pair": "SOL/ICP",
-      "sector": "L1",
-      "fundingSpread": -34.54
-    },
-    {
-      "pair": "ZEC/XRP",
-      "sector": "L1",
-      "fundingSpread": -9.38
-    },
-    {
-      "pair": "ZEC/MON",
-      "sector": "L1",
-      "fundingSpread": -9.38
-    },
-    {
-      "pair": "ZEC/SUI",
-      "sector": "L1",
-      "fundingSpread": -9.38
-    },
-    {
-      "pair": "ZEC/AVAX",
-      "sector": "L1",
-      "fundingSpread": -9.38
-    },
-    {
-      "pair": "ZEC/BCH",
-      "sector": "L1",
-      "fundingSpread": -2.99
-    },
-    {
-      "pair": "ZEC/LTC",
-      "sector": "L1",
-      "fundingSpread": -9.38
-    },
-    {
-      "pair": "ZEC/TIA",
-      "sector": "L1",
-      "fundingSpread": 33.44
-    },
-    {
-      "pair": "ZEC/ADA",
-      "sector": "L1",
-      "fundingSpread": 9.32
-    },
-    {
-      "pair": "ZEC/APT",
-      "sector": "L1",
-      "fundingSpread": 47.22
-    },
-    {
-      "pair": "ZEC/NEAR",
-      "sector": "L1",
-      "fundingSpread": -9.38
-    },
-    {
-      "pair": "ZEC/TON",
-      "sector": "L1",
-      "fundingSpread": -9.38
-    },
-    {
-      "pair": "ZEC/XLM",
-      "sector": "L1",
-      "fundingSpread": -9.38
-    },
-    {
-      "pair": "ZEC/SEI",
-      "sector": "L1",
-      "fundingSpread": -6.73
-    },
-    {
-      "pair": "ZEC/DOT",
-      "sector": "L1",
-      "fundingSpread": -9.38
-    },
-    {
-      "pair": "ZEC/INJ",
-      "sector": "L1",
-      "fundingSpread": 6.27
-    },
-    {
-      "pair": "ZEC/TRX",
-      "sector": "L1",
-      "fundingSpread": -9.38
-    },
-    {
-      "pair": "ZEC/KAS",
-      "sector": "L1",
-      "fundingSpread": -9.38
-    },
-    {
-      "pair": "ZEC/ATOM",
-      "sector": "L1",
-      "fundingSpread": 0.21
-    },
-    {
-      "pair": "ZEC/BERA",
-      "sector": "L1",
-      "fundingSpread": 35.64
-    },
-    {
-      "pair": "ZEC/HBAR",
-      "sector": "L1",
-      "fundingSpread": -9.38
-    },
-    {
-      "pair": "ZEC/ETC",
-      "sector": "L1",
-      "fundingSpread": -9.38
-    },
-    {
-      "pair": "ZEC/ICP",
-      "sector": "L1",
-      "fundingSpread": -9.38
-    },
-    {
-      "pair": "XRP/MON",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "XRP/SUI",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "XRP/AVAX",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "XRP/BCH",
-      "sector": "L1",
-      "fundingSpread": 6.4
-    },
-    {
-      "pair": "XRP/LTC",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "XRP/TIA",
-      "sector": "L1",
-      "fundingSpread": 42.82
-    },
-    {
-      "pair": "XRP/ADA",
-      "sector": "L1",
-      "fundingSpread": 18.7
-    },
-    {
-      "pair": "XRP/APT",
-      "sector": "L1",
-      "fundingSpread": 56.6
-    },
-    {
-      "pair": "XRP/NEAR",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "XRP/TON",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "XRP/XLM",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "XRP/SEI",
-      "sector": "L1",
-      "fundingSpread": 2.65
-    },
-    {
-      "pair": "XRP/DOT",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "XRP/INJ",
-      "sector": "L1",
-      "fundingSpread": 15.65
-    },
-    {
-      "pair": "XRP/TRX",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "XRP/KAS",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "XRP/ATOM",
-      "sector": "L1",
-      "fundingSpread": 9.59
-    },
-    {
-      "pair": "XRP/BERA",
-      "sector": "L1",
-      "fundingSpread": 45.02
-    },
-    {
-      "pair": "XRP/HBAR",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "XRP/ETC",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "XRP/ICP",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "MON/SUI",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "MON/AVAX",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "MON/BCH",
-      "sector": "L1",
-      "fundingSpread": 6.4
-    },
-    {
-      "pair": "MON/LTC",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "MON/TIA",
-      "sector": "L1",
-      "fundingSpread": 42.82
-    },
-    {
-      "pair": "MON/ADA",
-      "sector": "L1",
-      "fundingSpread": 18.7
-    },
-    {
-      "pair": "MON/APT",
-      "sector": "L1",
-      "fundingSpread": 56.6
-    },
-    {
-      "pair": "MON/NEAR",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "MON/TON",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "MON/XLM",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "MON/SEI",
-      "sector": "L1",
-      "fundingSpread": 2.65
-    },
-    {
-      "pair": "MON/DOT",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "MON/INJ",
-      "sector": "L1",
-      "fundingSpread": 15.65
-    },
-    {
-      "pair": "MON/TRX",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "MON/KAS",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "MON/ATOM",
-      "sector": "L1",
-      "fundingSpread": 9.59
-    },
-    {
-      "pair": "MON/BERA",
-      "sector": "L1",
-      "fundingSpread": 45.02
-    },
-    {
-      "pair": "MON/HBAR",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "MON/ETC",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "MON/ICP",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "SUI/AVAX",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "SUI/BCH",
-      "sector": "L1",
-      "fundingSpread": 6.4
-    },
-    {
-      "pair": "SUI/LTC",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "SUI/TIA",
-      "sector": "L1",
-      "fundingSpread": 42.82
-    },
-    {
-      "pair": "SUI/ADA",
-      "sector": "L1",
-      "fundingSpread": 18.7
-    },
-    {
-      "pair": "SUI/APT",
-      "sector": "L1",
-      "fundingSpread": 56.6
-    },
-    {
-      "pair": "SUI/NEAR",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "SUI/TON",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "SUI/XLM",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "SUI/SEI",
-      "sector": "L1",
-      "fundingSpread": 2.65
-    },
-    {
-      "pair": "SUI/DOT",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "SUI/INJ",
-      "sector": "L1",
-      "fundingSpread": 15.65
-    },
-    {
-      "pair": "SUI/TRX",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "SUI/KAS",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "SUI/ATOM",
-      "sector": "L1",
-      "fundingSpread": 9.59
-    },
-    {
-      "pair": "SUI/BERA",
-      "sector": "L1",
-      "fundingSpread": 45.02
-    },
-    {
-      "pair": "SUI/HBAR",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "SUI/ETC",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "SUI/ICP",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "AVAX/BCH",
-      "sector": "L1",
-      "fundingSpread": 6.4
-    },
-    {
-      "pair": "AVAX/LTC",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "AVAX/TIA",
-      "sector": "L1",
-      "fundingSpread": 42.82
-    },
-    {
-      "pair": "AVAX/ADA",
-      "sector": "L1",
-      "fundingSpread": 18.7
-    },
-    {
-      "pair": "AVAX/APT",
-      "sector": "L1",
-      "fundingSpread": 56.6
-    },
-    {
-      "pair": "AVAX/NEAR",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "AVAX/TON",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "AVAX/XLM",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "AVAX/SEI",
-      "sector": "L1",
-      "fundingSpread": 2.65
-    },
-    {
-      "pair": "AVAX/DOT",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "AVAX/INJ",
-      "sector": "L1",
-      "fundingSpread": 15.65
-    },
-    {
-      "pair": "AVAX/TRX",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "AVAX/KAS",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "AVAX/ATOM",
-      "sector": "L1",
-      "fundingSpread": 9.59
-    },
-    {
-      "pair": "AVAX/BERA",
-      "sector": "L1",
-      "fundingSpread": 45.02
-    },
-    {
-      "pair": "AVAX/HBAR",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "AVAX/ETC",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "AVAX/ICP",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "BCH/LTC",
-      "sector": "L1",
-      "fundingSpread": -6.4
-    },
-    {
-      "pair": "BCH/TIA",
-      "sector": "L1",
-      "fundingSpread": 36.42
-    },
-    {
-      "pair": "BCH/ADA",
-      "sector": "L1",
-      "fundingSpread": 12.31
-    },
-    {
-      "pair": "BCH/APT",
-      "sector": "L1",
-      "fundingSpread": 50.2
-    },
-    {
-      "pair": "BCH/NEAR",
-      "sector": "L1",
-      "fundingSpread": -6.4
-    },
-    {
-      "pair": "BCH/TON",
-      "sector": "L1",
-      "fundingSpread": -6.4
-    },
-    {
-      "pair": "BCH/XLM",
-      "sector": "L1",
-      "fundingSpread": -6.4
-    },
-    {
-      "pair": "BCH/SEI",
-      "sector": "L1",
-      "fundingSpread": -3.74
-    },
-    {
-      "pair": "BCH/DOT",
-      "sector": "L1",
-      "fundingSpread": -6.4
-    },
-    {
-      "pair": "BCH/INJ",
-      "sector": "L1",
-      "fundingSpread": 9.25
-    },
-    {
-      "pair": "BCH/TRX",
-      "sector": "L1",
-      "fundingSpread": -6.4
-    },
-    {
-      "pair": "BCH/KAS",
-      "sector": "L1",
-      "fundingSpread": -6.4
-    },
-    {
-      "pair": "BCH/ATOM",
-      "sector": "L1",
-      "fundingSpread": 3.19
-    },
-    {
-      "pair": "BCH/BERA",
-      "sector": "L1",
-      "fundingSpread": 38.63
-    },
-    {
-      "pair": "BCH/HBAR",
-      "sector": "L1",
-      "fundingSpread": -6.4
-    },
-    {
-      "pair": "BCH/ETC",
-      "sector": "L1",
-      "fundingSpread": -6.4
-    },
-    {
-      "pair": "BCH/ICP",
-      "sector": "L1",
-      "fundingSpread": -6.4
-    },
-    {
-      "pair": "LTC/TIA",
-      "sector": "L1",
-      "fundingSpread": 42.82
-    },
-    {
-      "pair": "LTC/ADA",
-      "sector": "L1",
-      "fundingSpread": 18.7
-    },
-    {
-      "pair": "LTC/APT",
-      "sector": "L1",
-      "fundingSpread": 56.6
-    },
-    {
-      "pair": "LTC/NEAR",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "LTC/TON",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "LTC/XLM",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "LTC/SEI",
-      "sector": "L1",
-      "fundingSpread": 2.65
-    },
-    {
-      "pair": "LTC/DOT",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "LTC/INJ",
-      "sector": "L1",
-      "fundingSpread": 15.65
-    },
-    {
-      "pair": "LTC/TRX",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "LTC/KAS",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "LTC/ATOM",
-      "sector": "L1",
-      "fundingSpread": 9.59
-    },
-    {
-      "pair": "LTC/BERA",
-      "sector": "L1",
-      "fundingSpread": 45.02
-    },
-    {
-      "pair": "LTC/HBAR",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "LTC/ETC",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "LTC/ICP",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "TIA/ADA",
-      "sector": "L1",
-      "fundingSpread": -24.12
-    },
-    {
-      "pair": "TIA/APT",
-      "sector": "L1",
-      "fundingSpread": 13.78
-    },
-    {
-      "pair": "TIA/NEAR",
-      "sector": "L1",
-      "fundingSpread": -42.82
-    },
-    {
-      "pair": "TIA/TON",
-      "sector": "L1",
-      "fundingSpread": -42.82
-    },
-    {
-      "pair": "TIA/XLM",
-      "sector": "L1",
-      "fundingSpread": -42.82
-    },
-    {
-      "pair": "TIA/SEI",
-      "sector": "L1",
-      "fundingSpread": -40.17
-    },
-    {
-      "pair": "TIA/DOT",
-      "sector": "L1",
-      "fundingSpread": -42.82
-    },
-    {
-      "pair": "TIA/INJ",
-      "sector": "L1",
-      "fundingSpread": -27.17
-    },
-    {
-      "pair": "TIA/TRX",
-      "sector": "L1",
-      "fundingSpread": -42.82
-    },
-    {
-      "pair": "TIA/KAS",
-      "sector": "L1",
-      "fundingSpread": -42.82
-    },
-    {
-      "pair": "TIA/ATOM",
-      "sector": "L1",
-      "fundingSpread": -33.23
-    },
-    {
-      "pair": "TIA/BERA",
-      "sector": "L1",
-      "fundingSpread": 2.2
-    },
-    {
-      "pair": "TIA/HBAR",
-      "sector": "L1",
-      "fundingSpread": -42.82
-    },
-    {
-      "pair": "TIA/ETC",
-      "sector": "L1",
-      "fundingSpread": -42.82
-    },
-    {
-      "pair": "TIA/ICP",
-      "sector": "L1",
-      "fundingSpread": -42.82
-    },
-    {
-      "pair": "ADA/APT",
-      "sector": "L1",
-      "fundingSpread": 37.89
-    },
-    {
-      "pair": "ADA/NEAR",
-      "sector": "L1",
-      "fundingSpread": -18.7
-    },
-    {
-      "pair": "ADA/TON",
-      "sector": "L1",
-      "fundingSpread": -18.7
-    },
-    {
-      "pair": "ADA/XLM",
-      "sector": "L1",
-      "fundingSpread": -18.7
+      "pair": "DOGE/kFLOKI",
+      "sector": "Meme",
+      "correlation": 0.941,
+      "beta": 0.787,
+      "zScore": 0.66,
+      "meanReversionRate": 0.586,
+      "fundingSpread": -7.14
     },
     {
       "pair": "ADA/SEI",
       "sector": "L1",
-      "fundingSpread": -16.05
-    },
-    {
-      "pair": "ADA/DOT",
-      "sector": "L1",
-      "fundingSpread": -18.7
-    },
-    {
-      "pair": "ADA/INJ",
-      "sector": "L1",
-      "fundingSpread": -3.05
-    },
-    {
-      "pair": "ADA/TRX",
-      "sector": "L1",
-      "fundingSpread": -18.7
-    },
-    {
-      "pair": "ADA/KAS",
-      "sector": "L1",
-      "fundingSpread": -18.7
-    },
-    {
-      "pair": "ADA/ATOM",
-      "sector": "L1",
-      "fundingSpread": -9.12
-    },
-    {
-      "pair": "ADA/BERA",
-      "sector": "L1",
-      "fundingSpread": 26.32
-    },
-    {
-      "pair": "ADA/HBAR",
-      "sector": "L1",
-      "fundingSpread": -18.7
-    },
-    {
-      "pair": "ADA/ETC",
-      "sector": "L1",
-      "fundingSpread": -18.7
-    },
-    {
-      "pair": "ADA/ICP",
-      "sector": "L1",
-      "fundingSpread": -18.7
-    },
-    {
-      "pair": "APT/NEAR",
-      "sector": "L1",
-      "fundingSpread": -56.6
-    },
-    {
-      "pair": "APT/TON",
-      "sector": "L1",
-      "fundingSpread": -56.6
-    },
-    {
-      "pair": "APT/XLM",
-      "sector": "L1",
-      "fundingSpread": -56.6
-    },
-    {
-      "pair": "APT/SEI",
-      "sector": "L1",
-      "fundingSpread": -53.94
-    },
-    {
-      "pair": "APT/DOT",
-      "sector": "L1",
-      "fundingSpread": -56.6
-    },
-    {
-      "pair": "APT/INJ",
-      "sector": "L1",
-      "fundingSpread": -40.95
-    },
-    {
-      "pair": "APT/TRX",
-      "sector": "L1",
-      "fundingSpread": -56.6
-    },
-    {
-      "pair": "APT/KAS",
-      "sector": "L1",
-      "fundingSpread": -56.6
-    },
-    {
-      "pair": "APT/ATOM",
-      "sector": "L1",
-      "fundingSpread": -47.01
-    },
-    {
-      "pair": "APT/BERA",
-      "sector": "L1",
-      "fundingSpread": -11.58
-    },
-    {
-      "pair": "APT/HBAR",
-      "sector": "L1",
-      "fundingSpread": -56.6
-    },
-    {
-      "pair": "APT/ETC",
-      "sector": "L1",
-      "fundingSpread": -56.6
-    },
-    {
-      "pair": "APT/ICP",
-      "sector": "L1",
-      "fundingSpread": -56.6
-    },
-    {
-      "pair": "NEAR/TON",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "NEAR/XLM",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "NEAR/SEI",
-      "sector": "L1",
-      "fundingSpread": 2.65
-    },
-    {
-      "pair": "NEAR/DOT",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "NEAR/INJ",
-      "sector": "L1",
-      "fundingSpread": 15.65
-    },
-    {
-      "pair": "NEAR/TRX",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "NEAR/KAS",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "NEAR/ATOM",
-      "sector": "L1",
-      "fundingSpread": 9.59
-    },
-    {
-      "pair": "NEAR/BERA",
-      "sector": "L1",
-      "fundingSpread": 45.02
-    },
-    {
-      "pair": "NEAR/HBAR",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "NEAR/ETC",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "NEAR/ICP",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "TON/XLM",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "TON/SEI",
-      "sector": "L1",
-      "fundingSpread": 2.65
-    },
-    {
-      "pair": "TON/DOT",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "TON/INJ",
-      "sector": "L1",
-      "fundingSpread": 15.65
-    },
-    {
-      "pair": "TON/TRX",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "TON/KAS",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "TON/ATOM",
-      "sector": "L1",
-      "fundingSpread": 9.59
-    },
-    {
-      "pair": "TON/BERA",
-      "sector": "L1",
-      "fundingSpread": 45.02
-    },
-    {
-      "pair": "TON/HBAR",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "TON/ETC",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "TON/ICP",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "XLM/SEI",
-      "sector": "L1",
-      "fundingSpread": 2.65
-    },
-    {
-      "pair": "XLM/DOT",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "XLM/INJ",
-      "sector": "L1",
-      "fundingSpread": 15.65
-    },
-    {
-      "pair": "XLM/TRX",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "XLM/KAS",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "XLM/ATOM",
-      "sector": "L1",
-      "fundingSpread": 9.59
-    },
-    {
-      "pair": "XLM/BERA",
-      "sector": "L1",
-      "fundingSpread": 45.02
-    },
-    {
-      "pair": "XLM/HBAR",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "XLM/ETC",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "XLM/ICP",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "SEI/DOT",
-      "sector": "L1",
-      "fundingSpread": -2.65
-    },
-    {
-      "pair": "SEI/INJ",
-      "sector": "L1",
-      "fundingSpread": 13
-    },
-    {
-      "pair": "SEI/TRX",
-      "sector": "L1",
-      "fundingSpread": -2.65
-    },
-    {
-      "pair": "SEI/KAS",
-      "sector": "L1",
-      "fundingSpread": -2.65
-    },
-    {
-      "pair": "SEI/ATOM",
-      "sector": "L1",
-      "fundingSpread": 6.93
-    },
-    {
-      "pair": "SEI/BERA",
-      "sector": "L1",
-      "fundingSpread": 42.37
-    },
-    {
-      "pair": "SEI/HBAR",
-      "sector": "L1",
-      "fundingSpread": -2.65
-    },
-    {
-      "pair": "SEI/ETC",
-      "sector": "L1",
-      "fundingSpread": -2.65
-    },
-    {
-      "pair": "SEI/ICP",
-      "sector": "L1",
-      "fundingSpread": -2.65
-    },
-    {
-      "pair": "DOT/INJ",
-      "sector": "L1",
-      "fundingSpread": 15.65
-    },
-    {
-      "pair": "DOT/TRX",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "DOT/KAS",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "DOT/ATOM",
-      "sector": "L1",
-      "fundingSpread": 9.59
-    },
-    {
-      "pair": "DOT/BERA",
-      "sector": "L1",
-      "fundingSpread": 45.02
-    },
-    {
-      "pair": "DOT/HBAR",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "DOT/ETC",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "DOT/ICP",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "INJ/TRX",
-      "sector": "L1",
-      "fundingSpread": -15.65
-    },
-    {
-      "pair": "INJ/KAS",
-      "sector": "L1",
-      "fundingSpread": -15.65
-    },
-    {
-      "pair": "INJ/ATOM",
-      "sector": "L1",
-      "fundingSpread": -6.06
-    },
-    {
-      "pair": "INJ/BERA",
-      "sector": "L1",
-      "fundingSpread": 29.37
-    },
-    {
-      "pair": "INJ/HBAR",
-      "sector": "L1",
-      "fundingSpread": -15.65
-    },
-    {
-      "pair": "INJ/ETC",
-      "sector": "L1",
-      "fundingSpread": -15.65
-    },
-    {
-      "pair": "INJ/ICP",
-      "sector": "L1",
-      "fundingSpread": -15.65
-    },
-    {
-      "pair": "TRX/KAS",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "TRX/ATOM",
-      "sector": "L1",
-      "fundingSpread": 9.59
-    },
-    {
-      "pair": "TRX/BERA",
-      "sector": "L1",
-      "fundingSpread": 45.02
-    },
-    {
-      "pair": "TRX/HBAR",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "TRX/ETC",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "TRX/ICP",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "KAS/ATOM",
-      "sector": "L1",
-      "fundingSpread": 9.59
-    },
-    {
-      "pair": "KAS/BERA",
-      "sector": "L1",
-      "fundingSpread": 45.02
-    },
-    {
-      "pair": "KAS/HBAR",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "KAS/ETC",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "KAS/ICP",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "ATOM/BERA",
-      "sector": "L1",
-      "fundingSpread": 35.43
-    },
-    {
-      "pair": "ATOM/HBAR",
-      "sector": "L1",
-      "fundingSpread": -9.59
-    },
-    {
-      "pair": "ATOM/ETC",
-      "sector": "L1",
-      "fundingSpread": -9.59
-    },
-    {
-      "pair": "ATOM/ICP",
-      "sector": "L1",
-      "fundingSpread": -9.59
-    },
-    {
-      "pair": "BERA/HBAR",
-      "sector": "L1",
-      "fundingSpread": -45.02
-    },
-    {
-      "pair": "BERA/ETC",
-      "sector": "L1",
-      "fundingSpread": -45.02
-    },
-    {
-      "pair": "BERA/ICP",
-      "sector": "L1",
-      "fundingSpread": -45.02
-    },
-    {
-      "pair": "HBAR/ETC",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "HBAR/ICP",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "ETC/ICP",
-      "sector": "L1",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "ENA/AAVE",
-      "sector": "DeFi",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "ENA/UNI",
-      "sector": "DeFi",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "ENA/EIGEN",
-      "sector": "DeFi",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "ENA/RESOLV",
-      "sector": "DeFi",
-      "fundingSpread": 1510.9
-    },
-    {
-      "pair": "ENA/CRV",
-      "sector": "DeFi",
-      "fundingSpread": 43.47
-    },
-    {
-      "pair": "ENA/PENDLE",
-      "sector": "DeFi",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "ENA/ETHFI",
-      "sector": "DeFi",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "ENA/JUP",
-      "sector": "DeFi",
-      "fundingSpread": 2.7
-    },
-    {
-      "pair": "ENA/ZRO",
-      "sector": "DeFi",
-      "fundingSpread": 23.14
-    },
-    {
-      "pair": "ENA/LDO",
-      "sector": "DeFi",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "ENA/DYDX",
-      "sector": "DeFi",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "AAVE/UNI",
-      "sector": "DeFi",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "AAVE/EIGEN",
-      "sector": "DeFi",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "AAVE/RESOLV",
-      "sector": "DeFi",
-      "fundingSpread": 1510.9
-    },
-    {
-      "pair": "AAVE/CRV",
-      "sector": "DeFi",
-      "fundingSpread": 43.47
-    },
-    {
-      "pair": "AAVE/PENDLE",
-      "sector": "DeFi",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "AAVE/ETHFI",
-      "sector": "DeFi",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "AAVE/JUP",
-      "sector": "DeFi",
-      "fundingSpread": 2.7
-    },
-    {
-      "pair": "AAVE/ZRO",
-      "sector": "DeFi",
-      "fundingSpread": 23.14
-    },
-    {
-      "pair": "AAVE/LDO",
-      "sector": "DeFi",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "AAVE/DYDX",
-      "sector": "DeFi",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "UNI/EIGEN",
-      "sector": "DeFi",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "UNI/RESOLV",
-      "sector": "DeFi",
-      "fundingSpread": 1510.9
-    },
-    {
-      "pair": "UNI/CRV",
-      "sector": "DeFi",
-      "fundingSpread": 43.47
-    },
-    {
-      "pair": "UNI/PENDLE",
-      "sector": "DeFi",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "UNI/ETHFI",
-      "sector": "DeFi",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "UNI/JUP",
-      "sector": "DeFi",
-      "fundingSpread": 2.7
-    },
-    {
-      "pair": "UNI/ZRO",
-      "sector": "DeFi",
-      "fundingSpread": 23.14
-    },
-    {
-      "pair": "UNI/LDO",
-      "sector": "DeFi",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "UNI/DYDX",
-      "sector": "DeFi",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "EIGEN/RESOLV",
-      "sector": "DeFi",
-      "fundingSpread": 1510.9
-    },
-    {
-      "pair": "EIGEN/CRV",
-      "sector": "DeFi",
-      "fundingSpread": 43.47
-    },
-    {
-      "pair": "EIGEN/PENDLE",
-      "sector": "DeFi",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "EIGEN/ETHFI",
-      "sector": "DeFi",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "EIGEN/JUP",
-      "sector": "DeFi",
-      "fundingSpread": 2.7
-    },
-    {
-      "pair": "EIGEN/ZRO",
-      "sector": "DeFi",
-      "fundingSpread": 23.14
-    },
-    {
-      "pair": "EIGEN/LDO",
-      "sector": "DeFi",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "EIGEN/DYDX",
-      "sector": "DeFi",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "RESOLV/CRV",
-      "sector": "DeFi",
-      "fundingSpread": -1467.42
-    },
-    {
-      "pair": "RESOLV/PENDLE",
-      "sector": "DeFi",
-      "fundingSpread": -1510.9
-    },
-    {
-      "pair": "RESOLV/ETHFI",
-      "sector": "DeFi",
-      "fundingSpread": -1510.9
-    },
-    {
-      "pair": "RESOLV/JUP",
-      "sector": "DeFi",
-      "fundingSpread": -1508.2
-    },
-    {
-      "pair": "RESOLV/ZRO",
-      "sector": "DeFi",
-      "fundingSpread": -1487.75
-    },
-    {
-      "pair": "RESOLV/LDO",
-      "sector": "DeFi",
-      "fundingSpread": -1510.9
-    },
-    {
-      "pair": "RESOLV/DYDX",
-      "sector": "DeFi",
-      "fundingSpread": -1510.9
-    },
-    {
-      "pair": "CRV/PENDLE",
-      "sector": "DeFi",
-      "fundingSpread": -43.47
-    },
-    {
-      "pair": "CRV/ETHFI",
-      "sector": "DeFi",
-      "fundingSpread": -43.47
-    },
-    {
-      "pair": "CRV/JUP",
-      "sector": "DeFi",
-      "fundingSpread": -40.78
-    },
-    {
-      "pair": "CRV/ZRO",
-      "sector": "DeFi",
-      "fundingSpread": -20.33
-    },
-    {
-      "pair": "CRV/LDO",
-      "sector": "DeFi",
-      "fundingSpread": -43.47
-    },
-    {
-      "pair": "CRV/DYDX",
-      "sector": "DeFi",
-      "fundingSpread": -43.47
-    },
-    {
-      "pair": "PENDLE/ETHFI",
-      "sector": "DeFi",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "PENDLE/JUP",
-      "sector": "DeFi",
-      "fundingSpread": 2.7
-    },
-    {
-      "pair": "PENDLE/ZRO",
-      "sector": "DeFi",
-      "fundingSpread": 23.14
-    },
-    {
-      "pair": "PENDLE/LDO",
-      "sector": "DeFi",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "PENDLE/DYDX",
-      "sector": "DeFi",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "ETHFI/JUP",
-      "sector": "DeFi",
-      "fundingSpread": 2.7
-    },
-    {
-      "pair": "ETHFI/ZRO",
-      "sector": "DeFi",
-      "fundingSpread": 23.14
-    },
-    {
-      "pair": "ETHFI/LDO",
-      "sector": "DeFi",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "ETHFI/DYDX",
-      "sector": "DeFi",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "JUP/ZRO",
-      "sector": "DeFi",
-      "fundingSpread": 20.45
-    },
-    {
-      "pair": "JUP/LDO",
-      "sector": "DeFi",
-      "fundingSpread": -2.7
-    },
-    {
-      "pair": "JUP/DYDX",
-      "sector": "DeFi",
-      "fundingSpread": -2.7
-    },
-    {
-      "pair": "ZRO/LDO",
-      "sector": "DeFi",
-      "fundingSpread": -23.14
-    },
-    {
-      "pair": "ZRO/DYDX",
-      "sector": "DeFi",
-      "fundingSpread": -23.14
-    },
-    {
-      "pair": "LDO/DYDX",
-      "sector": "DeFi",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "PUMP/BNB",
-      "sector": "Exchange",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "PUMP/BANANA",
-      "sector": "Exchange",
-      "fundingSpread": 329.53
-    },
-    {
-      "pair": "BNB/BANANA",
-      "sector": "Exchange",
-      "fundingSpread": 329.53
-    },
-    {
-      "pair": "MERL/STRK",
-      "sector": "L2",
-      "fundingSpread": -327.63
-    },
-    {
-      "pair": "MERL/ARB",
-      "sector": "L2",
-      "fundingSpread": -327.63
-    },
-    {
-      "pair": "MERL/OP",
-      "sector": "L2",
-      "fundingSpread": -327.63
-    },
-    {
-      "pair": "MERL/ZK",
-      "sector": "L2",
-      "fundingSpread": -327.63
-    },
-    {
-      "pair": "MERL/LINEA",
-      "sector": "L2",
-      "fundingSpread": -327.63
-    },
-    {
-      "pair": "STRK/ARB",
-      "sector": "L2",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "STRK/OP",
-      "sector": "L2",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "STRK/ZK",
-      "sector": "L2",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "STRK/LINEA",
-      "sector": "L2",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "ARB/OP",
-      "sector": "L2",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "ARB/ZK",
-      "sector": "L2",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "ARB/LINEA",
-      "sector": "L2",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "OP/ZK",
-      "sector": "L2",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "OP/LINEA",
-      "sector": "L2",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "ZK/LINEA",
-      "sector": "L2",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "FARTCOIN/TURBO",
-      "sector": "Meme",
-      "fundingSpread": 3332.31
-    },
-    {
-      "pair": "FARTCOIN/DOGE",
-      "sector": "Meme",
-      "fundingSpread": 6.32
-    },
-    {
-      "pair": "FARTCOIN/SPX",
-      "sector": "Meme",
-      "fundingSpread": 18.68
-    },
-    {
-      "pair": "FARTCOIN/kPEPE",
-      "sector": "Meme",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "FARTCOIN/PENGU",
-      "sector": "Meme",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "FARTCOIN/TRUMP",
-      "sector": "Meme",
-      "fundingSpread": 16.99
-    },
-    {
-      "pair": "FARTCOIN/WIF",
-      "sector": "Meme",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "FARTCOIN/kSHIB",
-      "sector": "Meme",
-      "fundingSpread": 15.41
-    },
-    {
-      "pair": "FARTCOIN/BRETT",
-      "sector": "Meme",
-      "fundingSpread": 111.4
-    },
-    {
-      "pair": "FARTCOIN/kBONK",
-      "sector": "Meme",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "FARTCOIN/POPCAT",
-      "sector": "Meme",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "FARTCOIN/kFLOKI",
-      "sector": "Meme",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "FARTCOIN/MEME",
-      "sector": "Meme",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "FARTCOIN/PURR",
-      "sector": "Meme",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "TURBO/DOGE",
-      "sector": "Meme",
-      "fundingSpread": -3326
-    },
-    {
-      "pair": "TURBO/SPX",
-      "sector": "Meme",
-      "fundingSpread": -3313.63
-    },
-    {
-      "pair": "TURBO/kPEPE",
-      "sector": "Meme",
-      "fundingSpread": -3332.31
-    },
-    {
-      "pair": "TURBO/PENGU",
-      "sector": "Meme",
-      "fundingSpread": -3332.31
-    },
-    {
-      "pair": "TURBO/TRUMP",
-      "sector": "Meme",
-      "fundingSpread": -3315.32
-    },
-    {
-      "pair": "TURBO/WIF",
-      "sector": "Meme",
-      "fundingSpread": -3332.31
-    },
-    {
-      "pair": "TURBO/kSHIB",
-      "sector": "Meme",
-      "fundingSpread": -3316.91
-    },
-    {
-      "pair": "TURBO/BRETT",
-      "sector": "Meme",
-      "fundingSpread": -3220.92
-    },
-    {
-      "pair": "TURBO/kBONK",
-      "sector": "Meme",
-      "fundingSpread": -3332.31
-    },
-    {
-      "pair": "TURBO/POPCAT",
-      "sector": "Meme",
-      "fundingSpread": -3332.31
-    },
-    {
-      "pair": "TURBO/kFLOKI",
-      "sector": "Meme",
-      "fundingSpread": -3332.31
-    },
-    {
-      "pair": "TURBO/MEME",
-      "sector": "Meme",
-      "fundingSpread": -3332.31
-    },
-    {
-      "pair": "TURBO/PURR",
-      "sector": "Meme",
-      "fundingSpread": -3332.31
-    },
-    {
-      "pair": "DOGE/SPX",
-      "sector": "Meme",
-      "fundingSpread": 12.37
-    },
-    {
-      "pair": "DOGE/kPEPE",
-      "sector": "Meme",
-      "fundingSpread": -6.32
-    },
-    {
-      "pair": "DOGE/PENGU",
-      "sector": "Meme",
-      "fundingSpread": -6.32
-    },
-    {
-      "pair": "DOGE/TRUMP",
-      "sector": "Meme",
-      "fundingSpread": 10.68
-    },
-    {
-      "pair": "DOGE/WIF",
-      "sector": "Meme",
-      "fundingSpread": -6.32
-    },
-    {
-      "pair": "DOGE/kSHIB",
-      "sector": "Meme",
-      "fundingSpread": 9.09
-    },
-    {
-      "pair": "DOGE/BRETT",
-      "sector": "Meme",
-      "fundingSpread": 105.08
-    },
-    {
-      "pair": "DOGE/kBONK",
-      "sector": "Meme",
-      "fundingSpread": -6.32
-    },
-    {
-      "pair": "DOGE/POPCAT",
-      "sector": "Meme",
-      "fundingSpread": -6.32
-    },
-    {
-      "pair": "DOGE/kFLOKI",
-      "sector": "Meme",
-      "fundingSpread": -6.32
-    },
-    {
-      "pair": "DOGE/MEME",
-      "sector": "Meme",
-      "fundingSpread": -6.32
-    },
-    {
-      "pair": "DOGE/PURR",
-      "sector": "Meme",
-      "fundingSpread": -6.32
-    },
-    {
-      "pair": "SPX/kPEPE",
-      "sector": "Meme",
-      "fundingSpread": -18.68
-    },
-    {
-      "pair": "SPX/PENGU",
-      "sector": "Meme",
-      "fundingSpread": -18.68
-    },
-    {
-      "pair": "SPX/TRUMP",
-      "sector": "Meme",
-      "fundingSpread": -1.69
-    },
-    {
-      "pair": "SPX/WIF",
-      "sector": "Meme",
-      "fundingSpread": -18.68
-    },
-    {
-      "pair": "SPX/kSHIB",
-      "sector": "Meme",
-      "fundingSpread": -3.28
-    },
-    {
-      "pair": "SPX/BRETT",
-      "sector": "Meme",
-      "fundingSpread": 92.72
-    },
-    {
-      "pair": "SPX/kBONK",
-      "sector": "Meme",
-      "fundingSpread": -18.68
-    },
-    {
-      "pair": "SPX/POPCAT",
-      "sector": "Meme",
-      "fundingSpread": -18.68
-    },
-    {
-      "pair": "SPX/kFLOKI",
-      "sector": "Meme",
-      "fundingSpread": -18.68
-    },
-    {
-      "pair": "SPX/MEME",
-      "sector": "Meme",
-      "fundingSpread": -18.68
-    },
-    {
-      "pair": "SPX/PURR",
-      "sector": "Meme",
-      "fundingSpread": -18.68
-    },
-    {
-      "pair": "kPEPE/PENGU",
-      "sector": "Meme",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "kPEPE/TRUMP",
-      "sector": "Meme",
-      "fundingSpread": 16.99
-    },
-    {
-      "pair": "kPEPE/WIF",
-      "sector": "Meme",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "kPEPE/kSHIB",
-      "sector": "Meme",
-      "fundingSpread": 15.41
-    },
-    {
-      "pair": "kPEPE/BRETT",
-      "sector": "Meme",
-      "fundingSpread": 111.4
+      "correlation": 0.936,
+      "beta": 0.747,
+      "zScore": -1.17,
+      "meanReversionRate": 0.586,
+      "fundingSpread": -14.08
     },
     {
       "pair": "kPEPE/kBONK",
       "sector": "Meme",
+      "correlation": 0.935,
+      "beta": 0.811,
+      "zScore": -0.18,
+      "meanReversionRate": 0.69,
       "fundingSpread": 0
     },
     {
-      "pair": "kPEPE/POPCAT",
+      "pair": "kPEPE/WIF",
       "sector": "Meme",
+      "correlation": 0.935,
+      "beta": 0.692,
+      "zScore": -0.76,
+      "meanReversionRate": 0.69,
       "fundingSpread": 0
     },
     {
       "pair": "kPEPE/kFLOKI",
       "sector": "Meme",
+      "correlation": 0.928,
+      "beta": 0.973,
+      "zScore": 0.15,
+      "meanReversionRate": 0.552,
+      "fundingSpread": 0.09
+    },
+    {
+      "pair": "ARB/OP",
+      "sector": "L2",
+      "correlation": 0.926,
+      "beta": 0.832,
+      "zScore": -0.5,
+      "meanReversionRate": 0.586,
       "fundingSpread": 0
     },
     {
-      "pair": "kPEPE/MEME",
+      "pair": "SUI/ADA",
+      "sector": "L1",
+      "correlation": 0.912,
+      "beta": 1.141,
+      "zScore": 0.71,
+      "meanReversionRate": 0.552,
+      "fundingSpread": 19.66
+    },
+    {
+      "pair": "SPX/BRETT",
       "sector": "Meme",
+      "correlation": 0.91,
+      "beta": 1.079,
+      "zScore": 1.85,
+      "meanReversionRate": 0.621,
+      "fundingSpread": 78.03
+    },
+    {
+      "pair": "ETH/SOL",
+      "sector": "L1",
+      "correlation": 0.909,
+      "beta": 0.774,
+      "zScore": -0.69,
+      "meanReversionRate": 0.655,
+      "fundingSpread": 29.62
+    },
+    {
+      "pair": "XRP/XLM",
+      "sector": "L1",
+      "correlation": 0.906,
+      "beta": 0.964,
+      "zScore": 0.66,
+      "meanReversionRate": 0.552,
       "fundingSpread": 0
     },
     {
-      "pair": "kPEPE/PURR",
-      "sector": "Meme",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "PENGU/TRUMP",
-      "sector": "Meme",
-      "fundingSpread": 16.99
-    },
-    {
-      "pair": "PENGU/WIF",
-      "sector": "Meme",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "PENGU/kSHIB",
-      "sector": "Meme",
-      "fundingSpread": 15.41
-    },
-    {
-      "pair": "PENGU/BRETT",
-      "sector": "Meme",
-      "fundingSpread": 111.4
-    },
-    {
-      "pair": "PENGU/kBONK",
-      "sector": "Meme",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "PENGU/POPCAT",
-      "sector": "Meme",
+      "pair": "LDO/DYDX",
+      "sector": "DeFi",
+      "correlation": 0.903,
+      "beta": 0.835,
+      "zScore": -0.25,
+      "meanReversionRate": 0.552,
       "fundingSpread": 0
     },
     {
       "pair": "PENGU/kFLOKI",
       "sector": "Meme",
+      "correlation": 0.896,
+      "beta": 0.973,
+      "zScore": -0.98,
+      "meanReversionRate": 0.621,
+      "fundingSpread": 0.09
+    },
+    {
+      "pair": "PENGU/WIF",
+      "sector": "Meme",
+      "correlation": 0.896,
+      "beta": 0.687,
+      "zScore": -1.14,
+      "meanReversionRate": 0.517,
       "fundingSpread": 0
     },
     {
-      "pair": "PENGU/MEME",
+      "pair": "PENGU/kBONK",
       "sector": "Meme",
+      "correlation": 0.894,
+      "beta": 0.803,
+      "zScore": -0.95,
+      "meanReversionRate": 0.517,
       "fundingSpread": 0
     },
     {
-      "pair": "PENGU/PURR",
-      "sector": "Meme",
+      "pair": "TIA/ETC",
+      "sector": "L1",
+      "correlation": 0.89,
+      "beta": 1.244,
+      "zScore": -1.76,
+      "meanReversionRate": 0.69,
+      "fundingSpread": -44.84
+    },
+    {
+      "pair": "SUI/SEI",
+      "sector": "L1",
+      "correlation": 0.889,
+      "beta": 0.888,
+      "zScore": -0.55,
+      "meanReversionRate": 0.552,
+      "fundingSpread": 5.58
+    },
+    {
+      "pair": "AVAX/INJ",
+      "sector": "L1",
+      "correlation": 0.887,
+      "beta": 0.574,
+      "zScore": -0.26,
+      "meanReversionRate": 0.517,
+      "fundingSpread": 20.18
+    },
+    {
+      "pair": "LTC/DOT",
+      "sector": "L1",
+      "correlation": 0.886,
+      "beta": 0.813,
+      "zScore": 1.1,
+      "meanReversionRate": 0.621,
+      "fundingSpread": -0.09
+    },
+    {
+      "pair": "ETHFI/LDO",
+      "sector": "DeFi",
+      "correlation": 0.886,
+      "beta": 1.019,
+      "zScore": 0.6,
+      "meanReversionRate": 0.621,
       "fundingSpread": 0
     },
     {
-      "pair": "TRUMP/WIF",
-      "sector": "Meme",
-      "fundingSpread": -16.99
+      "pair": "SEI/DOT",
+      "sector": "L1",
+      "correlation": 0.886,
+      "beta": 0.755,
+      "zScore": -0.36,
+      "meanReversionRate": 0.724,
+      "fundingSpread": -5.58
     },
     {
-      "pair": "TRUMP/kSHIB",
-      "sector": "Meme",
-      "fundingSpread": -1.59
+      "pair": "ADA/TON",
+      "sector": "L1",
+      "correlation": 0.885,
+      "beta": 0.774,
+      "zScore": -1.62,
+      "meanReversionRate": 0.621,
+      "fundingSpread": -19.66
     },
     {
-      "pair": "TRUMP/BRETT",
-      "sector": "Meme",
-      "fundingSpread": 94.4
+      "pair": "APT/SEI",
+      "sector": "L1",
+      "correlation": 0.885,
+      "beta": 1.051,
+      "zScore": -1.71,
+      "meanReversionRate": 0.517,
+      "fundingSpread": -56.06
     },
     {
-      "pair": "TRUMP/kBONK",
+      "pair": "kPEPE/PENGU",
       "sector": "Meme",
-      "fundingSpread": -16.99
-    },
-    {
-      "pair": "TRUMP/POPCAT",
-      "sector": "Meme",
-      "fundingSpread": -16.99
-    },
-    {
-      "pair": "TRUMP/kFLOKI",
-      "sector": "Meme",
-      "fundingSpread": -16.99
-    },
-    {
-      "pair": "TRUMP/MEME",
-      "sector": "Meme",
-      "fundingSpread": -16.99
-    },
-    {
-      "pair": "TRUMP/PURR",
-      "sector": "Meme",
-      "fundingSpread": -16.99
-    },
-    {
-      "pair": "WIF/kSHIB",
-      "sector": "Meme",
-      "fundingSpread": 15.41
-    },
-    {
-      "pair": "WIF/BRETT",
-      "sector": "Meme",
-      "fundingSpread": 111.4
-    },
-    {
-      "pair": "WIF/kBONK",
-      "sector": "Meme",
+      "correlation": 0.883,
+      "beta": 0.853,
+      "zScore": 1.16,
+      "meanReversionRate": 0.655,
       "fundingSpread": 0
     },
     {
-      "pair": "WIF/POPCAT",
+      "pair": "PENGU/BRETT",
       "sector": "Meme",
+      "correlation": 0.883,
+      "beta": 0.593,
+      "zScore": -1.88,
+      "meanReversionRate": 0.517,
+      "fundingSpread": 91.61
+    },
+    {
+      "pair": "DOGE/PENGU",
+      "sector": "Meme",
+      "correlation": 0.883,
+      "beta": 0.68,
+      "zScore": 0.87,
+      "meanReversionRate": 0.655,
+      "fundingSpread": -7.23
+    },
+    {
+      "pair": "SOL/XRP",
+      "sector": "L1",
+      "correlation": 0.879,
+      "beta": 0.912,
+      "zScore": -0.67,
+      "meanReversionRate": 0.517,
+      "fundingSpread": -34.35
+    },
+    {
+      "pair": "SUI/AVAX",
+      "sector": "L1",
+      "correlation": 0.878,
+      "beta": 1.035,
+      "zScore": -1.5,
+      "meanReversionRate": 0.655,
       "fundingSpread": 0
     },
     {
-      "pair": "WIF/kFLOKI",
-      "sector": "Meme",
+      "pair": "NEAR/DOT",
+      "sector": "L1",
+      "correlation": 0.877,
+      "beta": 1.254,
+      "zScore": 0.63,
+      "meanReversionRate": 0.517,
       "fundingSpread": 0
     },
     {
-      "pair": "WIF/MEME",
-      "sector": "Meme",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "WIF/PURR",
-      "sector": "Meme",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "kSHIB/BRETT",
-      "sector": "Meme",
-      "fundingSpread": 95.99
-    },
-    {
-      "pair": "kSHIB/kBONK",
-      "sector": "Meme",
-      "fundingSpread": -15.41
-    },
-    {
-      "pair": "kSHIB/POPCAT",
-      "sector": "Meme",
-      "fundingSpread": -15.41
-    },
-    {
-      "pair": "kSHIB/kFLOKI",
-      "sector": "Meme",
-      "fundingSpread": -15.41
-    },
-    {
-      "pair": "kSHIB/MEME",
-      "sector": "Meme",
-      "fundingSpread": -15.41
-    },
-    {
-      "pair": "kSHIB/PURR",
-      "sector": "Meme",
-      "fundingSpread": -15.41
-    },
-    {
-      "pair": "BRETT/kBONK",
-      "sector": "Meme",
-      "fundingSpread": -111.4
-    },
-    {
-      "pair": "BRETT/POPCAT",
-      "sector": "Meme",
-      "fundingSpread": -111.4
-    },
-    {
-      "pair": "BRETT/kFLOKI",
-      "sector": "Meme",
-      "fundingSpread": -111.4
-    },
-    {
-      "pair": "BRETT/MEME",
-      "sector": "Meme",
-      "fundingSpread": -111.4
-    },
-    {
-      "pair": "BRETT/PURR",
-      "sector": "Meme",
-      "fundingSpread": -111.4
-    },
-    {
-      "pair": "kBONK/POPCAT",
-      "sector": "Meme",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "kBONK/kFLOKI",
-      "sector": "Meme",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "kBONK/MEME",
-      "sector": "Meme",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "kBONK/PURR",
-      "sector": "Meme",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "POPCAT/kFLOKI",
-      "sector": "Meme",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "POPCAT/MEME",
-      "sector": "Meme",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "POPCAT/PURR",
-      "sector": "Meme",
-      "fundingSpread": 0
+      "pair": "XLM/SEI",
+      "sector": "L1",
+      "correlation": 0.874,
+      "beta": 0.682,
+      "zScore": 1.9,
+      "meanReversionRate": 0.552,
+      "fundingSpread": 5.58
     },
     {
       "pair": "kFLOKI/MEME",
       "sector": "Meme",
-      "fundingSpread": 0
+      "correlation": 0.872,
+      "beta": 0.787,
+      "zScore": -0.7,
+      "meanReversionRate": 0.621,
+      "fundingSpread": -0.09
     },
     {
-      "pair": "kFLOKI/PURR",
+      "pair": "XRP/ADA",
+      "sector": "L1",
+      "correlation": 0.871,
+      "beta": 0.907,
+      "zScore": 1.73,
+      "meanReversionRate": 0.517,
+      "fundingSpread": 19.66
+    },
+    {
+      "pair": "BRETT/kFLOKI",
       "sector": "Meme",
+      "correlation": 0.867,
+      "beta": 1.402,
+      "zScore": 1.49,
+      "meanReversionRate": 0.621,
+      "fundingSpread": -91.52
+    },
+    {
+      "pair": "SUI/INJ",
+      "sector": "L1",
+      "correlation": 0.867,
+      "beta": 0.661,
+      "zScore": -1.06,
+      "meanReversionRate": 0.517,
+      "fundingSpread": 20.18
+    },
+    {
+      "pair": "SOL/XLM",
+      "sector": "L1",
+      "correlation": 0.866,
+      "beta": 0.956,
+      "zScore": -0.6,
+      "meanReversionRate": 0.655,
+      "fundingSpread": -34.35
+    },
+    {
+      "pair": "ENA/JUP",
+      "sector": "DeFi",
+      "correlation": 0.866,
+      "beta": 1.128,
+      "zScore": 2.14,
+      "meanReversionRate": 0.586,
+      "fundingSpread": 4.88
+    },
+    {
+      "pair": "TIA/ATOM",
+      "sector": "L1",
+      "correlation": 0.864,
+      "beta": 1.29,
+      "zScore": -1.51,
+      "meanReversionRate": 0.586,
+      "fundingSpread": -33.62
+    },
+    {
+      "pair": "FET/FIL",
+      "sector": "AI",
+      "correlation": 0.861,
+      "beta": 0.621,
+      "zScore": 0.86,
+      "meanReversionRate": 0.655,
       "fundingSpread": 0
     },
     {
-      "pair": "MEME/PURR",
+      "pair": "kPEPE/BRETT",
       "sector": "Meme",
+      "correlation": 0.859,
+      "beta": 0.557,
+      "zScore": -1.56,
+      "meanReversionRate": 0.621,
+      "fundingSpread": 91.61
+    },
+    {
+      "pair": "EIGEN/ETHFI",
+      "sector": "DeFi",
+      "correlation": 0.859,
+      "beta": 0.72,
+      "zScore": -0.68,
+      "meanReversionRate": 0.586,
       "fundingSpread": 0
     },
     {
-      "pair": "HYPE/TNSR",
-      "sector": "Infrastructure",
-      "fundingSpread": 928.19
+      "pair": "SOL/AVAX",
+      "sector": "L1",
+      "correlation": 0.858,
+      "beta": 0.872,
+      "zScore": -0.33,
+      "meanReversionRate": 0.517,
+      "fundingSpread": -34.35
     },
     {
-      "pair": "HYPE/LINK",
-      "sector": "Infrastructure",
+      "pair": "INJ/ETC",
+      "sector": "L1",
+      "correlation": 0.857,
+      "beta": 1,
+      "zScore": -0.04,
+      "meanReversionRate": 0.586,
+      "fundingSpread": -20.18
+    },
+    {
+      "pair": "kSHIB/MEME",
+      "sector": "Meme",
+      "correlation": 0.857,
+      "beta": 0.635,
+      "zScore": 0.96,
+      "meanReversionRate": 0.552,
+      "fundingSpread": -17.31
+    },
+    {
+      "pair": "LTC/NEAR",
+      "sector": "L1",
+      "correlation": 0.857,
+      "beta": 0.55,
+      "zScore": -0.22,
+      "meanReversionRate": 0.69,
+      "fundingSpread": -0.09
+    },
+    {
+      "pair": "CRV/LDO",
+      "sector": "DeFi",
+      "correlation": 0.857,
+      "beta": 0.824,
+      "zScore": 2.43,
+      "meanReversionRate": 0.586,
+      "fundingSpread": -40.58
+    },
+    {
+      "pair": "FARTCOIN/kPEPE",
+      "sector": "Meme",
+      "correlation": 0.856,
+      "beta": 1.648,
+      "zScore": 1.77,
+      "meanReversionRate": 0.552,
       "fundingSpread": 0
     },
     {
-      "pair": "HYPE/IP",
-      "sector": "Infrastructure",
-      "fundingSpread": 26.39
+      "pair": "WIF/BRETT",
+      "sector": "Meme",
+      "correlation": 0.855,
+      "beta": 0.749,
+      "zScore": -0.48,
+      "meanReversionRate": 0.621,
+      "fundingSpread": 91.61
     },
     {
-      "pair": "HYPE/HEMI",
-      "sector": "Infrastructure",
-      "fundingSpread": 209.35
+      "pair": "SOL/SUI",
+      "sector": "L1",
+      "correlation": 0.854,
+      "beta": 0.737,
+      "zScore": 1.32,
+      "meanReversionRate": 0.552,
+      "fundingSpread": -34.35
     },
     {
-      "pair": "TNSR/LINK",
-      "sector": "Infrastructure",
-      "fundingSpread": -928.19
+      "pair": "CRV/DYDX",
+      "sector": "DeFi",
+      "correlation": 0.854,
+      "beta": 0.76,
+      "zScore": 2.29,
+      "meanReversionRate": 0.655,
+      "fundingSpread": -40.58
     },
     {
-      "pair": "TNSR/IP",
-      "sector": "Infrastructure",
-      "fundingSpread": -901.8
-    },
-    {
-      "pair": "TNSR/HEMI",
-      "sector": "Infrastructure",
-      "fundingSpread": -718.84
-    },
-    {
-      "pair": "LINK/IP",
-      "sector": "Infrastructure",
-      "fundingSpread": 26.39
-    },
-    {
-      "pair": "LINK/HEMI",
-      "sector": "Infrastructure",
-      "fundingSpread": 209.35
-    },
-    {
-      "pair": "IP/HEMI",
-      "sector": "Infrastructure",
-      "fundingSpread": 182.96
-    },
-    {
-      "pair": "TAO/VIRTUAL",
-      "sector": "AI",
+      "pair": "AVAX/TON",
+      "sector": "L1",
+      "correlation": 0.854,
+      "beta": 0.792,
+      "zScore": 1.69,
+      "meanReversionRate": 0.655,
       "fundingSpread": 0
     },
     {
-      "pair": "TAO/WLD",
-      "sector": "AI",
-      "fundingSpread": 8.27
+      "pair": "LTC/TIA",
+      "sector": "L1",
+      "correlation": 0.852,
+      "beta": 0.584,
+      "zScore": 1.5,
+      "meanReversionRate": 0.586,
+      "fundingSpread": 44.76
     },
     {
-      "pair": "TAO/FET",
+      "pair": "AR/FIL",
       "sector": "AI",
+      "correlation": 0.851,
+      "beta": 0.614,
+      "zScore": 0.57,
+      "meanReversionRate": 0.552,
       "fundingSpread": 0
     },
     {
-      "pair": "TAO/AR",
-      "sector": "AI",
+      "pair": "ETH/XRP",
+      "sector": "L1",
+      "correlation": 0.851,
+      "beta": 0.751,
+      "zScore": -0.91,
+      "meanReversionRate": 0.552,
+      "fundingSpread": -4.73
+    },
+    {
+      "pair": "TIA/SEI",
+      "sector": "L1",
+      "correlation": 0.848,
+      "beta": 1.332,
+      "zScore": -1.4,
+      "meanReversionRate": 0.552,
+      "fundingSpread": -39.26
+    },
+    {
+      "pair": "AVAX/XLM",
+      "sector": "L1",
+      "correlation": 0.846,
+      "beta": 0.919,
+      "zScore": -0.56,
+      "meanReversionRate": 0.586,
       "fundingSpread": 0
     },
     {
-      "pair": "TAO/AIXBT",
-      "sector": "AI",
-      "fundingSpread": 3.95
+      "pair": "FARTCOIN/BRETT",
+      "sector": "Meme",
+      "correlation": 0.846,
+      "beta": 1.056,
+      "zScore": 1.53,
+      "meanReversionRate": 0.517,
+      "fundingSpread": 91.61
     },
     {
-      "pair": "TAO/FIL",
-      "sector": "AI",
+      "pair": "DOGE/MEME",
+      "sector": "Meme",
+      "correlation": 0.845,
+      "beta": 0.638,
+      "zScore": -0.61,
+      "meanReversionRate": 0.655,
+      "fundingSpread": -7.23
+    },
+    {
+      "pair": "ADA/APT",
+      "sector": "L1",
+      "correlation": 0.844,
+      "beta": 0.568,
+      "zScore": -0.31,
+      "meanReversionRate": 0.552,
+      "fundingSpread": 41.98
+    },
+    {
+      "pair": "JUP/LDO",
+      "sector": "DeFi",
+      "correlation": 0.844,
+      "beta": 0.591,
+      "zScore": -1.02,
+      "meanReversionRate": 0.655,
+      "fundingSpread": -4.88
+    },
+    {
+      "pair": "SEI/BERA",
+      "sector": "L1",
+      "correlation": 0.844,
+      "beta": 0.885,
+      "zScore": 2.51,
+      "meanReversionRate": 0.517,
+      "fundingSpread": 34.95
+    },
+    {
+      "pair": "SUI/TON",
+      "sector": "L1",
+      "correlation": 0.843,
+      "beta": 0.922,
+      "zScore": -0.75,
+      "meanReversionRate": 0.586,
       "fundingSpread": 0
+    },
+    {
+      "pair": "EIGEN/LDO",
+      "sector": "DeFi",
+      "correlation": 0.842,
+      "beta": 0.812,
+      "zScore": -0.52,
+      "meanReversionRate": 0.621,
+      "fundingSpread": 0
+    },
+    {
+      "pair": "TIA/APT",
+      "sector": "L1",
+      "correlation": 0.841,
+      "beta": 1.112,
+      "zScore": -0.07,
+      "meanReversionRate": 0.586,
+      "fundingSpread": 16.79
+    },
+    {
+      "pair": "SOL/SEI",
+      "sector": "L1",
+      "correlation": 0.84,
+      "beta": 0.724,
+      "zScore": 0.67,
+      "meanReversionRate": 0.552,
+      "fundingSpread": -28.77
+    },
+    {
+      "pair": "ETH/SUI",
+      "sector": "L1",
+      "correlation": 0.838,
+      "beta": 0.615,
+      "zScore": 1.5,
+      "meanReversionRate": 0.621,
+      "fundingSpread": -4.73
+    },
+    {
+      "pair": "XRP/HBAR",
+      "sector": "L1",
+      "correlation": 0.836,
+      "beta": 0.663,
+      "zScore": 1.4,
+      "meanReversionRate": 0.552,
+      "fundingSpread": 0
+    },
+    {
+      "pair": "LTC/SEI",
+      "sector": "L1",
+      "correlation": 0.836,
+      "beta": 0.9,
+      "zScore": 0.53,
+      "meanReversionRate": 0.586,
+      "fundingSpread": 5.49
+    },
+    {
+      "pair": "FARTCOIN/SPX",
+      "sector": "Meme",
+      "correlation": 0.833,
+      "beta": 0.877,
+      "zScore": 0.73,
+      "meanReversionRate": 0.552,
+      "fundingSpread": 13.58
+    },
+    {
+      "pair": "AVAX/TIA",
+      "sector": "L1",
+      "correlation": 0.831,
+      "beta": 0.449,
+      "zScore": 1.17,
+      "meanReversionRate": 0.586,
+      "fundingSpread": 44.84
+    },
+    {
+      "pair": "CRV/ETHFI",
+      "sector": "DeFi",
+      "correlation": 0.83,
+      "beta": 0.694,
+      "zScore": 1.61,
+      "meanReversionRate": 0.586,
+      "fundingSpread": -40.58
+    },
+    {
+      "pair": "BRETT/kBONK",
+      "sector": "Meme",
+      "correlation": 0.829,
+      "beta": 1.11,
+      "zScore": 0.85,
+      "meanReversionRate": 0.621,
+      "fundingSpread": -91.61
+    },
+    {
+      "pair": "ENA/EIGEN",
+      "sector": "DeFi",
+      "correlation": 0.828,
+      "beta": 0.783,
+      "zScore": 1.26,
+      "meanReversionRate": 0.552,
+      "fundingSpread": 0
+    },
+    {
+      "pair": "ETH/AVAX",
+      "sector": "L1",
+      "correlation": 0.826,
+      "beta": 0.715,
+      "zScore": -0.81,
+      "meanReversionRate": 0.655,
+      "fundingSpread": -4.73
     },
     {
       "pair": "VIRTUAL/WLD",
       "sector": "AI",
-      "fundingSpread": 8.27
+      "correlation": 0.826,
+      "beta": 1.5,
+      "zScore": -0.84,
+      "meanReversionRate": 0.655,
+      "fundingSpread": 6.8
     },
     {
-      "pair": "VIRTUAL/FET",
-      "sector": "AI",
+      "pair": "TON/SEI",
+      "sector": "L1",
+      "correlation": 0.825,
+      "beta": 0.754,
+      "zScore": -0.52,
+      "meanReversionRate": 0.586,
+      "fundingSpread": 5.58
+    },
+    {
+      "pair": "AAVE/LDO",
+      "sector": "DeFi",
+      "correlation": 0.824,
+      "beta": 0.793,
+      "zScore": 1.13,
+      "meanReversionRate": 0.586,
       "fundingSpread": 0
     },
     {
-      "pair": "VIRTUAL/AR",
-      "sector": "AI",
+      "pair": "FARTCOIN/POPCAT",
+      "sector": "Meme",
+      "correlation": 0.822,
+      "beta": 1.134,
+      "zScore": 1.78,
+      "meanReversionRate": 0.517,
       "fundingSpread": 0
     },
     {
-      "pair": "VIRTUAL/AIXBT",
-      "sector": "AI",
-      "fundingSpread": 3.95
+      "pair": "SUI/XLM",
+      "sector": "L1",
+      "correlation": 0.82,
+      "beta": 1.05,
+      "zScore": -1.29,
+      "meanReversionRate": 0.517,
+      "fundingSpread": 0
     },
     {
-      "pair": "VIRTUAL/FIL",
-      "sector": "AI",
+      "pair": "ENA/CRV",
+      "sector": "DeFi",
+      "correlation": 0.819,
+      "beta": 0.776,
+      "zScore": -0.43,
+      "meanReversionRate": 0.552,
+      "fundingSpread": 40.58
+    },
+    {
+      "pair": "TRX/ATOM",
+      "sector": "L1",
+      "correlation": 0.817,
+      "beta": 0.244,
+      "zScore": -0.09,
+      "meanReversionRate": 0.621,
+      "fundingSpread": 11.22
+    },
+    {
+      "pair": "kPEPE/MEME",
+      "sector": "Meme",
+      "correlation": 0.815,
+      "beta": 0.772,
+      "zScore": -0.51,
+      "meanReversionRate": 0.517,
+      "fundingSpread": 0
+    },
+    {
+      "pair": "LTC/APT",
+      "sector": "L1",
+      "correlation": 0.815,
+      "beta": 0.739,
+      "zScore": 1.71,
+      "meanReversionRate": 0.621,
+      "fundingSpread": 61.55
+    },
+    {
+      "pair": "BTC/XRP",
+      "sector": "L1",
+      "correlation": 0.814,
+      "beta": 0.469,
+      "zScore": -0.95,
+      "meanReversionRate": 0.552,
+      "fundingSpread": 0
+    },
+    {
+      "pair": "TIA/ADA",
+      "sector": "L1",
+      "correlation": 0.813,
+      "beta": 1.598,
+      "zScore": -0.13,
+      "meanReversionRate": 0.552,
+      "fundingSpread": -25.18
+    },
+    {
+      "pair": "SPX/kPEPE",
+      "sector": "Meme",
+      "correlation": 0.811,
+      "beta": 1.483,
+      "zScore": 2.23,
+      "meanReversionRate": 0.552,
+      "fundingSpread": -13.58
+    },
+    {
+      "pair": "ETHFI/DYDX",
+      "sector": "DeFi",
+      "correlation": 0.809,
+      "beta": 0.862,
+      "zScore": 0.39,
+      "meanReversionRate": 0.621,
+      "fundingSpread": 0
+    },
+    {
+      "pair": "XLM/INJ",
+      "sector": "L1",
+      "correlation": 0.808,
+      "beta": 0.482,
+      "zScore": 0.02,
+      "meanReversionRate": 0.586,
+      "fundingSpread": 20.18
+    },
+    {
+      "pair": "AAVE/PENDLE",
+      "sector": "DeFi",
+      "correlation": 0.804,
+      "beta": 0.719,
+      "zScore": -1.88,
+      "meanReversionRate": 0.621,
+      "fundingSpread": 0
+    },
+    {
+      "pair": "ENA/ETHFI",
+      "sector": "DeFi",
+      "correlation": 0.803,
+      "beta": 0.637,
+      "zScore": 0.17,
+      "meanReversionRate": 0.724,
+      "fundingSpread": 0
+    },
+    {
+      "pair": "ETHFI/JUP",
+      "sector": "DeFi",
+      "correlation": 0.802,
+      "beta": 1.318,
+      "zScore": 1.02,
+      "meanReversionRate": 0.586,
+      "fundingSpread": 4.88
+    },
+    {
+      "pair": "ENA/DYDX",
+      "sector": "DeFi",
+      "correlation": 0.801,
+      "beta": 0.676,
+      "zScore": 0.38,
+      "meanReversionRate": 0.517,
       "fundingSpread": 0
     },
     {
       "pair": "WLD/FET",
       "sector": "AI",
-      "fundingSpread": -8.27
+      "correlation": 0.801,
+      "beta": 0.376,
+      "zScore": -0.73,
+      "meanReversionRate": 0.517,
+      "fundingSpread": -6.8
     },
     {
-      "pair": "WLD/AR",
-      "sector": "AI",
-      "fundingSpread": -8.27
+      "pair": "LTC/INJ",
+      "sector": "L1",
+      "correlation": 0.8,
+      "beta": 0.657,
+      "zScore": -0.92,
+      "meanReversionRate": 0.586,
+      "fundingSpread": 20.09
     },
     {
-      "pair": "WLD/AIXBT",
-      "sector": "AI",
-      "fundingSpread": -4.32
+      "pair": "TON/BERA",
+      "sector": "L1",
+      "correlation": 0.8,
+      "beta": 0.766,
+      "zScore": 3.44,
+      "meanReversionRate": 0.552,
+      "fundingSpread": 40.53
     },
     {
-      "pair": "WLD/FIL",
-      "sector": "AI",
-      "fundingSpread": -8.27
+      "pair": "XRP/SEI",
+      "sector": "L1",
+      "correlation": 0.799,
+      "beta": 0.664,
+      "zScore": 1.89,
+      "meanReversionRate": 0.655,
+      "fundingSpread": 5.58
     },
     {
-      "pair": "FET/AR",
-      "sector": "AI",
+      "pair": "APT/NEAR",
+      "sector": "L1",
+      "correlation": 0.798,
+      "beta": 0.565,
+      "zScore": -1.67,
+      "meanReversionRate": 0.517,
+      "fundingSpread": -61.63
+    },
+    {
+      "pair": "ZRO/DYDX",
+      "sector": "DeFi",
+      "correlation": 0.796,
+      "beta": 0.586,
+      "zScore": -0.03,
+      "meanReversionRate": 0.586,
+      "fundingSpread": -29.87
+    },
+    {
+      "pair": "SEI/ETC",
+      "sector": "L1",
+      "correlation": 0.793,
+      "beta": 0.707,
+      "zScore": -1.05,
+      "meanReversionRate": 0.552,
+      "fundingSpread": -5.58
+    },
+    {
+      "pair": "LTC/ADA",
+      "sector": "L1",
+      "correlation": 0.792,
+      "beta": 1.068,
+      "zScore": 0.81,
+      "meanReversionRate": 0.552,
+      "fundingSpread": 19.57
+    },
+    {
+      "pair": "XRP/AVAX",
+      "sector": "L1",
+      "correlation": 0.79,
+      "beta": 0.774,
+      "zScore": 0.74,
+      "meanReversionRate": 0.586,
       "fundingSpread": 0
+    },
+    {
+      "pair": "WIF/MEME",
+      "sector": "Meme",
+      "correlation": 0.788,
+      "beta": 1.008,
+      "zScore": -0.18,
+      "meanReversionRate": 0.552,
+      "fundingSpread": 0
+    },
+    {
+      "pair": "AVAX/LTC",
+      "sector": "L1",
+      "correlation": 0.784,
+      "beta": 0.618,
+      "zScore": 0.01,
+      "meanReversionRate": 0.586,
+      "fundingSpread": 0.09
+    },
+    {
+      "pair": "ETHFI/ZRO",
+      "sector": "DeFi",
+      "correlation": 0.784,
+      "beta": 1.134,
+      "zScore": -0.07,
+      "meanReversionRate": 0.621,
+      "fundingSpread": 29.87
+    },
+    {
+      "pair": "ZRO/LDO",
+      "sector": "DeFi",
+      "correlation": 0.783,
+      "beta": 0.623,
+      "zScore": -0.03,
+      "meanReversionRate": 0.552,
+      "fundingSpread": -29.87
+    },
+    {
+      "pair": "TIA/BERA",
+      "sector": "L1",
+      "correlation": 0.782,
+      "beta": 1.287,
+      "zScore": 1.59,
+      "meanReversionRate": 0.69,
+      "fundingSpread": -4.31
+    },
+    {
+      "pair": "SPX/DOGE",
+      "sector": "Meme",
+      "correlation": 0.782,
+      "beta": 1.79,
+      "zScore": 2.16,
+      "meanReversionRate": 0.552,
+      "fundingSpread": -6.35
+    },
+    {
+      "pair": "PENGU/MEME",
+      "sector": "Meme",
+      "correlation": 0.781,
+      "beta": 0.766,
+      "zScore": -0.83,
+      "meanReversionRate": 0.621,
+      "fundingSpread": 0
+    },
+    {
+      "pair": "JUP/DYDX",
+      "sector": "DeFi",
+      "correlation": 0.781,
+      "beta": 0.506,
+      "zScore": -0.92,
+      "meanReversionRate": 0.586,
+      "fundingSpread": -4.88
+    },
+    {
+      "pair": "kSHIB/BRETT",
+      "sector": "Meme",
+      "correlation": 0.781,
+      "beta": 0.397,
+      "zScore": 0.88,
+      "meanReversionRate": 0.655,
+      "fundingSpread": 74.3
+    },
+    {
+      "pair": "FARTCOIN/DOGE",
+      "sector": "Meme",
+      "correlation": 0.781,
+      "beta": 1.884,
+      "zScore": 2.36,
+      "meanReversionRate": 0.586,
+      "fundingSpread": 7.23
+    },
+    {
+      "pair": "ETH/XLM",
+      "sector": "L1",
+      "correlation": 0.778,
+      "beta": 0.731,
+      "zScore": -0.85,
+      "meanReversionRate": 0.517,
+      "fundingSpread": -4.73
+    },
+    {
+      "pair": "ETH/SEI",
+      "sector": "L1",
+      "correlation": 0.776,
+      "beta": 0.569,
+      "zScore": 0.3,
+      "meanReversionRate": 0.621,
+      "fundingSpread": 0.85
+    },
+    {
+      "pair": "AAVE/CRV",
+      "sector": "DeFi",
+      "correlation": 0.776,
+      "beta": 0.776,
+      "zScore": -0.61,
+      "meanReversionRate": 0.552,
+      "fundingSpread": 40.58
+    },
+    {
+      "pair": "CRV/PENDLE",
+      "sector": "DeFi",
+      "correlation": 0.775,
+      "beta": 0.693,
+      "zScore": -1.1,
+      "meanReversionRate": 0.586,
+      "fundingSpread": -40.58
+    },
+    {
+      "pair": "ADA/ETC",
+      "sector": "L1",
+      "correlation": 0.774,
+      "beta": 0.55,
+      "zScore": -1.13,
+      "meanReversionRate": 0.552,
+      "fundingSpread": -19.66
+    },
+    {
+      "pair": "TON/INJ",
+      "sector": "L1",
+      "correlation": 0.774,
+      "beta": 0.539,
+      "zScore": -1.12,
+      "meanReversionRate": 0.517,
+      "fundingSpread": 20.18
+    },
+    {
+      "pair": "ENA/AAVE",
+      "sector": "DeFi",
+      "correlation": 0.773,
+      "beta": 0.733,
+      "zScore": -0.16,
+      "meanReversionRate": 0.552,
+      "fundingSpread": 0
+    },
+    {
+      "pair": "AAVE/ETHFI",
+      "sector": "DeFi",
+      "correlation": 0.773,
+      "beta": 0.647,
+      "zScore": 0.35,
+      "meanReversionRate": 0.621,
+      "fundingSpread": 0
+    },
+    {
+      "pair": "SPX/kFLOKI",
+      "sector": "Meme",
+      "correlation": 0.773,
+      "beta": 1.48,
+      "zScore": 2.3,
+      "meanReversionRate": 0.586,
+      "fundingSpread": -13.5
+    },
+    {
+      "pair": "LTC/ATOM",
+      "sector": "L1",
+      "correlation": 0.772,
+      "beta": 0.79,
+      "zScore": -0.3,
+      "meanReversionRate": 0.69,
+      "fundingSpread": 11.13
+    },
+    {
+      "pair": "EIGEN/JUP",
+      "sector": "DeFi",
+      "correlation": 0.77,
+      "beta": 1.06,
+      "zScore": 1.37,
+      "meanReversionRate": 0.517,
+      "fundingSpread": 4.88
+    },
+    {
+      "pair": "ARB/AERO",
+      "sector": "L2",
+      "correlation": 0.769,
+      "beta": 0.575,
+      "zScore": -0.18,
+      "meanReversionRate": 0.517,
+      "fundingSpread": 8.25
+    },
+    {
+      "pair": "SUI/APT",
+      "sector": "L1",
+      "correlation": 0.767,
+      "beta": 0.645,
+      "zScore": -0.07,
+      "meanReversionRate": 0.586,
+      "fundingSpread": 61.63
+    },
+    {
+      "pair": "SUI/TIA",
+      "sector": "L1",
+      "correlation": 0.765,
+      "beta": 0.487,
+      "zScore": -0.27,
+      "meanReversionRate": 0.552,
+      "fundingSpread": 44.84
+    },
+    {
+      "pair": "DOT/BERA",
+      "sector": "L1",
+      "correlation": 0.764,
+      "beta": 0.939,
+      "zScore": 1.66,
+      "meanReversionRate": 0.552,
+      "fundingSpread": 40.53
+    },
+    {
+      "pair": "NEAR/INJ",
+      "sector": "L1",
+      "correlation": 0.762,
+      "beta": 0.975,
+      "zScore": -0.69,
+      "meanReversionRate": 0.552,
+      "fundingSpread": 20.18
+    },
+    {
+      "pair": "NEAR/ETC",
+      "sector": "L1",
+      "correlation": 0.76,
+      "beta": 1.134,
+      "zScore": -0.63,
+      "meanReversionRate": 0.621,
+      "fundingSpread": 0
+    },
+    {
+      "pair": "SOL/APT",
+      "sector": "L1",
+      "correlation": 0.759,
+      "beta": 0.551,
+      "zScore": 0.82,
+      "meanReversionRate": 0.621,
+      "fundingSpread": 27.28
+    },
+    {
+      "pair": "SOL/TON",
+      "sector": "L1",
+      "correlation": 0.759,
+      "beta": 0.716,
+      "zScore": 0.58,
+      "meanReversionRate": 0.552,
+      "fundingSpread": -34.35
+    },
+    {
+      "pair": "SUI/LTC",
+      "sector": "L1",
+      "correlation": 0.757,
+      "beta": 0.703,
+      "zScore": -0.69,
+      "meanReversionRate": 0.552,
+      "fundingSpread": 0.09
+    },
+    {
+      "pair": "XLM/ATOM",
+      "sector": "L1",
+      "correlation": 0.755,
+      "beta": 0.561,
+      "zScore": 0.33,
+      "meanReversionRate": 0.552,
+      "fundingSpread": 11.22
+    },
+    {
+      "pair": "LTC/ETC",
+      "sector": "L1",
+      "correlation": 0.754,
+      "beta": 0.723,
+      "zScore": -0.79,
+      "meanReversionRate": 0.655,
+      "fundingSpread": -0.09
+    },
+    {
+      "pair": "SOL/INJ",
+      "sector": "L1",
+      "correlation": 0.754,
+      "beta": 0.496,
+      "zScore": -0.34,
+      "meanReversionRate": 0.621,
+      "fundingSpread": -14.18
+    },
+    {
+      "pair": "APT/ETC",
+      "sector": "L1",
+      "correlation": 0.751,
+      "beta": 0.794,
+      "zScore": -1.95,
+      "meanReversionRate": 0.621,
+      "fundingSpread": -61.63
+    },
+    {
+      "pair": "XLM/DOT",
+      "sector": "L1",
+      "correlation": 0.75,
+      "beta": 0.499,
+      "zScore": 0.74,
+      "meanReversionRate": 0.552,
+      "fundingSpread": 0
+    },
+    {
+      "pair": "BTC/SUI",
+      "sector": "L1",
+      "correlation": 0.748,
+      "beta": 0.359,
+      "zScore": -0.19,
+      "meanReversionRate": 0.586,
+      "fundingSpread": 0
+    },
+    {
+      "pair": "SOL/HBAR",
+      "sector": "L1",
+      "correlation": 0.747,
+      "beta": 0.614,
+      "zScore": -0.09,
+      "meanReversionRate": 0.552,
+      "fundingSpread": -34.35
+    },
+    {
+      "pair": "APT/BERA",
+      "sector": "L1",
+      "correlation": 0.747,
+      "beta": 0.929,
+      "zScore": 1.13,
+      "meanReversionRate": 0.552,
+      "fundingSpread": -21.11
+    },
+    {
+      "pair": "TON/DOT",
+      "sector": "L1",
+      "correlation": 0.744,
+      "beta": 0.579,
+      "zScore": -0.46,
+      "meanReversionRate": 0.552,
+      "fundingSpread": 0
+    },
+    {
+      "pair": "NEAR/SEI",
+      "sector": "L1",
+      "correlation": 0.743,
+      "beta": 1.245,
+      "zScore": 0.19,
+      "meanReversionRate": 0.552,
+      "fundingSpread": 5.58
+    },
+    {
+      "pair": "EIGEN/PENDLE",
+      "sector": "DeFi",
+      "correlation": 0.741,
+      "beta": 0.664,
+      "zScore": -1.73,
+      "meanReversionRate": 0.517,
+      "fundingSpread": 0
+    },
+    {
+      "pair": "TURBO/MEME",
+      "sector": "Meme",
+      "correlation": 0.737,
+      "beta": 1.221,
+      "zScore": 2.93,
+      "meanReversionRate": 0.69,
+      "fundingSpread": -3414.27
+    },
+    {
+      "pair": "TURBO/kSHIB",
+      "sector": "Meme",
+      "correlation": 0.737,
+      "beta": 1.645,
+      "zScore": 3.28,
+      "meanReversionRate": 0.552,
+      "fundingSpread": -3396.96
+    },
+    {
+      "pair": "ADA/NEAR",
+      "sector": "L1",
+      "correlation": 0.736,
+      "beta": 0.351,
+      "zScore": -0.92,
+      "meanReversionRate": 0.552,
+      "fundingSpread": -19.66
+    },
+    {
+      "pair": "XRP/TON",
+      "sector": "L1",
+      "correlation": 0.736,
+      "beta": 0.67,
+      "zScore": 1.52,
+      "meanReversionRate": 0.724,
+      "fundingSpread": 0
+    },
+    {
+      "pair": "AVAX/HBAR",
+      "sector": "L1",
+      "correlation": 0.736,
+      "beta": 0.595,
+      "zScore": 0.04,
+      "meanReversionRate": 0.586,
+      "fundingSpread": 0
+    },
+    {
+      "pair": "EIGEN/ZRO",
+      "sector": "DeFi",
+      "correlation": 0.735,
+      "beta": 0.892,
+      "zScore": -0.69,
+      "meanReversionRate": 0.517,
+      "fundingSpread": 29.87
+    },
+    {
+      "pair": "XRP/INJ",
+      "sector": "L1",
+      "correlation": 0.731,
+      "beta": 0.464,
+      "zScore": 0.54,
+      "meanReversionRate": 0.655,
+      "fundingSpread": 20.18
+    },
+    {
+      "pair": "BTC/SEI",
+      "sector": "L1",
+      "correlation": 0.728,
+      "beta": 0.349,
+      "zScore": -0.33,
+      "meanReversionRate": 0.586,
+      "fundingSpread": 5.58
+    },
+    {
+      "pair": "SPX/kBONK",
+      "sector": "Meme",
+      "correlation": 0.727,
+      "beta": 1.154,
+      "zScore": 2.17,
+      "meanReversionRate": 0.552,
+      "fundingSpread": -13.58
+    },
+    {
+      "pair": "APT/TON",
+      "sector": "L1",
+      "correlation": 0.727,
+      "beta": 0.945,
+      "zScore": -1.83,
+      "meanReversionRate": 0.517,
+      "fundingSpread": -61.63
+    },
+    {
+      "pair": "INJ/TRX",
+      "sector": "L1",
+      "correlation": 0.727,
+      "beta": 3.03,
+      "zScore": 0.07,
+      "meanReversionRate": 0.552,
+      "fundingSpread": -20.18
+    },
+    {
+      "pair": "BRETT/MEME",
+      "sector": "Meme",
+      "correlation": 0.725,
+      "beta": 1.059,
+      "zScore": -0.04,
+      "meanReversionRate": 0.655,
+      "fundingSpread": -91.61
+    },
+    {
+      "pair": "BRETT/POPCAT",
+      "sector": "Meme",
+      "correlation": 0.723,
+      "beta": 0.8,
+      "zScore": -0.29,
+      "meanReversionRate": 0.621,
+      "fundingSpread": -91.61
+    },
+    {
+      "pair": "BNB/BANANA",
+      "sector": "Exchange",
+      "correlation": 0.718,
+      "beta": 0.319,
+      "zScore": -1.48,
+      "meanReversionRate": 0.621,
+      "fundingSpread": 337.95
+    },
+    {
+      "pair": "AVAX/TRX",
+      "sector": "L1",
+      "correlation": 0.718,
+      "beta": 1.937,
+      "zScore": -0.07,
+      "meanReversionRate": 0.552,
+      "fundingSpread": 0
+    },
+    {
+      "pair": "SUI/ATOM",
+      "sector": "L1",
+      "correlation": 0.718,
+      "beta": 0.682,
+      "zScore": -0.67,
+      "meanReversionRate": 0.586,
+      "fundingSpread": 11.22
+    },
+    {
+      "pair": "PENDLE/ETHFI",
+      "sector": "DeFi",
+      "correlation": 0.717,
+      "beta": 0.67,
+      "zScore": 1.62,
+      "meanReversionRate": 0.69,
+      "fundingSpread": 0
+    },
+    {
+      "pair": "DOT/TRX",
+      "sector": "L1",
+      "correlation": 0.717,
+      "beta": 2.674,
+      "zScore": -1.36,
+      "meanReversionRate": 0.655,
+      "fundingSpread": 0
+    },
+    {
+      "pair": "SUI/HBAR",
+      "sector": "L1",
+      "correlation": 0.713,
+      "beta": 0.68,
+      "zScore": -1.01,
+      "meanReversionRate": 0.517,
+      "fundingSpread": 0
+    },
+    {
+      "pair": "AVAX/NEAR",
+      "sector": "L1",
+      "correlation": 0.711,
+      "beta": 0.36,
+      "zScore": -0.01,
+      "meanReversionRate": 0.621,
+      "fundingSpread": 0
+    },
+    {
+      "pair": "AAVE/DYDX",
+      "sector": "DeFi",
+      "correlation": 0.711,
+      "beta": 0.633,
+      "zScore": 0.6,
+      "meanReversionRate": 0.69,
+      "fundingSpread": 0
+    },
+    {
+      "pair": "ETH/INJ",
+      "sector": "L1",
+      "correlation": 0.71,
+      "beta": 0.398,
+      "zScore": -0.58,
+      "meanReversionRate": 0.517,
+      "fundingSpread": 15.44
     },
     {
       "pair": "FET/AIXBT",
       "sector": "AI",
-      "fundingSpread": 3.95
+      "correlation": 0.707,
+      "beta": 1.41,
+      "zScore": 0.75,
+      "meanReversionRate": 0.655,
+      "fundingSpread": 5.76
     },
     {
-      "pair": "FET/FIL",
+      "pair": "FET/AR",
       "sector": "AI",
+      "correlation": 0.706,
+      "beta": 0.705,
+      "zScore": 0.07,
+      "meanReversionRate": 0.655,
       "fundingSpread": 0
     },
     {
-      "pair": "AR/AIXBT",
-      "sector": "AI",
-      "fundingSpread": 3.95
+      "pair": "ETH/APT",
+      "sector": "L1",
+      "correlation": 0.706,
+      "beta": 0.436,
+      "zScore": 0.58,
+      "meanReversionRate": 0.552,
+      "fundingSpread": 56.9
     },
     {
-      "pair": "AR/FIL",
-      "sector": "AI",
+      "pair": "FARTCOIN/kSHIB",
+      "sector": "Meme",
+      "correlation": 0.703,
+      "beta": 1.727,
+      "zScore": 1.65,
+      "meanReversionRate": 0.621,
+      "fundingSpread": 17.31
+    },
+    {
+      "pair": "TIA/TRX",
+      "sector": "L1",
+      "correlation": 0.703,
+      "beta": 3.512,
+      "zScore": -1.79,
+      "meanReversionRate": 0.552,
+      "fundingSpread": -44.84
+    },
+    {
+      "pair": "AAVE/EIGEN",
+      "sector": "DeFi",
+      "correlation": 0.702,
+      "beta": 0.701,
+      "zScore": 1.25,
+      "meanReversionRate": 0.552,
       "fundingSpread": 0
     },
     {
-      "pair": "AIXBT/FIL",
-      "sector": "AI",
-      "fundingSpread": -3.95
+      "pair": "JUP/ZRO",
+      "sector": "DeFi",
+      "correlation": 0.702,
+      "beta": 0.618,
+      "zScore": -1.06,
+      "meanReversionRate": 0.517,
+      "fundingSpread": 24.99
     },
     {
-      "pair": "XPL/ASTER",
-      "sector": "Other",
+      "pair": "SOL/ATOM",
+      "sector": "L1",
+      "correlation": 0.701,
+      "beta": 0.574,
+      "zScore": -0.06,
+      "meanReversionRate": 0.517,
+      "fundingSpread": -23.13
+    },
+    {
+      "pair": "TURBO/kFLOKI",
+      "sector": "Meme",
+      "correlation": 0.699,
+      "beta": 1.283,
+      "zScore": 3.7,
+      "meanReversionRate": 0.724,
+      "fundingSpread": -3414.18
+    },
+    {
+      "pair": "SPX/POPCAT",
+      "sector": "Meme",
+      "correlation": 0.698,
+      "beta": 0.915,
+      "zScore": 1.6,
+      "meanReversionRate": 0.552,
+      "fundingSpread": -13.58
+    },
+    {
+      "pair": "TURBO/kPEPE",
+      "sector": "Meme",
+      "correlation": 0.698,
+      "beta": 1.221,
+      "zScore": 3.52,
+      "meanReversionRate": 0.655,
+      "fundingSpread": -3414.27
+    },
+    {
+      "pair": "WIF/PURR",
+      "sector": "Meme",
+      "correlation": 0.697,
+      "beta": 0.752,
+      "zScore": 0.13,
+      "meanReversionRate": 0.69,
       "fundingSpread": 0
     },
     {
-      "pair": "XPL/WLFI",
-      "sector": "Other",
-      "fundingSpread": 19.42
-    },
-    {
-      "pair": "XPL/ACE",
-      "sector": "Other",
-      "fundingSpread": 328.73
-    },
-    {
-      "pair": "XPL/ZORA",
-      "sector": "Other",
-      "fundingSpread": 46.05
-    },
-    {
-      "pair": "XPL/ZEN",
-      "sector": "Other",
+      "pair": "PENDLE/LDO",
+      "sector": "DeFi",
+      "correlation": 0.696,
+      "beta": 0.748,
+      "zScore": 2.22,
+      "meanReversionRate": 0.586,
       "fundingSpread": 0
     },
     {
-      "pair": "XPL/BIO",
-      "sector": "Other",
+      "pair": "LTC/TON",
+      "sector": "L1",
+      "correlation": 0.695,
+      "beta": 0.819,
+      "zScore": 0.24,
+      "meanReversionRate": 0.517,
+      "fundingSpread": -0.09
+    },
+    {
+      "pair": "TON/ATOM",
+      "sector": "L1",
+      "correlation": 0.694,
+      "beta": 0.603,
+      "zScore": -0.67,
+      "meanReversionRate": 0.655,
+      "fundingSpread": 11.22
+    },
+    {
+      "pair": "TIA/TON",
+      "sector": "L1",
+      "correlation": 0.693,
+      "beta": 1.192,
+      "zScore": -1.57,
+      "meanReversionRate": 0.586,
+      "fundingSpread": -44.84
+    },
+    {
+      "pair": "PENGU/TRUMP",
+      "sector": "Meme",
+      "correlation": 0.693,
+      "beta": 0.665,
+      "zScore": -0.48,
+      "meanReversionRate": 0.586,
+      "fundingSpread": 19.69
+    },
+    {
+      "pair": "BRETT/PURR",
+      "sector": "Meme",
+      "correlation": 0.69,
+      "beta": 0.85,
+      "zScore": 0.25,
+      "meanReversionRate": 0.552,
+      "fundingSpread": -91.61
+    },
+    {
+      "pair": "SPX/kSHIB",
+      "sector": "Meme",
+      "correlation": 0.689,
+      "beta": 1.607,
+      "zScore": 1.11,
+      "meanReversionRate": 0.517,
+      "fundingSpread": 3.73
+    },
+    {
+      "pair": "SOL/DOT",
+      "sector": "L1",
+      "correlation": 0.688,
+      "beta": 0.506,
+      "zScore": 0.16,
+      "meanReversionRate": 0.552,
+      "fundingSpread": -34.35
+    },
+    {
+      "pair": "SUI/NEAR",
+      "sector": "L1",
+      "correlation": 0.686,
+      "beta": 0.409,
+      "zScore": -0.65,
+      "meanReversionRate": 0.586,
       "fundingSpread": 0
-    },
-    {
-      "pair": "ASTER/WLFI",
-      "sector": "Other",
-      "fundingSpread": 19.42
-    },
-    {
-      "pair": "ASTER/ACE",
-      "sector": "Other",
-      "fundingSpread": 328.73
-    },
-    {
-      "pair": "ASTER/ZORA",
-      "sector": "Other",
-      "fundingSpread": 46.05
-    },
-    {
-      "pair": "ASTER/ZEN",
-      "sector": "Other",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "ASTER/BIO",
-      "sector": "Other",
-      "fundingSpread": 0
-    },
-    {
-      "pair": "WLFI/ACE",
-      "sector": "Other",
-      "fundingSpread": 309.31
-    },
-    {
-      "pair": "WLFI/ZORA",
-      "sector": "Other",
-      "fundingSpread": 26.63
-    },
-    {
-      "pair": "WLFI/ZEN",
-      "sector": "Other",
-      "fundingSpread": -19.42
-    },
-    {
-      "pair": "WLFI/BIO",
-      "sector": "Other",
-      "fundingSpread": -19.42
-    },
-    {
-      "pair": "ACE/ZORA",
-      "sector": "Other",
-      "fundingSpread": -282.68
-    },
-    {
-      "pair": "ACE/ZEN",
-      "sector": "Other",
-      "fundingSpread": -328.73
     },
     {
       "pair": "ACE/BIO",
       "sector": "Other",
-      "fundingSpread": -328.73
+      "correlation": 0.685,
+      "beta": 0.776,
+      "zScore": 1.18,
+      "meanReversionRate": 0.621,
+      "fundingSpread": -349.62
     },
     {
-      "pair": "ZORA/ZEN",
-      "sector": "Other",
-      "fundingSpread": -46.05
+      "pair": "ADA/TRX",
+      "sector": "L1",
+      "correlation": 0.685,
+      "beta": 1.741,
+      "zScore": -1.12,
+      "meanReversionRate": 0.517,
+      "fundingSpread": -19.66
     },
     {
-      "pair": "ZORA/BIO",
-      "sector": "Other",
-      "fundingSpread": -46.05
-    },
-    {
-      "pair": "ZEN/BIO",
-      "sector": "Other",
+      "pair": "ARB/LINEA",
+      "sector": "L2",
+      "correlation": 0.683,
+      "beta": 0.532,
+      "zScore": -0.98,
+      "meanReversionRate": 0.517,
       "fundingSpread": 0
     },
     {
-      "pair": "PAXG/MET",
-      "sector": "RWA",
+      "pair": "ETH/LTC",
+      "sector": "L1",
+      "correlation": 0.678,
+      "beta": 0.462,
+      "zScore": -0.29,
+      "meanReversionRate": 0.586,
+      "fundingSpread": -4.64
+    },
+    {
+      "pair": "TURBO/WIF",
+      "sector": "Meme",
+      "correlation": 0.677,
+      "beta": 0.877,
+      "zScore": 3.44,
+      "meanReversionRate": 0.655,
+      "fundingSpread": -3414.27
+    },
+    {
+      "pair": "ETH/HBAR",
+      "sector": "L1",
+      "correlation": 0.677,
+      "beta": 0.474,
+      "zScore": -0.45,
+      "meanReversionRate": 0.517,
+      "fundingSpread": -4.73
+    },
+    {
+      "pair": "TURBO/BRETT",
+      "sector": "Meme",
+      "correlation": 0.675,
+      "beta": 0.765,
+      "zScore": 3.53,
+      "meanReversionRate": 0.552,
+      "fundingSpread": -3322.66
+    },
+    {
+      "pair": "TON/ETC",
+      "sector": "L1",
+      "correlation": 0.673,
+      "beta": 0.548,
+      "zScore": -0.85,
+      "meanReversionRate": 0.517,
       "fundingSpread": 0
     },
     {
-      "pair": "PAXG/STBL",
-      "sector": "RWA",
+      "pair": "UNI/CRV",
+      "sector": "DeFi",
+      "correlation": 0.672,
+      "beta": 1.169,
+      "zScore": -0.35,
+      "meanReversionRate": 0.655,
+      "fundingSpread": 40.58
+    },
+    {
+      "pair": "LTC/XLM",
+      "sector": "L1",
+      "correlation": 0.67,
+      "beta": 0.924,
+      "zScore": -0.83,
+      "meanReversionRate": 0.586,
+      "fundingSpread": -0.09
+    },
+    {
+      "pair": "PUMP/BNB",
+      "sector": "Exchange",
+      "correlation": 0.669,
+      "beta": 1.86,
+      "zScore": -0.44,
+      "meanReversionRate": 0.655,
       "fundingSpread": 0
     },
     {
-      "pair": "PAXG/ONDO",
-      "sector": "RWA",
+      "pair": "TURBO/DOGE",
+      "sector": "Meme",
+      "correlation": 0.665,
+      "beta": 1.458,
+      "zScore": 3.7,
+      "meanReversionRate": 0.621,
+      "fundingSpread": -3407.04
+    },
+    {
+      "pair": "WLD/FIL",
+      "sector": "AI",
+      "correlation": 0.664,
+      "beta": 0.225,
+      "zScore": -0.6,
+      "meanReversionRate": 0.586,
+      "fundingSpread": -6.8
+    },
+    {
+      "pair": "SOL/LTC",
+      "sector": "L1",
+      "correlation": 0.663,
+      "beta": 0.531,
+      "zScore": -0.14,
+      "meanReversionRate": 0.586,
+      "fundingSpread": -34.27
+    },
+    {
+      "pair": "BTC/INJ",
+      "sector": "L1",
+      "correlation": 0.662,
+      "beta": 0.242,
+      "zScore": -0.75,
+      "meanReversionRate": 0.552,
+      "fundingSpread": 20.18
+    },
+    {
+      "pair": "OP/LINEA",
+      "sector": "L2",
+      "correlation": 0.661,
+      "beta": 0.574,
+      "zScore": -0.87,
+      "meanReversionRate": 0.655,
       "fundingSpread": 0
     },
     {
-      "pair": "PAXG/OM",
-      "sector": "RWA",
-      "fundingSpread": 267.28
+      "pair": "VIRTUAL/FET",
+      "sector": "AI",
+      "correlation": 0.661,
+      "beta": 0.564,
+      "zScore": -0.87,
+      "meanReversionRate": 0.586,
+      "fundingSpread": 0
+    },
+    {
+      "pair": "ENA/ZRO",
+      "sector": "DeFi",
+      "correlation": 0.661,
+      "beta": 0.758,
+      "zScore": 0.17,
+      "meanReversionRate": 0.552,
+      "fundingSpread": 29.87
+    },
+    {
+      "pair": "AAVE/ZRO",
+      "sector": "DeFi",
+      "correlation": 0.658,
+      "beta": 0.796,
+      "zScore": 0.42,
+      "meanReversionRate": 0.655,
+      "fundingSpread": 29.87
+    },
+    {
+      "pair": "ATOM/HBAR",
+      "sector": "L1",
+      "correlation": 0.657,
+      "beta": 0.659,
+      "zScore": -0.56,
+      "meanReversionRate": 0.621,
+      "fundingSpread": -11.22
+    },
+    {
+      "pair": "DOGE/PURR",
+      "sector": "Meme",
+      "correlation": 0.657,
+      "beta": 0.419,
+      "zScore": -0.7,
+      "meanReversionRate": 0.517,
+      "fundingSpread": -7.23
+    },
+    {
+      "pair": "XRP/APT",
+      "sector": "L1",
+      "correlation": 0.655,
+      "beta": 0.458,
+      "zScore": 1.82,
+      "meanReversionRate": 0.517,
+      "fundingSpread": 61.63
+    },
+    {
+      "pair": "kBONK/PURR",
+      "sector": "Meme",
+      "correlation": 0.654,
+      "beta": 0.602,
+      "zScore": -0.87,
+      "meanReversionRate": 0.586,
+      "fundingSpread": 0
+    },
+    {
+      "pair": "FARTCOIN/MEME",
+      "sector": "Meme",
+      "correlation": 0.653,
+      "beta": 1.19,
+      "zScore": 2.02,
+      "meanReversionRate": 0.586,
+      "fundingSpread": 0
+    },
+    {
+      "pair": "LTC/TRX",
+      "sector": "L1",
+      "correlation": 0.649,
+      "beta": 2.224,
+      "zScore": -0.69,
+      "meanReversionRate": 0.621,
+      "fundingSpread": -0.09
+    },
+    {
+      "pair": "TRX/HBAR",
+      "sector": "L1",
+      "correlation": 0.649,
+      "beta": 0.195,
+      "zScore": -0.32,
+      "meanReversionRate": 0.655,
+      "fundingSpread": 0
+    },
+    {
+      "pair": "NEAR/TON",
+      "sector": "L1",
+      "correlation": 0.648,
+      "beta": 1.188,
+      "zScore": 0.05,
+      "meanReversionRate": 0.655,
+      "fundingSpread": 0
+    },
+    {
+      "pair": "POPCAT/MEME",
+      "sector": "Meme",
+      "correlation": 0.647,
+      "beta": 0.854,
+      "zScore": -0.03,
+      "meanReversionRate": 0.552,
+      "fundingSpread": 0
+    },
+    {
+      "pair": "ETH/DOT",
+      "sector": "L1",
+      "correlation": 0.643,
+      "beta": 0.402,
+      "zScore": -0.06,
+      "meanReversionRate": 0.586,
+      "fundingSpread": -4.73
+    },
+    {
+      "pair": "APT/HBAR",
+      "sector": "L1",
+      "correlation": 0.638,
+      "beta": 0.723,
+      "zScore": -1.94,
+      "meanReversionRate": 0.517,
+      "fundingSpread": -61.63
+    },
+    {
+      "pair": "TURBO/kBONK",
+      "sector": "Meme",
+      "correlation": 0.638,
+      "beta": 0.969,
+      "zScore": 3.8,
+      "meanReversionRate": 0.655,
+      "fundingSpread": -3414.27
+    },
+    {
+      "pair": "XRP/DOT",
+      "sector": "L1",
+      "correlation": 0.636,
+      "beta": 0.451,
+      "zScore": 1.03,
+      "meanReversionRate": 0.552,
+      "fundingSpread": 0
+    },
+    {
+      "pair": "XRP/ATOM",
+      "sector": "L1",
+      "correlation": 0.631,
+      "beta": 0.499,
+      "zScore": 0.62,
+      "meanReversionRate": 0.586,
+      "fundingSpread": 11.22
+    },
+    {
+      "pair": "PENDLE/DYDX",
+      "sector": "DeFi",
+      "correlation": 0.628,
+      "beta": 0.625,
+      "zScore": 1.77,
+      "meanReversionRate": 0.621,
+      "fundingSpread": 0
+    },
+    {
+      "pair": "BTC/BERA",
+      "sector": "L1",
+      "correlation": 0.628,
+      "beta": 0.315,
+      "zScore": 1.84,
+      "meanReversionRate": 0.586,
+      "fundingSpread": 40.53
+    },
+    {
+      "pair": "POPCAT/PURR",
+      "sector": "Meme",
+      "correlation": 0.626,
+      "beta": 0.697,
+      "zScore": 0.27,
+      "meanReversionRate": 0.552,
+      "fundingSpread": 0
+    },
+    {
+      "pair": "XRP/TRX",
+      "sector": "L1",
+      "correlation": 0.624,
+      "beta": 1.65,
+      "zScore": 0.53,
+      "meanReversionRate": 0.552,
+      "fundingSpread": 0
     },
     {
       "pair": "MET/STBL",
       "sector": "RWA",
+      "correlation": 0.624,
+      "beta": 0.391,
+      "zScore": -1.04,
+      "meanReversionRate": 0.586,
       "fundingSpread": 0
     },
     {
-      "pair": "MET/ONDO",
-      "sector": "RWA",
+      "pair": "AAVE/UNI",
+      "sector": "DeFi",
+      "correlation": 0.623,
+      "beta": 0.358,
+      "zScore": -0.08,
+      "meanReversionRate": 0.586,
       "fundingSpread": 0
     },
     {
-      "pair": "MET/OM",
-      "sector": "RWA",
-      "fundingSpread": 267.28
+      "pair": "TURBO/PENGU",
+      "sector": "Meme",
+      "correlation": 0.623,
+      "beta": 1.053,
+      "zScore": 3.38,
+      "meanReversionRate": 0.793,
+      "fundingSpread": -3414.27
     },
     {
-      "pair": "STBL/ONDO",
-      "sector": "RWA",
+      "pair": "BTC/APT",
+      "sector": "L1",
+      "correlation": 0.615,
+      "beta": 0.248,
+      "zScore": -0.06,
+      "meanReversionRate": 0.552,
+      "fundingSpread": 61.63
+    },
+    {
+      "pair": "WLD/AR",
+      "sector": "AI",
+      "correlation": 0.61,
+      "beta": 0.286,
+      "zScore": -0.86,
+      "meanReversionRate": 0.517,
+      "fundingSpread": -6.8
+    },
+    {
+      "pair": "BCH/ETC",
+      "sector": "L1",
+      "correlation": 0.607,
+      "beta": 0.481,
+      "zScore": 1.23,
+      "meanReversionRate": 0.655,
+      "fundingSpread": -6.17
+    },
+    {
+      "pair": "DOT/HBAR",
+      "sector": "L1",
+      "correlation": 0.606,
+      "beta": 0.677,
+      "zScore": -1.08,
+      "meanReversionRate": 0.586,
       "fundingSpread": 0
     },
     {
-      "pair": "STBL/OM",
-      "sector": "RWA",
-      "fundingSpread": 267.28
+      "pair": "HYPE/LINK",
+      "sector": "Infrastructure",
+      "correlation": 0.603,
+      "beta": 0.734,
+      "zScore": -0.21,
+      "meanReversionRate": 0.586,
+      "fundingSpread": 0
     },
     {
-      "pair": "ONDO/OM",
-      "sector": "RWA",
-      "fundingSpread": 267.28
+      "pair": "TURBO/SPX",
+      "sector": "Meme",
+      "correlation": 0.6,
+      "beta": 0.575,
+      "zScore": 1.45,
+      "meanReversionRate": 0.621,
+      "fundingSpread": -3400.68
     }
   ]
 }
