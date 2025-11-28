@@ -529,7 +529,11 @@ ${Math.abs((hourlyData[hourlyData.length - 1].optimalWeight1 * 100) - (weight1 *
 *Report generated: ${new Date().toISOString()}*
 `;
 
-    const reportPath = `reports/${tradeKey}_trade_report.md`;
+    const reportDir = 'reports';
+    if (!fs.existsSync(reportDir)) {
+      fs.mkdirSync(reportDir, { recursive: true });
+    }
+    const reportPath = `${reportDir}/${tradeKey}_trade_report.md`;
     fs.writeFileSync(reportPath, report);
     
     console.log(`\nCOMPREHENSIVE REPORT GENERATED`);
