@@ -457,12 +457,13 @@ async function main() {
   
   const approaching = []; // Track pairs approaching entry
   
+  const atMaxTrades = activeTrades.trades.length >= MAX_CONCURRENT_TRADES;
+  if (atMaxTrades) {
+    console.log(`  ⚠️ Max trades (${MAX_CONCURRENT_TRADES}) reached - scanning for approaching only\n`);
+  }
+  
   for (const pair of watchlist.pairs) {
     if (activePairs.has(pair.pair)) continue;
-    if (activeTrades.trades.length >= MAX_CONCURRENT_TRADES) {
-      console.log(`  ⚠️ Max trades (${MAX_CONCURRENT_TRADES}) reached`);
-      break;
-    }
     
     const prices = await fetchPrices(sdk, pair.asset1, pair.asset2);
     if (!prices) {
@@ -483,13 +484,25 @@ async function main() {
     
     if (signal && validation.valid) {
       const dir = z < 0 ? 'Long' : 'Short';
-      console.log(`  🟢 ${pair.pair}: ENTRY (Z=${z.toFixed(2)}, ${dir} ${pair.asset1})`);
       
-      if (!MANUAL_MODE && !DRY_RUN) {
-        const trade = enterTrade(pair, validation.fit30d, prices, activeTrades);
-        entries.push(trade);
-        activePairs.add(pair.pair);
-        console.log(`     ✅ Entered`);
+      if (atMaxTrades) {
+        console.log(`  🟡 ${pair.pair}: READY (Z=${z.toFixed(2)}, ${dir}) - at max trades`);
+        // Still track as approaching (at 100%)
+        approaching.push({
+          pair: pair.pair,
+          sector: pair.sector,
+          zScore: z,
+          proximity: Math.abs(z) / ENTRY_THRESHOLD
+        });
+      } else {
+        console.log(`  🟢 ${pair.pair}: ENTRY (Z=${z.toFixed(2)}, ${dir} ${pair.asset1})`);
+        
+        if (!MANUAL_MODE && !DRY_RUN) {
+          const trade = enterTrade(pair, validation.fit30d, prices, activeTrades);
+          entries.push(trade);
+          activePairs.add(pair.pair);
+          console.log(`     ✅ Entered`);
+        }
       }
     } else if (signal && !validation.valid) {
       console.log(`  ⚠️ ${pair.pair}: Signal but failed validation (${validation.reason})`);
