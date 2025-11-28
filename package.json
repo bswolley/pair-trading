@@ -11,6 +11,7 @@
         "analyze-batch": "node scripts/pair_obv_analysis.js",
         "scan": "node scripts/scanPairs.js",
         "monitor": "node scripts/monitorWatchlist.js",
+        "monitor:manual": "node scripts/monitorWatchlist.js --manual",
         "monitor:dry": "node scripts/monitorWatchlist.js --dry-run",
         "enter": "node scripts/enterTrade.js",
         "trades": "node scripts/showTrades.js",
