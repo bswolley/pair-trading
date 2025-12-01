@@ -166,27 +166,41 @@ ${directionText}
 
 **Signal Status:** ${signalStatus}
 
-## Statistical Metrics
+${pair.standardized ? `## Standardized Metrics
 
-| Timeframe | Correlation | Beta | Z-Score | Cointegrated | Hedge Ratio | Gamma | Theta |
-|-----------|-------------|------|---------|--------------|-------------|-------|-------|
+*Calculated using fixed periods: Beta (7d), Correlation/Z-Score (30d), Cointegration (90d)*
+
+| Metric | Value | Period |
+|--------|-------|--------|
+| **Beta (Hedge Ratio)** | ${pair.standardized.beta7d !== null ? pair.standardized.beta7d.toFixed(3) : 'N/A'} | 7 days |
+| **Correlation** | ${pair.standardized.correlation30d !== null ? pair.standardized.correlation30d.toFixed(3) : 'N/A'} | 30 days |
+| **Z-Score** | ${pair.standardized.zScore30d !== null ? pair.standardized.zScore30d.toFixed(2) : 'N/A'} | 30 days |
+| **Cointegrated** | ${pair.standardized.isCointegrated90d ? 'Yes' : 'No'} | 90 days |
+| **Half-Life** | ${pair.standardized.halfLife30d !== null ? pair.standardized.halfLife30d.toFixed(1) + ' days' : 'N/A'} | 30 days |
+| **Time to Mean Reversion** | ${pair.standardized.timeToMeanReversion !== null ? pair.standardized.timeToMeanReversion.toFixed(1) + ' days' : 'N/A'} | To 0.5 z-score |
+
+` : ''}## Statistical Metrics
+
+| Timeframe | Correlation | Beta | Z-Score | CoInt? | Hedge Ratio | Half-Life | Gamma | Theta |
+|-----------|-------------|------|---------|--------------|-------------|-----------|-------|-------|
 ${allTimeframes.map(tf => {
   const corr = tf.correlation?.toFixed(3) || 'N/A';
   const beta = tf.beta?.toFixed(3) || 'N/A';
   const zScore = tf.zScore?.toFixed(2) || 'N/A';
   const hedgeRatio = tf.hedgeRatio?.toFixed(3) || 'N/A';
+  const halfLife = tf.halfLife !== null ? tf.halfLife.toFixed(1) + 'd' : 'N/A';
   const gamma = tf.gamma?.toFixed(3) || 'N/A';
   const theta = tf.theta?.toFixed(3) || 'N/A';
   const coint = tf.isCointegrated ? 'Yes' : 'No';
   
-  let signal = '';
-  if (pair.direction === 'long' && tf.zScore < -1) signal = ' [READY]';
-  else if (pair.direction === 'short' && tf.zScore > 1) signal = ' [READY]';
-  
-  return `| **${tf.days}d** | ${corr} | ${beta} | ${zScore}${signal} | ${coint} | ${hedgeRatio} | ${gamma} | ${theta} |`;
+  return `| **${tf.days}d** | ${corr} | ${beta} | ${zScore} | ${coint} | ${hedgeRatio} | ${halfLife} | ${gamma} | ${theta} |`;
 }).join('\n')}
 
-## Price Movement
+${pair.positionSizing ? `**Position Sizing (from 30-day beta):**
+- **${pair.symbol1}:** ${(pair.positionSizing.weight1 * 100).toFixed(1)}%
+- **${pair.symbol2}:** ${(pair.positionSizing.weight2 * 100).toFixed(1)}%
+
+` : ''}## Price Movement
 
 | Timeframe | ${pair.symbol1} | ${pair.symbol2} |
 |-----------|----------------|-----------------|
@@ -209,10 +223,10 @@ ${Object.values(pair.timeframes)
   .sort((a, b) => a.days - b.days)
   .map(tf => {
     const obv1 = tf.obv1Change !== null && tf.obv1Change !== undefined 
-      ? (tf.obv1Change > 0 ? '+' : '') + tf.obv1Change.toLocaleString('en-US', {maximumFractionDigits: 0}) 
+      ? tf.obv1Change.toLocaleString('en-US', {maximumFractionDigits: 0}) 
       : 'N/A';
     const obv2 = tf.obv2Change !== null && tf.obv2Change !== undefined 
-      ? (tf.obv2Change > 0 ? '+' : '') + tf.obv2Change.toLocaleString('en-US', {maximumFractionDigits: 0}) 
+      ? tf.obv2Change.toLocaleString('en-US', {maximumFractionDigits: 0}) 
       : 'N/A';
     const trend1 = tf.obv1Change > 0 ? '+' : tf.obv1Change < 0 ? '-' : '';
     const trend2 = tf.obv2Change > 0 ? '+' : tf.obv2Change < 0 ? '-' : '';
@@ -224,10 +238,12 @@ ${Object.values(pair.timeframes)
 ## Notes
 
 - **Z-Score:** Negative = ${pair.symbol1} undervalued (good for LONG), Positive = ${pair.symbol1} overvalued (good for SHORT)
+- **Half-Life:** Time for spread to revert halfway to mean (lower = faster reversion, better)
 - **Gamma:** Lower = more stable hedge ratio (better)
 - **Theta:** Higher = faster mean reversion (better)
 - **OBV:** Positive = accumulation (buying pressure), Negative = distribution (selling pressure)
 - **Cointegration:** Yes = pair moves together (better for pair trading)
+- **Position Sizing:** Beta-adjusted weights for delta-neutral hedging
 
 *Data sources: Hyperliquid (prices), CryptoCompare (OBV/volume)*
 `;
