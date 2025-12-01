@@ -3,14 +3,15 @@
  * 
  * Checks watchlist for entries and active trades for exits.
  * Returns structured result for API/Telegram.
+ * 
+ * Uses database (Supabase) when configured, falls back to JSON files.
  */
 
-const fs = require('fs');
-const path = require('path');
 const axios = require('axios');
 const { Hyperliquid } = require('hyperliquid');
 const { checkPairFitness } = require('../../lib/pairAnalysis');
 const { fetchCurrentFunding, calculateNetFunding } = require('../../lib/funding');
+const db = require('../db/queries');
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
@@ -29,17 +30,6 @@ const PARTIAL_EXIT_1_PNL = 3.0;
 const PARTIAL_EXIT_1_SIZE = 0.5;
 const FINAL_EXIT_PNL = 5.0;
 const FINAL_EXIT_ZSCORE = 0.5;
-
-const CONFIG_DIR = path.join(__dirname, '../../config');
-
-function loadJSON(filename) {
-    const fp = path.join(CONFIG_DIR, filename);
-    return fs.existsSync(fp) ? JSON.parse(fs.readFileSync(fp, 'utf8')) : null;
-}
-
-function saveJSON(filename, data) {
-    fs.writeFileSync(path.join(CONFIG_DIR, filename), JSON.stringify(data, null, 2));
-}
 
 async function sendTelegram(message) {
     if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) return false;
@@ -205,7 +195,7 @@ function checkExitConditions(trade, fitness, currentPnL) {
     return { shouldExit: false, isPartial: false, exitSize: 0, reason: null, emoji: null, message: null };
 }
 
-function enterTrade(pair, fitness, prices, activeTrades) {
+async function enterTrade(pair, fitness, prices, activeTrades) {
     const absBeta = Math.abs(fitness.beta);
     const w1 = 1 / (1 + absBeta), w2 = absBeta / (1 + absBeta);
     const dir = fitness.zScore < 0 ? 'long' : 'short';
@@ -228,14 +218,17 @@ function enterTrade(pair, fitness, prices, activeTrades) {
         longWeight: (dir === 'long' ? w1 : w2) * 100,
         shortWeight: (dir === 'long' ? w2 : w1) * 100,
         longEntryPrice: dir === 'long' ? prices.currentPrice1 : prices.currentPrice2,
-        shortEntryPrice: dir === 'long' ? prices.currentPrice2 : prices.currentPrice1
+        shortEntryPrice: dir === 'long' ? prices.currentPrice2 : prices.currentPrice1,
+        source: 'bot'
     };
 
+    // Save to database
+    await db.createTrade(trade);
     activeTrades.trades.push(trade);
     return trade;
 }
 
-function exitTrade(trade, fitness, prices, activeTrades, history) {
+async function exitTrade(trade, fitness, prices, activeTrades, history) {
     const idx = activeTrades.trades.findIndex(t => t.pair === trade.pair);
     if (idx === -1) return null;
 
@@ -255,11 +248,9 @@ function exitTrade(trade, fitness, prices, activeTrades, history) {
         daysInTrade: parseFloat(days)
     };
 
-    history.trades.push(record);
-    history.stats.totalTrades++;
-    if (totalPnL >= 0) history.stats.wins++; else history.stats.losses++;
-    history.stats.totalPnL = (history.stats.totalPnL || 0) + totalPnL;
-    history.stats.winRate = ((history.stats.wins / history.stats.totalTrades) * 100).toFixed(1);
+    // Save to database: delete from trades, add to history
+    await db.deleteTrade(trade.pair);
+    await db.addToHistory(record);
 
     activeTrades.trades.splice(idx, 1);
     return { ...record, totalPnL };
@@ -368,13 +359,21 @@ function formatStatusReport(activeTrades, entries, exits, history, approaching =
  * Main monitor function - returns structured result
  */
 async function main() {
-    const watchlist = loadJSON('watchlist.json');
-    if (!watchlist) {
+    // Load from database (Supabase or JSON fallback)
+    const watchlistPairs = await db.getWatchlist();
+    if (!watchlistPairs || watchlistPairs.length === 0) {
         return { error: 'No watchlist found' };
     }
+    const watchlist = { pairs: watchlistPairs };
 
-    let activeTrades = loadJSON('active_trades_sim.json') || { trades: [] };
-    let history = loadJSON('trade_history.json') || { trades: [], stats: { totalTrades: 0, wins: 0, losses: 0, totalPnL: 0 } };
+    const tradesArray = await db.getTrades();
+    let activeTrades = { trades: tradesArray || [] };
+    
+    const stats = await db.getStats();
+    let history = { 
+        trades: [], 
+        stats: stats || { totalTrades: 0, wins: 0, losses: 0, totalPnL: 0 } 
+    };
 
     const sdk = new Hyperliquid();
     const saved = suppressConsole();
@@ -419,7 +418,7 @@ async function main() {
                     trade.partialExitTime = new Date().toISOString();
                 }
             } else {
-                const result = exitTrade(trade, fit, prices, activeTrades, history);
+                const result = await exitTrade(trade, fit, prices, activeTrades, history);
                 if (result) {
                     result.exitReason = exitCheck.reason;
                     result.exitEmoji = exitCheck.emoji;
@@ -456,7 +455,7 @@ async function main() {
         const signal = Math.abs(z) >= entryThreshold;
 
         if (signal && validation.valid && !hasOverlap && !atMaxTrades) {
-            const trade = enterTrade(pair, validation.fit30d, prices, activeTrades);
+            const trade = await enterTrade(pair, validation.fit30d, prices, activeTrades);
             trade.entryThreshold = entryThreshold;
             entries.push(trade);
             activePairs.add(pair.pair);
@@ -495,9 +494,18 @@ async function main() {
     await sdk.disconnect();
     restoreConsole(saved2);
 
-    // Save state
-    saveJSON('active_trades_sim.json', activeTrades);
-    saveJSON('trade_history.json', history);
+    // Save updated trade state to database
+    for (const trade of activeTrades.trades) {
+        await db.updateTrade(trade.pair, {
+            currentZ: trade.currentZ,
+            currentPnL: trade.currentPnL,
+            currentCorrelation: trade.currentCorrelation,
+            currentHalfLife: trade.currentHalfLife,
+            partialExitTaken: trade.partialExitTaken,
+            partialExitPnL: trade.partialExitPnL,
+            partialExitTime: trade.partialExitTime
+        });
+    }
 
     // Send Telegram report
     const tradesWithPnL = activeTrades.trades.map(t => ({
