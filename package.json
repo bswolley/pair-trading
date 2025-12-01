@@ -4,8 +4,9 @@
     "description": "Pair trading analysis tool for cryptocurrency pairs with statistical metrics, volume indicators, and mean reversion analysis",
     "main": "lib/pairAnalysis.js",
     "scripts": {
-        "start": "node recent_tokens_api.js",
-        "dev": "nodemon recent_tokens_api.js",
+        "start": "node server/index.js",
+        "dev": "nodemon server/index.js",
+        "dev:old": "nodemon recent_tokens_api.js",
         "analyze": "node scripts/analyzePair.js",
         "analyze-multi": "node scripts/analyzeMultiplePairs.js",
         "analyze-batch": "node scripts/pair_obv_analysis.js",
@@ -19,18 +20,25 @@
         "history": "node scripts/showHistory.js",
         "bot": "node scripts/telegramBot.js",
         "update-trade-report": "node scripts/generate_comprehensive_trade_report.js",
+        "migrate:supabase": "node scripts/migrateToSupabase.js",
         "test": "jest",
         "test:watch": "jest --watch"
     },
     "dependencies": {
+        "@supabase/supabase-js": "^2.86.0",
         "axios": "^1.6.0",
+        "cors": "^2.8.5",
         "dotenv": "^17.2.3",
         "express": "^4.18.2",
         "hyperliquid": "^1.7.7",
-        "indicatorts": "^2.2.2"
+        "indicatorts": "^2.2.2",
+        "node-cron": "^3.0.3"
     },
     "devDependencies": {
         "jest": "^30.2.0",
         "nodemon": "^3.0.1"
+    },
+    "engines": {
+        "node": ">=18.0.0"
     }
 }

@@ -1,0 +1,8 @@
+{
+  "description": "Assets to exclude from pair scanning and trading",
+  "assets": [
+    "COMP"
+  ]
+}
+
+

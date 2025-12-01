@@ -1,349 +1,910 @@
 {
-  "timestamp": "2025-11-28T16:36:12.427Z",
+  "timestamp": "2025-12-01T17:30:22.343Z",
   "description": "Top 3 pairs per sector by composite score",
   "scoringFormula": "qualityScore = correlation × (1/halfLife) × meanReversionRate × 100",
   "signalFormula": "signalStrength = |zScore| / entryThreshold (0-1, 1 = ready)",
+  "entryThresholdNote": "Dynamic per-pair entry threshold based on historical divergence analysis",
   "totalPairs": 20,
   "pairs": [
     {
-      "pair": "MOODENG/BRETT",
-      "asset1": "MOODENG",
-      "asset2": "BRETT",
-      "sector": "Meme",
-      "qualityScore": 118.81,
-      "correlation": 0.82,
-      "beta": 0.591,
-      "halfLife": 0.5,
-      "meanReversionRate": 0.724,
-      "zScore": 1.44,
-      "signalStrength": 0.96,
-      "direction": "short",
-      "isReady": false,
-      "entryThreshold": 1.5,
-      "exitThreshold": 0.5
-    },
-    {
-      "pair": "WIF/MOODENG",
+      "pair": "WIF/kSHIB",
       "asset1": "WIF",
-      "asset2": "MOODENG",
+      "asset2": "kSHIB",
       "sector": "Meme",
-      "qualityScore": 83.16,
-      "correlation": 0.833,
-      "beta": 1.009,
-      "halfLife": 0.7,
+      "qualityScore": 124.31,
+      "correlation": 0.858,
+      "beta": 1.482,
+      "halfLife": 0.3,
       "meanReversionRate": 0.724,
-      "zScore": -2.6,
-      "signalStrength": 1,
-      "direction": "long",
-      "isReady": true,
-      "entryThreshold": 1.5,
-      "exitThreshold": 0.5
-    },
-    {
-      "pair": "kBONK/PNUT",
-      "asset1": "kBONK",
-      "asset2": "PNUT",
-      "sector": "Meme",
-      "qualityScore": 74.07,
-      "correlation": 0.926,
-      "beta": 0.972,
-      "halfLife": 0.7,
-      "meanReversionRate": 0.586,
-      "zScore": -2.75,
-      "signalStrength": 1,
-      "direction": "long",
-      "isReady": true,
-      "entryThreshold": 1.5,
-      "exitThreshold": 0.5
-    },
-    {
-      "pair": "XPL/OM",
-      "asset1": "XPL",
-      "asset2": "OM",
-      "sector": "RWA",
-      "qualityScore": 55.07,
-      "correlation": 0.649,
-      "beta": 1.226,
-      "halfLife": 0.8,
-      "meanReversionRate": 0.655,
-      "zScore": -0.36,
-      "signalStrength": 0.24,
-      "direction": "long",
-      "isReady": false,
-      "entryThreshold": 1.5,
-      "exitThreshold": 0.5
-    },
-    {
-      "pair": "XPL/ONDO",
-      "asset1": "XPL",
-      "asset2": "ONDO",
-      "sector": "RWA",
-      "qualityScore": 51.89,
-      "correlation": 0.609,
-      "beta": 1.28,
-      "halfLife": 0.9,
-      "meanReversionRate": 0.759,
-      "zScore": 0.1,
-      "signalStrength": 0.07,
-      "direction": "short",
-      "isReady": false,
-      "entryThreshold": 1.5,
-      "exitThreshold": 0.5
-    },
-    {
-      "pair": "ETHFI/DYDX",
-      "asset1": "ETHFI",
-      "asset2": "DYDX",
-      "sector": "DeFi",
-      "qualityScore": 46.53,
-      "correlation": 0.809,
-      "beta": 0.861,
-      "halfLife": 1.1,
-      "meanReversionRate": 0.621,
-      "zScore": 0.45,
+      "zScore": -0.91,
       "signalStrength": 0.3,
-      "direction": "short",
-      "isReady": false,
-      "entryThreshold": 1.5,
-      "exitThreshold": 0.5
-    },
-    {
-      "pair": "CRV/ZRO",
-      "asset1": "CRV",
-      "asset2": "ZRO",
-      "sector": "DeFi",
-      "qualityScore": 46.45,
-      "correlation": 0.605,
-      "beta": 0.731,
-      "halfLife": 0.8,
-      "meanReversionRate": 0.586,
-      "zScore": 0.99,
-      "signalStrength": 0.66,
-      "direction": "short",
-      "isReady": false,
-      "entryThreshold": 1.5,
-      "exitThreshold": 0.5
-    },
-    {
-      "pair": "LDO/ZRO",
-      "asset1": "LDO",
-      "asset2": "ZRO",
-      "sector": "DeFi",
-      "qualityScore": 42.14,
-      "correlation": 0.782,
-      "beta": 0.983,
-      "halfLife": 1.2,
-      "meanReversionRate": 0.655,
-      "zScore": -1.07,
-      "signalStrength": 0.71,
       "direction": "long",
       "isReady": false,
-      "entryThreshold": 1.5,
-      "exitThreshold": 0.5
-    },
-    {
-      "pair": "LTC/ATOM",
-      "asset1": "LTC",
-      "asset2": "ATOM",
-      "sector": "L1",
-      "qualityScore": 41.3,
-      "correlation": 0.773,
-      "beta": 0.791,
-      "halfLife": 1.3,
-      "meanReversionRate": 0.69,
-      "zScore": -0.27,
-      "signalStrength": 0.18,
-      "direction": "long",
-      "isReady": false,
-      "entryThreshold": 1.5,
-      "exitThreshold": 0.5
+      "entryThreshold": 3,
+      "exitThreshold": 0.5,
+      "maxHistoricalZ": 3,
+      "divergenceProfile": {
+        "1": {
+          "events": 6,
+          "reverted": 6,
+          "rate": 1
+        },
+        "2": {
+          "events": 1,
+          "reverted": 1,
+          "rate": 1
+        },
+        "3": {
+          "events": 1,
+          "reverted": 1,
+          "rate": 1
+        },
+        "1.5": {
+          "events": 1,
+          "reverted": 1,
+          "rate": 1
+        },
+        "2.5": {
+          "events": 1,
+          "reverted": 1,
+          "rate": 1
+        }
+      }
     },
     {
       "pair": "LTC/NEAR",
       "asset1": "LTC",
       "asset2": "NEAR",
       "sector": "L1",
-      "qualityScore": 40.11,
-      "correlation": 0.856,
-      "beta": 0.55,
-      "halfLife": 1.5,
-      "meanReversionRate": 0.724,
-      "zScore": -0.29,
-      "signalStrength": 0.2,
+      "qualityScore": 112.48,
+      "correlation": 0.876,
+      "beta": 0.553,
+      "halfLife": 0.6,
+      "meanReversionRate": 0.759,
+      "zScore": -1.02,
+      "signalStrength": 0.68,
       "direction": "long",
       "isReady": false,
       "entryThreshold": 1.5,
-      "exitThreshold": 0.5
+      "exitThreshold": 0.5,
+      "maxHistoricalZ": 1.63,
+      "divergenceProfile": {
+        "1": {
+          "events": 5,
+          "reverted": 4,
+          "rate": 1
+        },
+        "2": {
+          "events": 0,
+          "reverted": 0,
+          "rate": null
+        },
+        "3": {
+          "events": 0,
+          "reverted": 0,
+          "rate": null
+        },
+        "1.5": {
+          "events": 1,
+          "reverted": 1,
+          "rate": 1
+        },
+        "2.5": {
+          "events": 0,
+          "reverted": 0,
+          "rate": null
+        }
+      }
     },
     {
-      "pair": "ETH/SUI",
-      "asset1": "ETH",
-      "asset2": "SUI",
-      "sector": "L1",
-      "qualityScore": 38.89,
-      "correlation": 0.838,
-      "beta": 0.614,
-      "halfLife": 1.3,
-      "meanReversionRate": 0.621,
-      "zScore": 1.25,
-      "signalStrength": 0.84,
-      "direction": "short",
+      "pair": "LDO/AERO",
+      "asset1": "LDO",
+      "asset2": "AERO",
+      "sector": "DeFi",
+      "qualityScore": 111.05,
+      "correlation": 0.805,
+      "beta": 0.655,
+      "halfLife": 0.5,
+      "meanReversionRate": 0.69,
+      "zScore": -0.63,
+      "signalStrength": 0.42,
+      "direction": "long",
       "isReady": false,
       "entryThreshold": 1.5,
-      "exitThreshold": 0.5
+      "exitThreshold": 0.5,
+      "maxHistoricalZ": 1.94,
+      "divergenceProfile": {
+        "1": {
+          "events": 4,
+          "reverted": 4,
+          "rate": 1
+        },
+        "2": {
+          "events": 0,
+          "reverted": 0,
+          "rate": null
+        },
+        "3": {
+          "events": 0,
+          "reverted": 0,
+          "rate": null
+        },
+        "1.5": {
+          "events": 1,
+          "reverted": 1,
+          "rate": 1
+        },
+        "2.5": {
+          "events": 0,
+          "reverted": 0,
+          "rate": null
+        }
+      }
     },
     {
-      "pair": "OM/ONDO",
-      "asset1": "OM",
+      "pair": "kBONK/kFLOKI",
+      "asset1": "kBONK",
+      "asset2": "kFLOKI",
+      "sector": "Meme",
+      "qualityScore": 90.74,
+      "correlation": 0.935,
+      "beta": 1.087,
+      "halfLife": 0.7,
+      "meanReversionRate": 0.724,
+      "zScore": 1.83,
+      "signalStrength": 0.92,
+      "direction": "short",
+      "isReady": false,
+      "entryThreshold": 2,
+      "exitThreshold": 0.5,
+      "maxHistoricalZ": 2.28,
+      "divergenceProfile": {
+        "1": {
+          "events": 7,
+          "reverted": 6,
+          "rate": 1
+        },
+        "2": {
+          "events": 2,
+          "reverted": 2,
+          "rate": 1
+        },
+        "3": {
+          "events": 0,
+          "reverted": 0,
+          "rate": null
+        },
+        "1.5": {
+          "events": 4,
+          "reverted": 3,
+          "rate": 1
+        },
+        "2.5": {
+          "events": 0,
+          "reverted": 0,
+          "rate": null
+        }
+      }
+    },
+    {
+      "pair": "kNEIRO/MOODENG",
+      "asset1": "kNEIRO",
+      "asset2": "MOODENG",
+      "sector": "Meme",
+      "qualityScore": 87.81,
+      "correlation": 0.935,
+      "beta": 1.106,
+      "halfLife": 0.8,
+      "meanReversionRate": 0.793,
+      "zScore": 0.3,
+      "signalStrength": 0.15,
+      "direction": "short",
+      "isReady": false,
+      "entryThreshold": 2,
+      "exitThreshold": 0.5,
+      "maxHistoricalZ": 2.24,
+      "divergenceProfile": {
+        "1": {
+          "events": 7,
+          "reverted": 7,
+          "rate": 1
+        },
+        "2": {
+          "events": 2,
+          "reverted": 2,
+          "rate": 1
+        },
+        "3": {
+          "events": 0,
+          "reverted": 0,
+          "rate": null
+        },
+        "1.5": {
+          "events": 6,
+          "reverted": 6,
+          "rate": 1
+        },
+        "2.5": {
+          "events": 0,
+          "reverted": 0,
+          "rate": null
+        }
+      }
+    },
+    {
+      "pair": "LDO/UMA",
+      "asset1": "LDO",
+      "asset2": "UMA",
+      "sector": "DeFi",
+      "qualityScore": 84.67,
+      "correlation": 0.803,
+      "beta": 1.094,
+      "halfLife": 0.7,
+      "meanReversionRate": 0.724,
+      "zScore": -1.74,
+      "signalStrength": 1,
+      "direction": "long",
+      "isReady": true,
+      "entryThreshold": 1.5,
+      "exitThreshold": 0.5,
+      "maxHistoricalZ": 1.8,
+      "divergenceProfile": {
+        "1": {
+          "events": 4,
+          "reverted": 3,
+          "rate": 1
+        },
+        "2": {
+          "events": 0,
+          "reverted": 0,
+          "rate": null
+        },
+        "3": {
+          "events": 0,
+          "reverted": 0,
+          "rate": null
+        },
+        "1.5": {
+          "events": 3,
+          "reverted": 2,
+          "rate": 1
+        },
+        "2.5": {
+          "events": 0,
+          "reverted": 0,
+          "rate": null
+        }
+      }
+    },
+    {
+      "pair": "ZRO/PYTH",
+      "asset1": "ZRO",
+      "asset2": "PYTH",
+      "sector": "DeFi",
+      "qualityScore": 80.2,
+      "correlation": 0.724,
+      "beta": 0.58,
+      "halfLife": 0.6,
+      "meanReversionRate": 0.69,
+      "zScore": -0.94,
+      "signalStrength": 0.63,
+      "direction": "long",
+      "isReady": false,
+      "entryThreshold": 1.5,
+      "exitThreshold": 0.5,
+      "maxHistoricalZ": 1.71,
+      "divergenceProfile": {
+        "1": {
+          "events": 5,
+          "reverted": 4,
+          "rate": 1
+        },
+        "2": {
+          "events": 0,
+          "reverted": 0,
+          "rate": null
+        },
+        "3": {
+          "events": 0,
+          "reverted": 0,
+          "rate": null
+        },
+        "1.5": {
+          "events": 2,
+          "reverted": 2,
+          "rate": 1
+        },
+        "2.5": {
+          "events": 0,
+          "reverted": 0,
+          "rate": null
+        }
+      }
+    },
+    {
+      "pair": "XPL/ONDO",
+      "asset1": "XPL",
       "asset2": "ONDO",
       "sector": "RWA",
-      "qualityScore": 34.97,
-      "correlation": 0.86,
-      "beta": 0.957,
-      "halfLife": 1.6,
-      "meanReversionRate": 0.655,
-      "zScore": 0.51,
-      "signalStrength": 0.34,
-      "direction": "short",
-      "isReady": false,
-      "entryThreshold": 1.5,
-      "exitThreshold": 0.5
-    },
-    {
-      "pair": "VIRTUAL/WLD",
-      "asset1": "VIRTUAL",
-      "asset2": "WLD",
-      "sector": "AI",
-      "qualityScore": 33.3,
-      "correlation": 0.825,
-      "beta": 1.502,
-      "halfLife": 1.7,
-      "meanReversionRate": 0.69,
-      "zScore": -1.01,
-      "signalStrength": 0.67,
+      "qualityScore": 68.72,
+      "correlation": 0.642,
+      "beta": 1.288,
+      "halfLife": 0.7,
+      "meanReversionRate": 0.793,
+      "zScore": -0.52,
+      "signalStrength": 0.35,
       "direction": "long",
       "isReady": false,
       "entryThreshold": 1.5,
-      "exitThreshold": 0.5
+      "exitThreshold": 0.5,
+      "maxHistoricalZ": 1.33,
+      "divergenceProfile": {
+        "1": {
+          "events": 3,
+          "reverted": 3,
+          "rate": 1
+        },
+        "2": {
+          "events": 0,
+          "reverted": 0,
+          "rate": null
+        },
+        "3": {
+          "events": 0,
+          "reverted": 0,
+          "rate": null
+        },
+        "1.5": {
+          "events": 0,
+          "reverted": 0,
+          "rate": null
+        },
+        "2.5": {
+          "events": 0,
+          "reverted": 0,
+          "rate": null
+        }
+      }
+    },
+    {
+      "pair": "ETH/AVAX",
+      "asset1": "ETH",
+      "asset2": "AVAX",
+      "sector": "L1",
+      "qualityScore": 61.35,
+      "correlation": 0.822,
+      "beta": 0.721,
+      "halfLife": 1,
+      "meanReversionRate": 0.759,
+      "zScore": -0.16,
+      "signalStrength": 0.11,
+      "direction": "long",
+      "isReady": false,
+      "entryThreshold": 1.5,
+      "exitThreshold": 0.5,
+      "maxHistoricalZ": 1.58,
+      "divergenceProfile": {
+        "1": {
+          "events": 4,
+          "reverted": 4,
+          "rate": 1
+        },
+        "2": {
+          "events": 0,
+          "reverted": 0,
+          "rate": null
+        },
+        "3": {
+          "events": 0,
+          "reverted": 0,
+          "rate": null
+        },
+        "1.5": {
+          "events": 1,
+          "reverted": 1,
+          "rate": 1
+        },
+        "2.5": {
+          "events": 0,
+          "reverted": 0,
+          "rate": null
+        }
+      }
+    },
+    {
+      "pair": "MNT/POL",
+      "asset1": "MNT",
+      "asset2": "POL",
+      "sector": "L2",
+      "qualityScore": 54.36,
+      "correlation": 0.779,
+      "beta": 0.809,
+      "halfLife": 1,
+      "meanReversionRate": 0.69,
+      "zScore": 0.99,
+      "signalStrength": 0.39,
+      "direction": "short",
+      "isReady": false,
+      "entryThreshold": 2.5,
+      "exitThreshold": 0.5,
+      "maxHistoricalZ": 2.8,
+      "divergenceProfile": {
+        "1": {
+          "events": 8,
+          "reverted": 7,
+          "rate": 1
+        },
+        "2": {
+          "events": 1,
+          "reverted": 1,
+          "rate": 1
+        },
+        "3": {
+          "events": 0,
+          "reverted": 0,
+          "rate": null
+        },
+        "1.5": {
+          "events": 3,
+          "reverted": 2,
+          "rate": 1
+        },
+        "2.5": {
+          "events": 1,
+          "reverted": 1,
+          "rate": 1
+        }
+      }
+    },
+    {
+      "pair": "LINK/IP",
+      "asset1": "LINK",
+      "asset2": "IP",
+      "sector": "Infrastructure",
+      "qualityScore": 49.73,
+      "correlation": 0.642,
+      "beta": 0.353,
+      "halfLife": 0.7,
+      "meanReversionRate": 0.552,
+      "zScore": -1.59,
+      "signalStrength": 0.79,
+      "direction": "long",
+      "isReady": false,
+      "entryThreshold": 2,
+      "exitThreshold": 0.5,
+      "maxHistoricalZ": 2.01,
+      "divergenceProfile": {
+        "1": {
+          "events": 5,
+          "reverted": 4,
+          "rate": 1
+        },
+        "2": {
+          "events": 1,
+          "reverted": 1,
+          "rate": 1
+        },
+        "3": {
+          "events": 0,
+          "reverted": 0,
+          "rate": null
+        },
+        "1.5": {
+          "events": 3,
+          "reverted": 2,
+          "rate": 1
+        },
+        "2.5": {
+          "events": 0,
+          "reverted": 0,
+          "rate": null
+        }
+      }
+    },
+    {
+      "pair": "INJ/S",
+      "asset1": "INJ",
+      "asset2": "S",
+      "sector": "L1",
+      "qualityScore": 48.85,
+      "correlation": 0.856,
+      "beta": 0.721,
+      "halfLife": 1.1,
+      "meanReversionRate": 0.655,
+      "zScore": -0.74,
+      "signalStrength": 0.49,
+      "direction": "long",
+      "isReady": false,
+      "entryThreshold": 1.5,
+      "exitThreshold": 0.5,
+      "maxHistoricalZ": 1.43,
+      "divergenceProfile": {
+        "1": {
+          "events": 3,
+          "reverted": 3,
+          "rate": 1
+        },
+        "2": {
+          "events": 0,
+          "reverted": 0,
+          "rate": null
+        },
+        "3": {
+          "events": 0,
+          "reverted": 0,
+          "rate": null
+        },
+        "1.5": {
+          "events": 0,
+          "reverted": 0,
+          "rate": null
+        },
+        "2.5": {
+          "events": 0,
+          "reverted": 0,
+          "rate": null
+        }
+      }
+    },
+    {
+      "pair": "ARB/POL",
+      "asset1": "ARB",
+      "asset2": "POL",
+      "sector": "L2",
+      "qualityScore": 30.29,
+      "correlation": 0.914,
+      "beta": 1.115,
+      "halfLife": 1.7,
+      "meanReversionRate": 0.552,
+      "zScore": 1.28,
+      "signalStrength": 0.64,
+      "direction": "short",
+      "isReady": false,
+      "entryThreshold": 2,
+      "exitThreshold": 0.5,
+      "maxHistoricalZ": 2.23,
+      "divergenceProfile": {
+        "1": {
+          "events": 4,
+          "reverted": 3,
+          "rate": 1
+        },
+        "2": {
+          "events": 1,
+          "reverted": 1,
+          "rate": 1
+        },
+        "3": {
+          "events": 0,
+          "reverted": 0,
+          "rate": null
+        },
+        "1.5": {
+          "events": 2,
+          "reverted": 2,
+          "rate": 1
+        },
+        "2.5": {
+          "events": 0,
+          "reverted": 0,
+          "rate": null
+        }
+      }
     },
     {
       "pair": "FET/FIL",
       "asset1": "FET",
       "asset2": "FIL",
       "sector": "AI",
-      "qualityScore": 23.99,
-      "correlation": 0.863,
-      "beta": 0.621,
-      "halfLife": 2.4,
-      "meanReversionRate": 0.655,
-      "zScore": 0.56,
-      "signalStrength": 0.38,
+      "qualityScore": 25.81,
+      "correlation": 0.864,
+      "beta": 0.625,
+      "halfLife": 2.3,
+      "meanReversionRate": 0.69,
+      "zScore": -0.62,
+      "signalStrength": 0.25,
+      "direction": "long",
+      "isReady": false,
+      "entryThreshold": 2.5,
+      "exitThreshold": 0.5,
+      "maxHistoricalZ": 2.62,
+      "divergenceProfile": {
+        "1": {
+          "events": 3,
+          "reverted": 3,
+          "rate": 1
+        },
+        "2": {
+          "events": 1,
+          "reverted": 1,
+          "rate": 1
+        },
+        "3": {
+          "events": 0,
+          "reverted": 0,
+          "rate": null
+        },
+        "1.5": {
+          "events": 3,
+          "reverted": 3,
+          "rate": 1
+        },
+        "2.5": {
+          "events": 1,
+          "reverted": 1,
+          "rate": 1
+        }
+      }
+    },
+    {
+      "pair": "FIL/RENDER",
+      "asset1": "FIL",
+      "asset2": "RENDER",
+      "sector": "AI",
+      "qualityScore": 25.48,
+      "correlation": 0.681,
+      "beta": 1.56,
+      "halfLife": 1.5,
+      "meanReversionRate": 0.552,
+      "zScore": 1.12,
+      "signalStrength": 0.75,
       "direction": "short",
       "isReady": false,
       "entryThreshold": 1.5,
-      "exitThreshold": 0.5
+      "exitThreshold": 0.5,
+      "maxHistoricalZ": 1.9,
+      "divergenceProfile": {
+        "1": {
+          "events": 3,
+          "reverted": 2,
+          "rate": 1
+        },
+        "2": {
+          "events": 0,
+          "reverted": 0,
+          "rate": null
+        },
+        "3": {
+          "events": 0,
+          "reverted": 0,
+          "rate": null
+        },
+        "1.5": {
+          "events": 1,
+          "reverted": 1,
+          "rate": 1
+        },
+        "2.5": {
+          "events": 0,
+          "reverted": 0,
+          "rate": null
+        }
+      }
+    },
+    {
+      "pair": "WLD/RENDER",
+      "asset1": "WLD",
+      "asset2": "RENDER",
+      "sector": "AI",
+      "qualityScore": 20.06,
+      "correlation": 0.955,
+      "beta": 0.728,
+      "halfLife": 2.8,
+      "meanReversionRate": 0.586,
+      "zScore": -0.58,
+      "signalStrength": 0.39,
+      "direction": "long",
+      "isReady": false,
+      "entryThreshold": 1.5,
+      "exitThreshold": 0.5,
+      "maxHistoricalZ": 1.98,
+      "divergenceProfile": {
+        "1": {
+          "events": 2,
+          "reverted": 2,
+          "rate": 1
+        },
+        "2": {
+          "events": 0,
+          "reverted": 0,
+          "rate": null
+        },
+        "3": {
+          "events": 0,
+          "reverted": 0,
+          "rate": null
+        },
+        "1.5": {
+          "events": 1,
+          "reverted": 1,
+          "rate": 1
+        },
+        "2.5": {
+          "events": 0,
+          "reverted": 0,
+          "rate": null
+        }
+      }
     },
     {
       "pair": "PUMP/BNB",
       "asset1": "PUMP",
       "asset2": "BNB",
       "sector": "Exchange",
-      "qualityScore": 22.64,
-      "correlation": 0.671,
-      "beta": 1.846,
-      "halfLife": 2,
-      "meanReversionRate": 0.69,
-      "zScore": -0.75,
-      "signalStrength": 0.5,
+      "qualityScore": 18.4,
+      "correlation": 0.695,
+      "beta": 1.792,
+      "halfLife": 2.3,
+      "meanReversionRate": 0.621,
+      "zScore": -0.41,
+      "signalStrength": 0.17,
       "direction": "long",
       "isReady": false,
-      "entryThreshold": 1.5,
-      "exitThreshold": 0.5
-    },
-    {
-      "pair": "AR/FIL",
-      "asset1": "AR",
-      "asset2": "FIL",
-      "sector": "AI",
-      "qualityScore": 17.07,
-      "correlation": 0.852,
-      "beta": 0.614,
-      "halfLife": 2.8,
-      "meanReversionRate": 0.552,
-      "zScore": 0.47,
-      "signalStrength": 0.31,
-      "direction": "short",
-      "isReady": false,
-      "entryThreshold": 1.5,
-      "exitThreshold": 0.5
+      "entryThreshold": 2.5,
+      "exitThreshold": 0.5,
+      "maxHistoricalZ": 2.51,
+      "divergenceProfile": {
+        "1": {
+          "events": 3,
+          "reverted": 3,
+          "rate": 1
+        },
+        "2": {
+          "events": 1,
+          "reverted": 1,
+          "rate": 1
+        },
+        "3": {
+          "events": 0,
+          "reverted": 0,
+          "rate": null
+        },
+        "1.5": {
+          "events": 2,
+          "reverted": 2,
+          "rate": 1
+        },
+        "2.5": {
+          "events": 1,
+          "reverted": 1,
+          "rate": 1
+        }
+      }
     },
     {
       "pair": "OP/MNT",
       "asset1": "OP",
       "asset2": "MNT",
       "sector": "L2",
-      "qualityScore": 16.84,
-      "correlation": 0.743,
-      "beta": 0.999,
-      "halfLife": 2.4,
-      "meanReversionRate": 0.552,
-      "zScore": -0.12,
-      "signalStrength": 0.08,
-      "direction": "long",
-      "isReady": false,
-      "entryThreshold": 1.5,
-      "exitThreshold": 0.5
-    },
-    {
-      "pair": "ARB/MNT",
-      "asset1": "ARB",
-      "asset2": "MNT",
-      "sector": "L2",
-      "qualityScore": 15.27,
-      "correlation": 0.698,
-      "beta": 0.843,
+      "qualityScore": 16.96,
+      "correlation": 0.777,
+      "beta": 1.031,
       "halfLife": 2.4,
       "meanReversionRate": 0.517,
-      "zScore": -0.71,
-      "signalStrength": 0.47,
+      "zScore": -1.3,
+      "signalStrength": 0.87,
       "direction": "long",
       "isReady": false,
       "entryThreshold": 1.5,
-      "exitThreshold": 0.5
+      "exitThreshold": 0.5,
+      "maxHistoricalZ": 1.81,
+      "divergenceProfile": {
+        "1": {
+          "events": 3,
+          "reverted": 2,
+          "rate": 1
+        },
+        "2": {
+          "events": 0,
+          "reverted": 0,
+          "rate": null
+        },
+        "3": {
+          "events": 0,
+          "reverted": 0,
+          "rate": null
+        },
+        "1.5": {
+          "events": 2,
+          "reverted": 2,
+          "rate": 1
+        },
+        "2.5": {
+          "events": 0,
+          "reverted": 0,
+          "rate": null
+        }
+      }
     },
     {
-      "pair": "BNB/BANANA",
+      "pair": "BNB/APEX",
       "asset1": "BNB",
-      "asset2": "BANANA",
+      "asset2": "APEX",
       "sector": "Exchange",
-      "qualityScore": 8.48,
-      "correlation": 0.657,
-      "beta": 0.266,
-      "halfLife": 4.5,
-      "meanReversionRate": 0.586,
-      "zScore": -2.29,
-      "signalStrength": 1,
-      "direction": "long",
-      "isReady": true,
-      "entryThreshold": 1.5,
-      "exitThreshold": 0.5
+      "qualityScore": 12.9,
+      "correlation": 0.729,
+      "beta": 0.331,
+      "halfLife": 3.5,
+      "meanReversionRate": 0.621,
+      "zScore": 0.32,
+      "signalStrength": 0.16,
+      "direction": "short",
+      "isReady": false,
+      "entryThreshold": 2,
+      "exitThreshold": 0.5,
+      "maxHistoricalZ": 2.43,
+      "divergenceProfile": {
+        "1": {
+          "events": 2,
+          "reverted": 2,
+          "rate": 1
+        },
+        "2": {
+          "events": 1,
+          "reverted": 1,
+          "rate": 1
+        },
+        "3": {
+          "events": 0,
+          "reverted": 0,
+          "rate": null
+        },
+        "1.5": {
+          "events": 1,
+          "reverted": 1,
+          "rate": 1
+        },
+        "2.5": {
+          "events": 0,
+          "reverted": 0,
+          "rate": null
+        }
+      }
     },
     {
-      "pair": "ARB/OP",
-      "asset1": "ARB",
-      "asset2": "OP",
-      "sector": "L2",
-      "qualityScore": 5.65,
-      "correlation": 0.926,
-      "beta": 0.832,
-      "halfLife": 10.2,
-      "meanReversionRate": 0.621,
-      "zScore": -0.45,
-      "signalStrength": 0.3,
+      "pair": "ASTER/BNB",
+      "asset1": "ASTER",
+      "asset2": "BNB",
+      "sector": "Exchange",
+      "qualityScore": 7.46,
+      "correlation": 0.607,
+      "beta": 1.769,
+      "halfLife": 4.8,
+      "meanReversionRate": 0.586,
+      "zScore": -0.09,
+      "signalStrength": 0.05,
       "direction": "long",
       "isReady": false,
-      "entryThreshold": 1.5,
-      "exitThreshold": 0.5
+      "entryThreshold": 2,
+      "exitThreshold": 0.5,
+      "maxHistoricalZ": 2.34,
+      "divergenceProfile": {
+        "1": {
+          "events": 1,
+          "reverted": 1,
+          "rate": 1
+        },
+        "2": {
+          "events": 1,
+          "reverted": 1,
+          "rate": 1
+        },
+        "3": {
+          "events": 0,
+          "reverted": 0,
+          "rate": null
+        },
+        "1.5": {
+          "events": 1,
+          "reverted": 1,
+          "rate": 1
+        },
+        "2.5": {
+          "events": 0,
+          "reverted": 0,
+          "rate": null
+        }
+      }
     }
   ]
 }

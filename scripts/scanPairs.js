@@ -17,7 +17,7 @@
 const fs = require('fs');
 const path = require('path');
 const { Hyperliquid } = require('hyperliquid');
-const { checkPairFitness } = require('../lib/pairAnalysis');
+const { checkPairFitness, analyzeHistoricalDivergences } = require('../lib/pairAnalysis');
 
 // Default thresholds
 const DEFAULT_MIN_VOLUME = 500_000;   // $500k 24h volume
@@ -43,6 +43,7 @@ const corrIdx = args.indexOf('--min-corr');
 if (corrIdx !== -1 && args[corrIdx + 1]) {
   minCorr = parseFloat(args[corrIdx + 1]);
 }
+const CROSS_SECTOR = args.includes('--cross-sector');
 
 /**
  * Load sector mapping from config
@@ -64,6 +65,22 @@ function loadSectorMap() {
   }
 
   return { symbolToSector, sectors, config };
+}
+
+/**
+ * Load blacklist from config
+ */
+function loadBlacklist() {
+  const blacklistPath = path.join(__dirname, '../config/blacklist.json');
+  try {
+    if (fs.existsSync(blacklistPath)) {
+      const config = JSON.parse(fs.readFileSync(blacklistPath, 'utf8'));
+      return new Set(config.assets || []);
+    }
+  } catch (err) {
+    console.warn('Warning: Could not load blacklist:', err.message);
+  }
+  return new Set();
 }
 
 /**
@@ -218,16 +235,17 @@ function groupBySector(assets, symbolToSector) {
 /**
  * Generate candidate pairs within each sector
  */
-function generateCandidatePairs(sectorGroups) {
+function generateCandidatePairs(sectorGroups, includeCrossSector = false) {
   const pairs = [];
 
+  // Same-sector pairs
   for (const [sector, assets] of Object.entries(sectorGroups)) {
     if (assets.length < 2) continue;
 
     // Sort by volume (most liquid first)
     assets.sort((a, b) => b.volume24h - a.volume24h);
 
-    // Generate all combinations
+    // Generate all combinations within sector
     for (let i = 0; i < assets.length; i++) {
       for (let j = i + 1; j < assets.length; j++) {
         pairs.push({
@@ -235,6 +253,31 @@ function generateCandidatePairs(sectorGroups) {
           asset1: assets[i],
           asset2: assets[j]
         });
+      }
+    }
+  }
+
+  // Cross-sector pairs (top assets from each sector)
+  if (includeCrossSector) {
+    const sectors = Object.keys(sectorGroups);
+    const TOP_PER_SECTOR_CROSS = 5; // Top 5 most liquid from each sector
+    
+    for (let s1 = 0; s1 < sectors.length; s1++) {
+      for (let s2 = s1 + 1; s2 < sectors.length; s2++) {
+        const sector1 = sectors[s1];
+        const sector2 = sectors[s2];
+        const assets1 = sectorGroups[sector1]?.slice(0, TOP_PER_SECTOR_CROSS) || [];
+        const assets2 = sectorGroups[sector2]?.slice(0, TOP_PER_SECTOR_CROSS) || [];
+        
+        for (const a1 of assets1) {
+          for (const a2 of assets2) {
+            pairs.push({
+              sector: `${sector1}×${sector2}`,
+              asset1: a1,
+              asset2: a2
+            });
+          }
+        }
       }
     }
   }
@@ -277,6 +320,9 @@ function evaluatePairs(candidatePairs, priceMap, minCorrelation) {
       const passesHalfLife = fitness.halfLife <= 45;
 
       if (passesCorrelation && passesCointegration && passesHalfLife) {
+        // Analyze historical divergences to find optimal entry threshold
+        const divergenceProfile = analyzeHistoricalDivergences(aligned1, aligned2, fitness.beta);
+        
         fittingPairs.push({
           sector: pair.sector,
           asset1: pair.asset1.symbol,
@@ -291,7 +337,11 @@ function evaluatePairs(candidatePairs, priceMap, minCorrelation) {
           isCointegrated: fitness.isCointegrated,
           halfLife: fitness.halfLife,
           zScore: fitness.zScore,
-          meanReversionRate: fitness.meanReversionRate
+          meanReversionRate: fitness.meanReversionRate,
+          // Dynamic threshold data
+          optimalEntry: divergenceProfile.optimalEntry,
+          maxHistoricalZ: divergenceProfile.maxHistoricalZ,
+          divergenceProfile: divergenceProfile.thresholds
         });
       } else {
         let reason = 'low_correlation';
@@ -333,8 +383,17 @@ async function main() {
   console.log(`  Found ${universe.length} perpetuals\n`);
 
   // Step 2: Filter by liquidity
-  const filtered = filterByLiquidity(universe, minVolume, minOI);
-  console.log(`After liquidity filter: ${filtered.length} assets\n`);
+  const liquidityFiltered = filterByLiquidity(universe, minVolume, minOI);
+  console.log(`After liquidity filter: ${liquidityFiltered.length} assets`);
+
+  // Step 2b: Apply blacklist
+  const blacklist = loadBlacklist();
+  const filtered = liquidityFiltered.filter(a => !blacklist.has(a.symbol));
+  if (blacklist.size > 0) {
+    const removed = liquidityFiltered.length - filtered.length;
+    console.log(`After blacklist filter: ${filtered.length} assets (removed ${removed}: ${[...blacklist].join(', ')})`);
+  }
+  console.log('');
 
   // Step 3: Group by sector
   const { groups, unmapped } = groupBySector(filtered, symbolToSector);
@@ -353,8 +412,9 @@ async function main() {
   }
 
   // Step 4: Generate candidate pairs
-  const candidatePairs = generateCandidatePairs(groups);
-  console.log(`\nGenerated ${candidatePairs.length} candidate pairs\n`);
+  const candidatePairs = generateCandidatePairs(groups, CROSS_SECTOR);
+  const crossNote = CROSS_SECTOR ? ' (including cross-sector)' : ' (same-sector only)';
+  console.log(`\nGenerated ${candidatePairs.length} candidate pairs${crossNote}\n`);
 
   // Step 5: Fetch historical prices for all symbols in candidates
   const symbolsNeeded = new Set();
@@ -408,16 +468,18 @@ async function main() {
 
   // Show top 15 pairs by score
   console.log('\nTop 15 fitting pairs (by composite score):');
-  console.log('  Pair                  | Sector | Score | Corr  | HalfLife | Z-Score');
-  console.log('  ----------------------|--------|-------|-------|----------|--------');
+  console.log('  Pair                  | Sector | Score | Corr  | HL    | Z-Score | OptEntry | MaxZ');
+  console.log('  ----------------------|--------|-------|-------|-------|---------|----------|------');
   for (const pair of fittingPairs.slice(0, 15)) {
     const pairName = `${pair.asset1}/${pair.asset2}`.padEnd(20);
     const sector = pair.sector.padEnd(6);
     const score = pair.score.toFixed(2).padStart(5);
     const corr = pair.correlation.toFixed(3);
-    const hl = pair.halfLife < 100 ? pair.halfLife.toFixed(1).padStart(6) + 'd' : '    Inf';
+    const hl = pair.halfLife < 100 ? pair.halfLife.toFixed(1).padStart(4) + 'd' : ' Inf';
     const z = pair.zScore.toFixed(2).padStart(7);
-    console.log(`  ${pairName} | ${sector} | ${score} | ${corr} | ${hl}  | ${z}`);
+    const optEntry = pair.optimalEntry.toFixed(1).padStart(8);
+    const maxZ = pair.maxHistoricalZ.toFixed(1).padStart(5);
+    console.log(`  ${pairName} | ${sector} | ${score} | ${corr} | ${hl} | ${z} | ${optEntry} | ${maxZ}`);
   }
 
   // Select top 3 pairs from each sector for watchlist
@@ -433,13 +495,12 @@ async function main() {
     }
   }
 
-  // Thresholds for entry/exit
-  const ENTRY_THRESHOLD = 1.5;  // Enter when |Z| > 1.5
+  // Exit threshold (fixed for all pairs)
   const EXIT_THRESHOLD = 0.5;   // Exit when |Z| < 0.5
 
   console.log(`\n📋 Watchlist: Top ${TOP_PER_SECTOR} pairs per sector (${watchlistPairs.length} total)`);
-  console.log('  Pair                  | Sector      | Quality | Corr  | HL    | Z-Score | Signal');
-  console.log('  ----------------------|-------------|---------|-------|-------|---------|-------');
+  console.log('  Pair                  | Sector      | Quality | HL    | Z-Score | Entry | Signal');
+  console.log('  ----------------------|-------------|---------|-------|---------|-------|-------');
 
   // Group by sector for display
   const watchlistBySector = {};
@@ -453,12 +514,13 @@ async function main() {
       const pairName = `${pair.asset1}/${pair.asset2}`.padEnd(20);
       const sectorPad = sector.padEnd(11);
       const score = pair.score.toFixed(1).padStart(6);
-      const corr = pair.correlation.toFixed(2);
       const hl = pair.halfLife.toFixed(1).padStart(4) + 'd';
-      const z = pair.zScore.toFixed(2).padStart(6);
-      const signal = Math.min(Math.abs(pair.zScore) / ENTRY_THRESHOLD, 1.0);
+      const z = pair.zScore.toFixed(2).padStart(7);
+      const entryThreshold = pair.optimalEntry;
+      const entryStr = entryThreshold.toFixed(1).padStart(5);
+      const signal = Math.min(Math.abs(pair.zScore) / entryThreshold, 1.0);
       const signalPct = (signal * 100).toFixed(0).padStart(4) + '%';
-      console.log(`  ${pairName} | ${sectorPad} | ${score} | ${corr}  | ${hl} | ${z}  | ${signalPct}`);
+      console.log(`  ${pairName} | ${sectorPad} | ${score} | ${hl} | ${z} | ${entryStr} | ${signalPct}`);
     }
   }
 
@@ -486,7 +548,22 @@ async function main() {
       halfLife: parseFloat(p.halfLife.toFixed(1)),
       zScore: parseFloat(p.zScore.toFixed(2)),
       meanReversionRate: parseFloat(p.meanReversionRate.toFixed(3)),
-      fundingSpread: parseFloat(p.fundingSpread.toFixed(2))
+      fundingSpread: parseFloat(p.fundingSpread.toFixed(2)),
+      // Dynamic threshold data
+      optimalEntry: p.optimalEntry,
+      maxHistoricalZ: parseFloat(p.maxHistoricalZ.toFixed(2)),
+      divergenceProfile: Object.fromEntries(
+        Object.entries(p.divergenceProfile).map(([thresh, data]) => [
+          thresh,
+          {
+            events: data.totalEvents,
+            reverted: data.revertedEvents,
+            rate: data.reversionRate !== null ? parseFloat(data.reversionRate.toFixed(2)) : null,
+            avgDuration: data.avgDuration !== null ? parseFloat(data.avgDuration.toFixed(1)) : null,
+            avgPeakZ: data.avgPeakZ !== null ? parseFloat(data.avgPeakZ.toFixed(2)) : null
+          }
+        ])
+      )
     }))
   };
 
@@ -501,11 +578,14 @@ async function main() {
     description: `Top ${TOP_PER_SECTOR} pairs per sector by composite score`,
     scoringFormula: 'qualityScore = correlation × (1/halfLife) × meanReversionRate × 100',
     signalFormula: 'signalStrength = |zScore| / entryThreshold (0-1, 1 = ready)',
+    entryThresholdNote: 'Dynamic per-pair entry threshold based on historical divergence analysis',
     totalPairs: watchlistPairs.length,
     pairs: watchlistPairs.map(p => {
-      const signalStrength = Math.min(Math.abs(p.zScore) / ENTRY_THRESHOLD, 1.0);
+      // Use pair-specific optimal entry threshold
+      const entryThreshold = p.optimalEntry;
+      const signalStrength = Math.min(Math.abs(p.zScore) / entryThreshold, 1.0);
       const direction = p.zScore < 0 ? 'long' : 'short'; // Negative Z = asset1 undervalued = long asset1
-      const isReady = Math.abs(p.zScore) >= ENTRY_THRESHOLD;
+      const isReady = Math.abs(p.zScore) >= entryThreshold;
 
       return {
         pair: `${p.asset1}/${p.asset2}`,
@@ -523,9 +603,21 @@ async function main() {
         signalStrength: parseFloat(signalStrength.toFixed(2)),
         direction,  // 'long' = long asset1/short asset2, 'short' = short asset1/long asset2
         isReady,
-        // Thresholds
-        entryThreshold: ENTRY_THRESHOLD,
-        exitThreshold: EXIT_THRESHOLD
+        // Dynamic thresholds (per-pair)
+        entryThreshold: entryThreshold,
+        exitThreshold: EXIT_THRESHOLD,
+        maxHistoricalZ: parseFloat(p.maxHistoricalZ.toFixed(2)),
+        // Divergence profile summary
+        divergenceProfile: Object.fromEntries(
+          Object.entries(p.divergenceProfile).map(([thresh, data]) => [
+            thresh,
+            {
+              events: data.totalEvents,
+              reverted: data.revertedEvents,
+              rate: data.reversionRate !== null ? parseFloat(data.reversionRate.toFixed(2)) : null
+            }
+          ])
+        )
       };
     })
   };
@@ -537,10 +629,10 @@ async function main() {
     for (const p of actionablePairs) {
       const status = p.isReady ? '🟢 READY' : '🟡 CLOSE';
       const dir = p.direction === 'long' ? `Long ${p.asset1}` : `Short ${p.asset1}`;
-      console.log(`  ${status} ${p.pair} | Z=${p.zScore} | ${dir}`);
+      console.log(`  ${status} ${p.pair} | Z=${p.zScore} (entry@${p.entryThreshold}) | ${dir}`);
     }
   } else {
-    console.log(`\n⏳ No pairs at entry threshold yet (all |Z| < ${ENTRY_THRESHOLD * 0.8})`);
+    console.log(`\n⏳ No pairs at entry threshold yet`);
   }
 
   const watchlistPath = path.join(__dirname, '../config/watchlist.json');

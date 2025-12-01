@@ -1,12 +1,12 @@
 {
-  "SUI_XLM": {
-    "symbol1": "SUI",
-    "symbol2": "XLM",
-    "entryDate": "2025-11-28T10:33:00Z",
-    "entryPrice1": 1.5563,
-    "entryPrice2": 0.25971,
-    "weight1": 0.53,
-    "weight2": 0.47,
-    "direction": "long"
-  }
+    "BNB_BANANA": {
+        "symbol1": "BNB",
+        "symbol2": "BANANA",
+        "entryDate": "2025-11-28T18:00:00Z",
+        "entryPrice1": 876.65,
+        "entryPrice2": 10.03,
+        "weight1": 0.75,
+        "weight2": 0.25,
+        "direction": "long"
+    }
 }
