@@ -33,10 +33,46 @@ const app = express();
 const PORT = process.env.PORT || 3002;
 
 // Middleware
+const allowedOrigins = process.env.FRONTEND_URL
+    ? process.env.FRONTEND_URL.split(',').map(url => url.trim())
+    : ['*'];
+
+console.log('[CORS] Allowed origins:', allowedOrigins);
+
 app.use(cors({
-    origin: process.env.FRONTEND_URL || '*',
+    origin: (origin, callback) => {
+        // Allow requests with no origin (mobile apps, curl, etc)
+        if (!origin) {
+            console.log('[CORS] No origin header, allowing');
+            return callback(null, true);
+        }
+
+        console.log(`[CORS] Request from origin: ${origin}`);
+
+        // If wildcard is set, allow all
+        if (allowedOrigins.includes('*')) {
+            console.log('[CORS] Wildcard enabled, allowing');
+            return callback(null, true);
+        }
+
+        // Check if origin is in allowed list (exact match or remove trailing slash)
+        const originNormalized = origin.replace(/\/$/, '');
+        const isAllowed = allowedOrigins.some(allowed => {
+            const allowedNormalized = allowed.replace(/\/$/, '');
+            return originNormalized === allowedNormalized;
+        });
+
+        if (isAllowed) {
+            console.log('[CORS] Origin allowed');
+            callback(null, true);
+        } else {
+            console.log(`[CORS] Origin rejected. Allowed: ${allowedOrigins.join(', ')}, Got: ${origin}`);
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
     methods: ['GET', 'POST', 'PUT', 'DELETE'],
-    allowedHeaders: ['Content-Type', 'Authorization']
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true
 }));
 app.use(express.json());
 

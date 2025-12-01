@@ -121,20 +121,29 @@ export interface StatusResponse {
 async function fetchAPI<T>(endpoint: string, options?: RequestInit): Promise<T> {
     const url = `${API_URL}${endpoint}`;
 
-    const res = await fetch(url, {
-        ...options,
-        headers: {
-            'Content-Type': 'application/json',
-            ...options?.headers,
-        },
-    });
+    try {
+        const res = await fetch(url, {
+            ...options,
+            headers: {
+                'Content-Type': 'application/json',
+                ...options?.headers,
+            },
+        });
 
-    if (!res.ok) {
-        const error = await res.json().catch(() => ({ error: res.statusText }));
-        throw new Error(error.error || `API error: ${res.status}`);
+        if (!res.ok) {
+            const error = await res.json().catch(() => ({ error: res.statusText }));
+            throw new Error(error.error || `API error: ${res.status}`);
+        }
+
+        return res.json();
+    } catch (error) {
+        // Log the actual error for debugging
+        console.error(`[API] Fetch failed for ${url}:`, error);
+        if (error instanceof TypeError && error.message === 'Failed to fetch') {
+            throw new Error(`Cannot reach backend at ${API_URL}. Check CORS settings and ensure the backend is running.`);
+        }
+        throw error;
     }
-
-    return res.json();
 }
 
 // Health
