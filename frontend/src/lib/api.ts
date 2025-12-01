@@ -1,0 +1,258 @@
+/**
+ * API Client for Pair Trading Backend
+ * 
+ * Uses NEXT_PUBLIC_API_URL environment variable.
+ * Falls back to local API routes if not set.
+ */
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
+
+// Types
+export interface Trade {
+    id?: string;
+    pair: string;
+    asset1: string;
+    asset2: string;
+    sector?: string;
+    direction: string;
+    entryTime: string;
+    entryZScore?: number;
+    entryThreshold?: number;
+    longAsset: string;
+    shortAsset: string;
+    longWeight: number;
+    shortWeight: number;
+    longEntryPrice?: number;
+    shortEntryPrice?: number;
+    correlation?: number;
+    beta?: number;
+    halfLife?: number;
+    currentZ?: number;
+    currentPnL?: number;
+    currentCorrelation?: number;
+    currentHalfLife?: number;
+    partialExitTaken?: boolean;
+    partialExitPnL?: number;
+    partialExitTime?: string;
+    source?: string;
+}
+
+export interface WatchlistPair {
+    pair: string;
+    asset1: string;
+    asset2: string;
+    sector?: string;
+    qualityScore?: number;
+    correlation?: number;
+    beta?: number;
+    halfLife?: number;
+    meanReversionRate?: number;
+    zScore: number;
+    signalStrength: number;
+    direction?: string;
+    isReady?: boolean;
+    entryThreshold: number;
+    exitThreshold?: number;
+    maxHistoricalZ?: number;
+}
+
+export interface HistoryTrade extends Trade {
+    exitTime?: string;
+    exitZScore?: number;
+    exitReason?: string;
+    totalPnL?: number;
+    daysInTrade?: number;
+}
+
+export interface Stats {
+    totalTrades: number;
+    wins: number;
+    losses: number;
+    totalPnL: number;
+    winRate: number | string;
+}
+
+export interface StatusResponse {
+    timestamp: string;
+    activeTrades: {
+        count: number;
+        portfolioPnL: string;
+        pairs: Array<{
+            pair: string;
+            sector: string;
+            direction: string;
+            pnl: string;
+            daysInTrade: string;
+        }>;
+    };
+    watchlist: {
+        totalPairs: number;
+        approaching: Array<{
+            pair: string;
+            zScore: number;
+            entryThreshold: number;
+            signalStrength: number;
+        }>;
+    };
+    history: {
+        totalTrades: number;
+        wins: number;
+        losses: number;
+        totalPnL: string;
+    };
+    blacklist: {
+        count: number;
+    };
+    scheduler: {
+        monitor: {
+            isRunning: boolean;
+            lastRun: string | null;
+            schedule: string;
+        };
+        scan: {
+            isRunning: boolean;
+            lastRun: string | null;
+            schedule: string;
+        };
+    };
+}
+
+// API Functions
+async function fetchAPI<T>(endpoint: string, options?: RequestInit): Promise<T> {
+    const url = `${API_URL}${endpoint}`;
+
+    const res = await fetch(url, {
+        ...options,
+        headers: {
+            'Content-Type': 'application/json',
+            ...options?.headers,
+        },
+    });
+
+    if (!res.ok) {
+        const error = await res.json().catch(() => ({ error: res.statusText }));
+        throw new Error(error.error || `API error: ${res.status}`);
+    }
+
+    return res.json();
+}
+
+// Health
+export async function getHealth() {
+    return fetchAPI<{ status: string; uptime: number; timestamp: string }>('/api/health');
+}
+
+// Status
+export async function getStatus() {
+    return fetchAPI<StatusResponse>('/api/status');
+}
+
+// Trades
+export async function getTrades() {
+    return fetchAPI<{ count: number; trades: Trade[] }>('/api/trades');
+}
+
+export async function getTrade(pair: string) {
+    return fetchAPI<Trade>(`/api/trades/${encodeURIComponent(pair)}`);
+}
+
+export async function createTrade(trade: Partial<Trade>) {
+    return fetchAPI<{ success: boolean; trade: Trade }>('/api/trades', {
+        method: 'POST',
+        body: JSON.stringify(trade),
+    });
+}
+
+export async function updateTrade(pair: string, updates: Partial<Trade>) {
+    return fetchAPI<{ success: boolean; trade: Trade }>(`/api/trades/${encodeURIComponent(pair)}`, {
+        method: 'PUT',
+        body: JSON.stringify(updates),
+    });
+}
+
+export async function closeTrade(pair: string, reason?: string, pnl?: number) {
+    return fetchAPI<{ success: boolean; message: string; record: HistoryTrade }>(`/api/trades/${encodeURIComponent(pair)}`, {
+        method: 'DELETE',
+        body: JSON.stringify({ reason, pnl }),
+    });
+}
+
+// Watchlist
+export async function getWatchlist(filters?: { sector?: string; ready?: boolean }) {
+    const params = new URLSearchParams();
+    if (filters?.sector) params.set('sector', filters.sector);
+    if (filters?.ready) params.set('ready', 'true');
+
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return fetchAPI<{ timestamp: string; totalPairs: number; pairs: WatchlistPair[] }>(`/api/watchlist${query}`);
+}
+
+export async function getWatchlistSectors() {
+    return fetchAPI<{ timestamp: string; sectors: Array<{ name: string; count: number }> }>('/api/watchlist/sectors');
+}
+
+// History
+export async function getHistory(filters?: { sector?: string; limit?: number }) {
+    const params = new URLSearchParams();
+    if (filters?.sector) params.set('sector', filters.sector);
+    if (filters?.limit) params.set('limit', filters.limit.toString());
+
+    const query = params.toString() ? `?${params.toString()}` : '';
+    return fetchAPI<{ totalCount: number; filteredCount: number; stats: Stats; trades: HistoryTrade[] }>(`/api/history${query}`);
+}
+
+export async function getHistoryStats() {
+    return fetchAPI<Stats & {
+        avgPnL: string;
+        avgDuration: string;
+        bestTrade: { pair: string; pnl: number } | null;
+        worstTrade: { pair: string; pnl: number } | null;
+        bySector: Record<string, { trades: number; wins: number; pnl: number }>;
+        byReason: Record<string, { count: number; avgPnL: number; totalPnL: number }>;
+    }>('/api/history/stats');
+}
+
+// Blacklist
+export async function getBlacklist() {
+    return fetchAPI<{ count: number; assets: string[]; reasons: Record<string, string> }>('/api/blacklist');
+}
+
+export async function addToBlacklist(asset: string, reason?: string) {
+    return fetchAPI<{ success: boolean; asset: string; reason?: string }>('/api/blacklist', {
+        method: 'POST',
+        body: JSON.stringify({ asset, reason }),
+    });
+}
+
+export async function removeFromBlacklist(asset: string) {
+    return fetchAPI<{ success: boolean; removed: string }>(`/api/blacklist/${encodeURIComponent(asset)}`, {
+        method: 'DELETE',
+    });
+}
+
+// Manual triggers
+export async function triggerScan(options?: { crossSector?: boolean }) {
+    return fetchAPI<{ success: boolean; duration?: string; fittingPairs?: number; watchlistPairs?: number; crossSectorPairs?: number }>('/api/status/scan', {
+        method: 'POST',
+        body: JSON.stringify(options || {}),
+    });
+}
+
+export async function triggerMonitor() {
+    return fetchAPI<{ success: boolean; duration?: string }>('/api/status/monitor', {
+        method: 'POST',
+    });
+}
+
+// Cross-sector settings
+export async function getCrossSectorEnabled() {
+    return fetchAPI<{ crossSectorEnabled: boolean }>('/api/status/cross-sector');
+}
+
+export async function setCrossSectorEnabled(enabled: boolean) {
+    return fetchAPI<{ success: boolean; crossSectorEnabled: boolean }>('/api/status/cross-sector', {
+        method: 'POST',
+        body: JSON.stringify({ enabled }),
+    });
+}
+

@@ -3,12 +3,15 @@
  * 
  * GET /api/status - Get current bot status
  * GET /api/status/scheduler - Get scheduler status
+ * POST /api/status/cross-sector - Toggle cross-sector scanning
+ * POST /api/status/scan - Trigger scan
+ * POST /api/status/monitor - Trigger monitor
  */
 
 const express = require('express');
 const router = express.Router();
 const db = require('../db/queries');
-const { getSchedulerStatus } = require('../services/scheduler');
+const { getSchedulerStatus, runScanNow, runMonitorNow, setCrossSectorEnabled, getCrossSectorEnabled } = require('../services/scheduler');
 
 // GET /api/status - Overall status summary
 router.get('/', async (req, res) => {
@@ -77,6 +80,55 @@ router.get('/', async (req, res) => {
 router.get('/scheduler', (req, res) => {
   try {
     res.json(getSchedulerStatus());
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/status/cross-sector - Toggle cross-sector scanning
+router.post('/cross-sector', (req, res) => {
+  try {
+    const { enabled } = req.body;
+    
+    if (typeof enabled !== 'boolean') {
+      return res.status(400).json({ error: 'enabled (boolean) required' });
+    }
+    
+    const result = setCrossSectorEnabled(enabled);
+    res.json({ 
+      success: true, 
+      crossSectorEnabled: result 
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/status/cross-sector - Get cross-sector setting
+router.get('/cross-sector', (req, res) => {
+  try {
+    res.json({ crossSectorEnabled: getCrossSectorEnabled() });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/status/scan - Trigger pair scan
+router.post('/scan', async (req, res) => {
+  try {
+    const { crossSector } = req.body;
+    const result = await runScanNow({ crossSector });
+    res.json(result);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /api/status/monitor - Trigger monitor
+router.post('/monitor', async (req, res) => {
+  try {
+    const result = await runMonitorNow();
+    res.json(result);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

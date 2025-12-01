@@ -1,114 +1,133 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useEffect, useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogFooter,
 } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { StatCard } from "@/components/StatCard";
-import { User, Plus, RefreshCw, TrendingUp } from "lucide-react";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
+import { User, Plus, RefreshCw, TrendingUp, TrendingDown, X } from "lucide-react";
+import { TradesTable } from "@/components/TradesTable";
+import * as api from "@/lib/api";
 import { cn } from "@/lib/utils";
 
-interface UserTrade {
-  pair: string;
-  symbol1: string;
-  symbol2: string;
-  entryDate: string;
-  entryPrice1: number;
-  entryPrice2: number;
-  weight1: number;
-  weight2: number;
-  direction: string;
-  isUserTrade?: boolean;
-}
-
 export default function ProfilePage() {
-  const [userTrades, setUserTrades] = useState<UserTrade[]>([]);
+  const [trades, setTrades] = useState<api.Trade[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [newTrade, setNewTrade] = useState({
-    symbol1: "",
-    symbol2: "",
-    entryPrice1: "",
-    entryPrice2: "",
-    weight1: "50",
-    weight2: "50",
-    direction: "long",
-    entryDate: new Date().toISOString().slice(0, 16),
+  const [formData, setFormData] = useState({
+    pair: "",
+    asset1: "",
+    asset2: "",
+    sector: "",
+    direction: "long" as "long" | "short",
+    longWeight: "50",
+    shortWeight: "50",
+    longEntryPrice: "",
+    shortEntryPrice: "",
   });
+  const [submitting, setSubmitting] = useState(false);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
-      const res = await fetch("/api/trades");
-      const data = await res.json();
-      setUserTrades(data.userTrades || []);
-    } catch (error) {
-      console.error("Error fetching trades:", error);
+      const tradesRes = await api.getTrades();
+      const manualTrades = (tradesRes.trades || []).filter(
+        (t) => t.source === "manual" || t.source === "telegram"
+      );
+      setTrades(manualTrades);
+    } catch (err) {
+      console.error("Error fetching trades:", err);
+      setError(err instanceof Error ? err.message : "Failed to fetch trades");
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [fetchData]);
 
-  const handleAddTrade = async () => {
-    try {
-      const res = await fetch("/api/trades", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          symbol1: newTrade.symbol1.toUpperCase(),
-          symbol2: newTrade.symbol2.toUpperCase(),
-          entryPrice1: parseFloat(newTrade.entryPrice1),
-          entryPrice2: parseFloat(newTrade.entryPrice2),
-          weight1: parseFloat(newTrade.weight1) / 100,
-          weight2: parseFloat(newTrade.weight2) / 100,
-          direction: newTrade.direction,
-          entryDate: new Date(newTrade.entryDate).toISOString(),
-        }),
-      });
-
-      if (res.ok) {
-        setDialogOpen(false);
-        setNewTrade({
-          symbol1: "",
-          symbol2: "",
-          entryPrice1: "",
-          entryPrice2: "",
-          weight1: "50",
-          weight2: "50",
-          direction: "long",
-          entryDate: new Date().toISOString().slice(0, 16),
-        });
-        fetchData();
+  const handleInputChange = (field: string, value: string) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+    
+    if (field === "asset1" || field === "asset2") {
+      const a1 = field === "asset1" ? value : formData.asset1;
+      const a2 = field === "asset2" ? value : formData.asset2;
+      if (a1 && a2) {
+        setFormData((prev) => ({ ...prev, pair: `${a1}/${a2}` }));
       }
-    } catch (error) {
-      console.error("Error adding trade:", error);
     }
   };
 
-  // Calculate stats (simplified - no live prices)
-  const activeTrades = userTrades.length;
+  const handleSubmit = async () => {
+    if (!formData.pair || !formData.asset1 || !formData.asset2) {
+      setError("Please fill in all required fields");
+      return;
+    }
+
+    setSubmitting(true);
+    setError(null);
+
+    try {
+      const trade: Partial<api.Trade> = {
+        pair: formData.pair,
+        asset1: formData.asset1.toUpperCase(),
+        asset2: formData.asset2.toUpperCase(),
+        sector: formData.sector || "Manual",
+        direction: formData.direction,
+        longAsset: formData.direction === "long" ? formData.asset1.toUpperCase() : formData.asset2.toUpperCase(),
+        shortAsset: formData.direction === "long" ? formData.asset2.toUpperCase() : formData.asset1.toUpperCase(),
+        longWeight: parseFloat(formData.longWeight) || 50,
+        shortWeight: parseFloat(formData.shortWeight) || 50,
+        longEntryPrice: parseFloat(formData.longEntryPrice) || 0,
+        shortEntryPrice: parseFloat(formData.shortEntryPrice) || 0,
+      };
+
+      await api.createTrade(trade);
+      setDialogOpen(false);
+      setFormData({
+        pair: "",
+        asset1: "",
+        asset2: "",
+        sector: "",
+        direction: "long",
+        longWeight: "50",
+        shortWeight: "50",
+        longEntryPrice: "",
+        shortEntryPrice: "",
+      });
+      await fetchData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create trade");
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleCloseTrade = async (pair: string) => {
+    if (!confirm(`Close trade ${pair}?`)) return;
+
+    try {
+      await api.closeTrade(pair, "MANUAL");
+      await fetchData();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to close trade");
+    }
+  };
+
+  const totalPnL = trades.reduce((sum, t) => sum + (t.currentPnL || 0), 0);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -117,189 +136,189 @@ export default function ProfilePage() {
           </div>
           <div>
             <h1 className="text-2xl font-bold">My Trades</h1>
-            <p className="text-sm text-muted-foreground">
-              Manual positions you&apos;re tracking
-            </p>
+            <p className="text-sm text-muted-foreground">Manual positions</p>
           </div>
         </div>
         <div className="flex gap-2">
-          <Button onClick={fetchData} disabled={loading} variant="outline">
+          <Button onClick={fetchData} disabled={loading} variant="outline" size="sm">
             <RefreshCw className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`} />
             Refresh
           </Button>
-          <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          {/* Disabled for now */}
+          {/* <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
             <DialogTrigger asChild>
-              <Button>
+              <Button size="sm">
                 <Plus className="w-4 h-4 mr-2" />
-                New Trade
+                Add Trade
               </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Add Manual Trade</DialogTitle>
+                <DialogDescription>
+                  Record a trade you entered manually
+                </DialogDescription>
               </DialogHeader>
-              <div className="space-y-4 pt-4">
+              <div className="grid gap-4 py-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="text-sm font-medium">Long Asset</label>
+                    <label className="text-sm font-medium">Asset 1 (Long)</label>
                     <Input
-                      placeholder="BNB"
-                      value={newTrade.symbol1}
-                      onChange={(e) =>
-                        setNewTrade({ ...newTrade, symbol1: e.target.value })
-                      }
+                      placeholder="BTC"
+                      value={formData.asset1}
+                      onChange={(e) => handleInputChange("asset1", e.target.value.toUpperCase())}
                     />
                   </div>
                   <div>
-                    <label className="text-sm font-medium">Short Asset</label>
+                    <label className="text-sm font-medium">Asset 2 (Short)</label>
                     <Input
-                      placeholder="BANANA"
-                      value={newTrade.symbol2}
-                      onChange={(e) =>
-                        setNewTrade({ ...newTrade, symbol2: e.target.value })
-                      }
+                      placeholder="ETH"
+                      value={formData.asset2}
+                      onChange={(e) => handleInputChange("asset2", e.target.value.toUpperCase())}
                     />
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <label className="text-sm font-medium">Entry Price 1</label>
+                    <label className="text-sm font-medium">Pair Name</label>
                     <Input
-                      type="number"
-                      step="0.01"
-                      placeholder="876.65"
-                      value={newTrade.entryPrice1}
-                      onChange={(e) =>
-                        setNewTrade({ ...newTrade, entryPrice1: e.target.value })
-                      }
+                      placeholder="BTC/ETH"
+                      value={formData.pair}
+                      onChange={(e) => handleInputChange("pair", e.target.value)}
                     />
                   </div>
                   <div>
-                    <label className="text-sm font-medium">Entry Price 2</label>
+                    <label className="text-sm font-medium">Sector</label>
                     <Input
-                      type="number"
-                      step="0.01"
-                      placeholder="10.03"
-                      value={newTrade.entryPrice2}
-                      onChange={(e) =>
-                        setNewTrade({ ...newTrade, entryPrice2: e.target.value })
-                      }
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm font-medium">Weight 1 (%)</label>
-                    <Input
-                      type="number"
-                      value={newTrade.weight1}
-                      onChange={(e) =>
-                        setNewTrade({ ...newTrade, weight1: e.target.value })
-                      }
-                    />
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium">Weight 2 (%)</label>
-                    <Input
-                      type="number"
-                      value={newTrade.weight2}
-                      onChange={(e) =>
-                        setNewTrade({ ...newTrade, weight2: e.target.value })
-                      }
+                      placeholder="L1, DeFi..."
+                      value={formData.sector}
+                      onChange={(e) => handleInputChange("sector", e.target.value)}
                     />
                   </div>
                 </div>
                 <div>
-                  <label className="text-sm font-medium">Entry Date/Time</label>
-                  <Input
-                    type="datetime-local"
-                    value={newTrade.entryDate}
-                    onChange={(e) =>
-                      setNewTrade({ ...newTrade, entryDate: e.target.value })
-                    }
-                  />
+                  <label className="text-sm font-medium">Direction</label>
+                  <div className="flex gap-2 mt-1">
+                    <Button
+                      type="button"
+                      variant={formData.direction === "long" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => handleInputChange("direction", "long")}
+                      className="flex-1"
+                    >
+                      <TrendingUp className="w-4 h-4 mr-1" />
+                      Long {formData.asset1 || "A1"}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant={formData.direction === "short" ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => handleInputChange("direction", "short")}
+                      className="flex-1"
+                    >
+                      <TrendingDown className="w-4 h-4 mr-1" />
+                      Short {formData.asset1 || "A1"}
+                    </Button>
+                  </div>
                 </div>
-                <Button onClick={handleAddTrade} className="w-full">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium">Long Weight %</label>
+                    <Input
+                      type="number"
+                      placeholder="50"
+                      value={formData.longWeight}
+                      onChange={(e) => handleInputChange("longWeight", e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Short Weight %</label>
+                    <Input
+                      type="number"
+                      placeholder="50"
+                      value={formData.shortWeight}
+                      onChange={(e) => handleInputChange("shortWeight", e.target.value)}
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-sm font-medium">Long Entry Price</label>
+                    <Input
+                      type="number"
+                      step="any"
+                      placeholder="0.00"
+                      value={formData.longEntryPrice}
+                      onChange={(e) => handleInputChange("longEntryPrice", e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Short Entry Price</label>
+                    <Input
+                      type="number"
+                      step="any"
+                      placeholder="0.00"
+                      value={formData.shortEntryPrice}
+                      onChange={(e) => handleInputChange("shortEntryPrice", e.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button onClick={handleSubmit} disabled={submitting}>
+                  {submitting && <RefreshCw className="w-4 h-4 animate-spin mr-2" />}
                   Add Trade
                 </Button>
-              </div>
+              </DialogFooter>
             </DialogContent>
-          </Dialog>
+          </Dialog> */}
         </div>
       </div>
 
+      {/* Error */}
+      {error && (
+        <div className="bg-destructive/10 text-destructive px-4 py-3 rounded-lg flex items-center justify-between">
+          <span>{error}</span>
+          <Button variant="ghost" size="sm" onClick={() => setError(null)}>
+            <X className="w-4 h-4" />
+          </Button>
+        </div>
+      )}
+
       {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-        <StatCard
-          title="Active Trades"
-          value={activeTrades}
-          icon={<TrendingUp className="w-5 h-5" />}
-        />
-        <StatCard
-          title="Status"
-          value="Manual"
-          subtitle="Not auto-managed"
-        />
+      <div className="flex items-baseline gap-8 pb-6 border-b border-border">
+        <div>
+          <p className="text-sm text-muted-foreground mb-1">Open P&L</p>
+          <span className={cn(
+            "text-3xl font-bold tabular-nums",
+            totalPnL >= 0 ? "text-emerald-400" : "text-red-400"
+          )}>
+            {totalPnL >= 0 ? "+" : ""}{totalPnL.toFixed(2)}%
+          </span>
+        </div>
+        <div>
+          <p className="text-sm text-muted-foreground mb-1">Positions</p>
+          <span className="text-3xl font-bold tabular-nums">{trades.length}</span>
+        </div>
       </div>
 
-      {/* Trades Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">My Positions</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {userTrades.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              No manual trades. Click &quot;New Trade&quot; to add one.
-            </div>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Pair</TableHead>
-                  <TableHead>Direction</TableHead>
-                  <TableHead className="text-right">Entry Prices</TableHead>
-                  <TableHead className="text-right">Weights</TableHead>
-                  <TableHead className="text-right">Entry Date</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {userTrades.map((trade) => (
-                  <TableRow key={trade.pair}>
-                    <TableCell className="font-medium">{trade.pair}</TableCell>
-                    <TableCell>
-                      <span
-                        className={cn(
-                          "px-2 py-1 rounded text-xs font-medium",
-                          trade.direction === "long"
-                            ? "bg-green-100 text-green-700"
-                            : "bg-red-100 text-red-700"
-                        )}
-                      >
-                        {trade.direction.toUpperCase()}
-                      </span>
-                    </TableCell>
-                    <TableCell className="text-right font-mono text-sm">
-                      ${trade.entryPrice1?.toFixed(2)} / ${trade.entryPrice2?.toFixed(2)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {((trade.weight1 || 0) * 100).toFixed(0)}% /{" "}
-                      {((trade.weight2 || 0) * 100).toFixed(0)}%
-                    </TableCell>
-                    <TableCell className="text-right text-muted-foreground">
-                      {trade.entryDate
-                        ? new Date(trade.entryDate).toLocaleDateString()
-                        : "?"}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+      {/* Trades */}
+      <div>
+        <h2 className="text-lg font-semibold mb-4">My Positions</h2>
+        {trades.length === 0 ? (
+          <div className="text-center py-16 border border-dashed border-border rounded-lg">
+            <User className="w-10 h-10 mx-auto mb-3 text-muted-foreground opacity-50" />
+            <p className="text-muted-foreground">No manual trades yet</p>
+          </div>
+        ) : (
+          <div className="space-y-4">
+            <TradesTable trades={trades} showActions onClose={handleCloseTrade} />
+          </div>
+        )}
+      </div>
     </div>
   );
 }
-
-

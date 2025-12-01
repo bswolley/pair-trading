@@ -1,90 +1,68 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { StatCard } from "@/components/StatCard";
 import { TradesTable } from "@/components/TradesTable";
 import { ApproachingList } from "@/components/ApproachingList";
-import { Bot, RefreshCw, TrendingUp, Activity, Target } from "lucide-react";
-
-interface Trade {
-  pair: string;
-  sector?: string;
-  direction: string;
-  currentPnL?: number;
-  currentZ?: number;
-  entryZScore?: number;
-  halfLife?: number;
-  currentHalfLife?: number;
-  entryTime?: string;
-  partialExitTaken?: boolean;
-  longAsset?: string;
-  shortAsset?: string;
-  longWeight?: number;
-  shortWeight?: number;
-}
-
-interface WatchlistPair {
-  pair: string;
-  sector?: string;
-  zScore: number;
-  entryThreshold: number;
-  halfLife?: number;
-  signalStrength: number;
-}
-
-interface HistoryStats {
-  totalTrades?: number;
-  wins?: number;
-  losses?: number;
-  totalPnL?: number;
-  winRate?: string;
-}
+import { 
+  Bot, RefreshCw, TrendingUp, TrendingDown, Activity, Zap
+} from "lucide-react";
+import * as api from "@/lib/api";
+import { cn } from "@/lib/utils";
 
 export default function BotDashboard() {
-  const [botTrades, setBotTrades] = useState<Trade[]>([]);
-  const [watchlist, setWatchlist] = useState<WatchlistPair[]>([]);
-  const [historyStats, setHistoryStats] = useState<HistoryStats>({});
+  const [trades, setTrades] = useState<api.Trade[]>([]);
+  const [watchlist, setWatchlist] = useState<api.WatchlistPair[]>([]);
+  const [stats, setStats] = useState<api.Stats | null>(null);
+  const [scheduler, setScheduler] = useState<api.StatusResponse["scheduler"] | null>(null);
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState<Date | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
-      const [tradesRes, watchlistRes, historyRes] = await Promise.all([
-        fetch("/api/trades"),
-        fetch("/api/watchlist"),
-        fetch("/api/history"),
+      const [statusRes, tradesRes, watchlistRes] = await Promise.all([
+        api.getStatus(),
+        api.getTrades(),
+        api.getWatchlist(),
       ]);
 
-      const tradesData = await tradesRes.json();
-      const watchlistData = await watchlistRes.json();
-      const historyData = await historyRes.json();
-
-      setBotTrades(tradesData.botTrades || []);
-      setWatchlist(watchlistData.pairs || []);
-      setHistoryStats(historyData.stats || {});
+      setTrades(tradesRes.trades || []);
+      setWatchlist(watchlistRes.pairs || []);
+      setStats({
+        totalTrades: statusRes.history.totalTrades,
+        wins: statusRes.history.wins,
+        losses: statusRes.history.losses,
+        totalPnL: parseFloat(statusRes.history.totalPnL),
+        winRate: statusRes.history.totalTrades > 0 
+          ? ((statusRes.history.wins / statusRes.history.totalTrades) * 100).toFixed(1)
+          : "0",
+      });
+      setScheduler(statusRes.scheduler);
       setLastUpdate(new Date());
-    } catch (error) {
-      console.error("Error fetching data:", error);
+    } catch (err) {
+      console.error("Error fetching data:", err);
+      setError(err instanceof Error ? err.message : "Failed to fetch data");
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchData();
-  }, []);
+    const interval = setInterval(fetchData, 60000);
+    return () => clearInterval(interval);
+  }, [fetchData]);
 
-  // Calculate stats
-  const totalPnL = botTrades.reduce((sum, t) => sum + (t.currentPnL || 0), 0);
-  const activeTrades = botTrades.length;
-  const winRate = historyStats.winRate || "0";
-  const approachingCount = watchlist.filter((p) => p.signalStrength >= 0.5).length;
+  const totalPnL = trades.reduce((sum, t) => sum + (t.currentPnL || 0), 0);
+  const approachingPairs = watchlist.filter((p) => p.signalStrength >= 0.5);
+  const readyPairs = watchlist.filter((p) => p.isReady);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -94,57 +72,103 @@ export default function BotDashboard() {
           <div>
             <h1 className="text-2xl font-bold">Bot Dashboard</h1>
             <p className="text-sm text-muted-foreground">
-              {lastUpdate
-                ? `Last updated: ${lastUpdate.toLocaleTimeString()}`
-                : "Loading..."}
+              {lastUpdate ? `Updated ${lastUpdate.toLocaleTimeString()}` : "Loading..."}
             </p>
           </div>
         </div>
-        <Button onClick={fetchData} disabled={loading} variant="outline">
+        <Button onClick={fetchData} disabled={loading} variant="outline" size="sm">
           <RefreshCw className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`} />
           Refresh
         </Button>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <StatCard
-          title="Bot P&L"
-          value={`${totalPnL >= 0 ? "+" : ""}${totalPnL.toFixed(2)}%`}
-          trend={totalPnL >= 0 ? "up" : "down"}
-          icon={<TrendingUp className="w-5 h-5" />}
-        />
-        <StatCard
-          title="Active Trades"
-          value={activeTrades}
-          icon={<Activity className="w-5 h-5" />}
-        />
-        <StatCard
-          title="Win Rate"
-          value={`${winRate}%`}
-          subtitle={`${historyStats.wins || 0}W / ${historyStats.losses || 0}L`}
-          icon={<Target className="w-5 h-5" />}
-        />
-        <StatCard
-          title="Approaching"
-          value={approachingCount}
-          subtitle="≥50% to entry"
-          icon={<Target className="w-5 h-5" />}
-        />
+      {/* Error */}
+      {error && (
+        <div className="bg-destructive/10 text-destructive px-4 py-3 rounded-lg">
+          {error}
+        </div>
+      )}
+
+      {/* Stats Row - Simple, no cards */}
+      <div className="flex flex-wrap items-baseline gap-8 pb-6 border-b border-border">
+        {/* Open P&L */}
+        <div>
+          <p className="text-sm text-muted-foreground mb-1">Open P&L</p>
+          <div className="flex items-center gap-2">
+            {totalPnL >= 0 ? (
+              <TrendingUp className="w-5 h-5 text-emerald-400" />
+            ) : (
+              <TrendingDown className="w-5 h-5 text-red-400" />
+            )}
+            <span className={cn(
+              "text-3xl font-bold tabular-nums",
+              totalPnL >= 0 ? "text-emerald-400" : "text-red-400"
+            )}>
+              {totalPnL >= 0 ? "+" : ""}{totalPnL.toFixed(2)}%
+            </span>
+          </div>
+        </div>
+
+        {/* Realized P&L */}
+        <div>
+          <p className="text-sm text-muted-foreground mb-1">Realized</p>
+          <span className={cn(
+            "text-3xl font-bold tabular-nums",
+            (stats?.totalPnL || 0) >= 0 ? "text-emerald-400" : "text-red-400"
+          )}>
+            {(stats?.totalPnL || 0) >= 0 ? "+" : ""}{(stats?.totalPnL || 0).toFixed(2)}%
+          </span>
+        </div>
+
+        {/* Win Rate */}
+        <div>
+          <p className="text-sm text-muted-foreground mb-1">Win Rate</p>
+          <span className="text-3xl font-bold tabular-nums">
+            {stats?.winRate || 0}%
+          </span>
+          <span className="text-sm text-muted-foreground ml-2">
+            {stats?.wins || 0}W / {stats?.losses || 0}L
+          </span>
+        </div>
+
+        {/* Positions */}
+        <div>
+          <p className="text-sm text-muted-foreground mb-1">Positions</p>
+          <span className="text-3xl font-bold tabular-nums">{trades.length}</span>
+          <span className="text-sm text-muted-foreground">/{process.env.NEXT_PUBLIC_MAX_TRADES || 5}</span>
+        </div>
+
+        {/* Approaching */}
+        <div>
+          <p className="text-sm text-muted-foreground mb-1">Approaching</p>
+          <div className="flex items-center gap-2">
+            <Zap className="w-5 h-5 text-yellow-400" />
+            <span className="text-3xl font-bold tabular-nums">{approachingPairs.length}</span>
+            {readyPairs.length > 0 && (
+              <span className="text-sm text-emerald-400">({readyPairs.length} ready)</span>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Main Content */}
-      <div className="grid md:grid-cols-3 gap-6">
-        {/* Trades Table */}
-        <div className="md:col-span-2">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Bot Positions</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <TradesTable trades={botTrades} />
-            </CardContent>
-          </Card>
+      <div className="grid lg:grid-cols-3 gap-6">
+        {/* Trades */}
+        <div className="lg:col-span-2">
+          <div className="flex items-center gap-2 mb-4">
+            <Activity className="w-5 h-5 text-primary" />
+            <h2 className="text-lg font-semibold">Active Positions</h2>
+          </div>
+          
+          {trades.length === 0 ? (
+            <div className="text-center py-16 text-muted-foreground border border-dashed border-border rounded-lg">
+              <Activity className="w-10 h-10 mx-auto mb-3 opacity-50" />
+              <p>No active trades</p>
+              <p className="text-sm mt-1">Waiting for entry signals...</p>
+            </div>
+          ) : (
+            <TradesTable trades={trades} />
+          )}
         </div>
 
         {/* Approaching List */}

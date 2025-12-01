@@ -1,103 +1,47 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useEffect, useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Input } from "@/components/ui/input";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { List, RefreshCw, Search, ArrowUpDown } from "lucide-react";
+import { List, RefreshCw, TrendingUp, TrendingDown, Zap } from "lucide-react";
+import * as api from "@/lib/api";
 import { cn } from "@/lib/utils";
 
-interface WatchlistPair {
-  pair: string;
-  asset1: string;
-  asset2: string;
-  sector: string;
-  qualityScore: number;
-  correlation: number;
-  beta: number;
-  halfLife: number;
-  meanReversionRate: number;
-  zScore: number;
-  signalStrength: number;
-  direction: string;
-  isReady: boolean;
-  entryThreshold: number;
-  exitThreshold: number;
-  maxHistoricalZ: number;
-}
-
-type SortField = "qualityScore" | "signalStrength" | "halfLife" | "correlation";
-
 export default function WatchlistPage() {
-  const [pairs, setPairs] = useState<WatchlistPair[]>([]);
+  const [pairs, setPairs] = useState<api.WatchlistPair[]>([]);
+  const [sectors, setSectors] = useState<Array<{ name: string; count: number }>>([]);
+  const [selectedSector, setSelectedSector] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [sortField, setSortField] = useState<SortField>("signalStrength");
-  const [sortAsc, setSortAsc] = useState(false);
-  const [timestamp, setTimestamp] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
+    setError(null);
     try {
-      const res = await fetch("/api/watchlist");
-      const data = await res.json();
-      setPairs(data.pairs || []);
-      setTimestamp(data.timestamp);
-    } catch (error) {
-      console.error("Error fetching watchlist:", error);
+      const [watchlistRes, sectorsRes] = await Promise.all([
+        api.getWatchlist(selectedSector ? { sector: selectedSector } : undefined),
+        api.getWatchlistSectors(),
+      ]);
+
+      setPairs(watchlistRes.pairs || []);
+      setSectors(sectorsRes.sectors || []);
+    } catch (err) {
+      console.error("Error fetching watchlist:", err);
+      setError(err instanceof Error ? err.message : "Failed to fetch watchlist");
     } finally {
       setLoading(false);
     }
-  };
+  }, [selectedSector]);
 
   useEffect(() => {
     fetchData();
-  }, []);
+  }, [fetchData]);
 
-  const handleSort = (field: SortField) => {
-    if (sortField === field) {
-      setSortAsc(!sortAsc);
-    } else {
-      setSortField(field);
-      setSortAsc(false);
-    }
-  };
-
-  // Filter and sort
-  const filteredPairs = pairs
-    .filter(
-      (p) =>
-        p.pair.toLowerCase().includes(search.toLowerCase()) ||
-        p.sector.toLowerCase().includes(search.toLowerCase())
-    )
-    .sort((a, b) => {
-      const mult = sortAsc ? 1 : -1;
-      return (a[sortField] - b[sortField]) * mult;
-    });
-
-  const SortHeader = ({ field, label }: { field: SortField; label: string }) => (
-    <TableHead
-      className="cursor-pointer hover:bg-muted/50"
-      onClick={() => handleSort(field)}
-    >
-      <div className="flex items-center gap-1">
-        {label}
-        <ArrowUpDown className="w-3 h-3" />
-      </div>
-    </TableHead>
-  );
+  const readyPairs = pairs.filter((p) => p.isReady);
+  const approachingPairs = pairs.filter((p) => !p.isReady && p.signalStrength >= 0.5);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-8">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
@@ -106,107 +50,159 @@ export default function WatchlistPage() {
           </div>
           <div>
             <h1 className="text-2xl font-bold">Watchlist</h1>
-            <p className="text-sm text-muted-foreground">
-              {timestamp
-                ? `Updated: ${new Date(timestamp).toLocaleString()}`
-                : "Loading..."}
-            </p>
+            <p className="text-sm text-muted-foreground">{pairs.length} pairs monitored</p>
           </div>
         </div>
-        <Button onClick={fetchData} disabled={loading} variant="outline">
+        <Button onClick={fetchData} disabled={loading} variant="outline" size="sm">
           <RefreshCw className={`w-4 h-4 mr-2 ${loading ? "animate-spin" : ""}`} />
           Refresh
         </Button>
       </div>
 
-      {/* Search */}
-      <div className="relative max-w-sm">
-        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-        <Input
-          placeholder="Search pairs or sectors..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="pl-10"
-        />
+      {/* Error */}
+      {error && (
+        <div className="bg-destructive/10 text-destructive px-4 py-3 rounded-lg">
+          {error}
+        </div>
+      )}
+
+      {/* Stats */}
+      <div className="flex items-baseline gap-8 pb-6 border-b border-border">
+        <div>
+          <p className="text-sm text-muted-foreground mb-1">Total Pairs</p>
+          <span className="text-3xl font-bold tabular-nums">{pairs.length}</span>
+        </div>
+        <div>
+          <p className="text-sm text-muted-foreground mb-1">Ready</p>
+          <span className="text-3xl font-bold tabular-nums text-emerald-400">{readyPairs.length}</span>
+        </div>
+        <div>
+          <p className="text-sm text-muted-foreground mb-1">Approaching</p>
+          <span className="text-3xl font-bold tabular-nums text-yellow-400">{approachingPairs.length}</span>
+        </div>
       </div>
 
-      {/* Table */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">
-            {filteredPairs.length} Pairs
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader className="text-right">
-              <TableRow>
-                <TableHead>Pair</TableHead>
-                <TableHead>Sector</TableHead>
-                <SortHeader field="qualityScore" label="Quality" />
-                <SortHeader field="correlation" label="Corr" />
-                <SortHeader field="halfLife" label="HL" />
-                <TableHead className="text-right">Z-Score</TableHead>
-                <TableHead className="text-right">Entry@</TableHead>
-                <SortHeader field="signalStrength" label="Signal" />
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredPairs.map((pair) => {
-                const signalPct = (pair.signalStrength * 100).toFixed(0);
+      {/* Sector Filter */}
+      <div className="flex flex-wrap gap-2">
+        <Button
+          variant={selectedSector === null ? "default" : "outline"}
+          size="sm"
+          onClick={() => setSelectedSector(null)}
+        >
+          All
+        </Button>
+        {sectors.map((sector) => (
+          <Button
+            key={sector.name}
+            variant={selectedSector === sector.name ? "default" : "outline"}
+            size="sm"
+            onClick={() => setSelectedSector(sector.name)}
+          >
+            {sector.name} <span className="ml-1 text-muted-foreground">({sector.count})</span>
+          </Button>
+        ))}
+      </div>
+
+      {/* Ready Pairs */}
+      {readyPairs.length > 0 && (
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <Zap className="w-5 h-5 text-emerald-400" />
+            <h2 className="font-semibold text-emerald-400">Ready for Entry</h2>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {readyPairs.map((pair) => (
+              <div
+                key={pair.pair}
+                className="flex items-center justify-between p-3 rounded-lg border border-emerald-500/30 bg-emerald-500/10"
+              >
+                <div>
+                  <p className="font-medium">{pair.pair}</p>
+                  <p className="text-xs text-muted-foreground">{pair.sector}</p>
+                </div>
+                <div className="text-right">
+                  <div className="flex items-center gap-1 font-mono">
+                    {pair.zScore < 0 ? (
+                      <TrendingUp className="w-4 h-4 text-emerald-400" />
+                    ) : (
+                      <TrendingDown className="w-4 h-4 text-red-400" />
+                    )}
+                    {pair.zScore.toFixed(2)}
+                  </div>
+                  <p className="text-xs text-muted-foreground">@ {pair.entryThreshold}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* All Pairs Table */}
+      <div>
+        <h2 className="font-semibold mb-3">All Pairs</h2>
+        <div className="border border-border rounded-lg overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-muted/50">
+              <tr>
+                <th className="text-left px-4 py-3 font-medium">Pair</th>
+                <th className="text-left px-4 py-3 font-medium">Sector</th>
+                <th className="text-right px-4 py-3 font-medium">Z-Score</th>
+                <th className="text-right px-4 py-3 font-medium">Entry @</th>
+                <th className="text-right px-4 py-3 font-medium">Signal</th>
+                <th className="text-right px-4 py-3 font-medium">HL</th>
+                <th className="text-right px-4 py-3 font-medium">Corr</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {pairs.map((pair) => {
+                const signalPct = Math.round(pair.signalStrength * 100);
                 const isApproaching = pair.signalStrength >= 0.5;
-                const isReady = pair.signalStrength >= 1;
 
                 return (
-                  <TableRow key={pair.pair}>
-                    <TableCell className="font-medium">{pair.pair}</TableCell>
-                    <TableCell>
-                      <Badge variant="secondary">{pair.sector}</Badge>
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {pair.qualityScore.toFixed(1)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {pair.correlation.toFixed(2)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      {pair.halfLife.toFixed(1)}d
-                    </TableCell>
-                    <TableCell className="text-right font-mono">
-                      <span
-                        className={cn(
-                          pair.zScore > 0 ? "text-red-600" : "text-green-600"
+                  <tr key={pair.pair} className={cn(pair.isReady && "bg-emerald-500/5")}>
+                    <td className="px-4 py-3 font-medium">
+                      <div className="flex items-center gap-2">
+                        {pair.pair}
+                        {pair.isReady && (
+                          <Badge className="bg-emerald-500 text-xs">Ready</Badge>
                         )}
-                      >
+                      </div>
+                    </td>
+                    <td className="px-4 py-3">
+                      <Badge variant="outline" className="text-xs">{pair.sector}</Badge>
+                    </td>
+                    <td className="px-4 py-3 text-right font-mono">
+                      <span className="flex items-center justify-end gap-1">
+                        {pair.zScore < 0 ? (
+                          <TrendingUp className="w-3 h-3 text-emerald-400" />
+                        ) : (
+                          <TrendingDown className="w-3 h-3 text-red-400" />
+                        )}
                         {pair.zScore.toFixed(2)}
                       </span>
-                    </TableCell>
-                    <TableCell className="text-right font-mono">
-                      {pair.entryThreshold}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <span
-                        className={cn(
-                          "font-medium",
-                          isReady
-                            ? "text-green-600"
-                            : isApproaching
-                              ? "text-yellow-600"
-                              : "text-muted-foreground"
-                        )}
-                      >
+                    </td>
+                    <td className="px-4 py-3 text-right font-mono">{pair.entryThreshold.toFixed(1)}</td>
+                    <td className="px-4 py-3 text-right">
+                      <span className={cn(
+                        "font-medium",
+                        pair.isReady ? "text-emerald-400" : isApproaching ? "text-yellow-400" : "text-muted-foreground"
+                      )}>
                         {signalPct}%
                       </span>
-                    </TableCell>
-                  </TableRow>
+                    </td>
+                    <td className="px-4 py-3 text-right text-muted-foreground">
+                      {pair.halfLife?.toFixed(1)}d
+                    </td>
+                    <td className="px-4 py-3 text-right text-muted-foreground">
+                      {pair.correlation?.toFixed(2)}
+                    </td>
+                  </tr>
                 );
               })}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+            </tbody>
+          </table>
+        </div>
+      </div>
     </div>
   );
 }
-
-

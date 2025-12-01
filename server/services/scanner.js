@@ -15,8 +15,10 @@ const CONFIG_DIR = path.join(__dirname, '../../config');
 const DEFAULT_MIN_VOLUME = 500_000;
 const DEFAULT_MIN_OI = 100_000;
 const DEFAULT_MIN_CORR = 0.6;
+const DEFAULT_CROSS_SECTOR_MIN_CORR = 0.7; // Higher threshold for cross-sector
 const DEFAULT_LOOKBACK_DAYS = 30;
 const TOP_PER_SECTOR = 3;
+const TOP_CROSS_SECTOR = 5; // Top 5 cross-sector pairs total
 const EXIT_THRESHOLD = 0.5;
 
 function loadSectorMap() {
@@ -164,16 +166,43 @@ function groupBySector(assets, symbolToSector) {
     return { groups, unmapped };
 }
 
-function generateCandidatePairs(sectorGroups) {
+function generateCandidatePairs(sectorGroups, includeCrossSector = false) {
     const pairs = [];
 
+    // Same-sector pairs
     for (const [sector, assets] of Object.entries(sectorGroups)) {
         if (assets.length < 2) continue;
         assets.sort((a, b) => b.volume24h - a.volume24h);
 
         for (let i = 0; i < assets.length; i++) {
             for (let j = i + 1; j < assets.length; j++) {
-                pairs.push({ sector, asset1: assets[i], asset2: assets[j] });
+                pairs.push({ sector, asset1: assets[i], asset2: assets[j], isCrossSector: false });
+            }
+        }
+    }
+
+    // Cross-sector pairs (top 5 most liquid from each sector)
+    if (includeCrossSector) {
+        const sectors = Object.keys(sectorGroups);
+        const TOP_PER_SECTOR_CROSS = 5;
+
+        for (let s1 = 0; s1 < sectors.length; s1++) {
+            for (let s2 = s1 + 1; s2 < sectors.length; s2++) {
+                const sector1 = sectors[s1];
+                const sector2 = sectors[s2];
+                const assets1 = sectorGroups[sector1]?.slice(0, TOP_PER_SECTOR_CROSS) || [];
+                const assets2 = sectorGroups[sector2]?.slice(0, TOP_PER_SECTOR_CROSS) || [];
+
+                for (const a1 of assets1) {
+                    for (const a2 of assets2) {
+                        pairs.push({
+                            sector: `${sector1}×${sector2}`,
+                            asset1: a1,
+                            asset2: a2,
+                            isCrossSector: true
+                        });
+                    }
+                }
             }
         }
     }
@@ -181,7 +210,7 @@ function generateCandidatePairs(sectorGroups) {
     return pairs;
 }
 
-function evaluatePairs(candidatePairs, priceMap, minCorrelation) {
+function evaluatePairs(candidatePairs, priceMap, minCorrelation, crossSectorMinCorrelation) {
     const fittingPairs = [];
 
     for (const pair of candidatePairs) {
@@ -196,10 +225,13 @@ function evaluatePairs(candidatePairs, priceMap, minCorrelation) {
 
         if (minLen < 15) continue;
 
+        // Use higher correlation threshold for cross-sector pairs
+        const requiredCorr = pair.isCrossSector ? crossSectorMinCorrelation : minCorrelation;
+
         try {
             const fitness = checkPairFitness(aligned1, aligned2);
 
-            if (fitness.correlation >= minCorrelation && fitness.isCointegrated && fitness.halfLife <= 45) {
+            if (fitness.correlation >= requiredCorr && fitness.isCointegrated && fitness.halfLife <= 45) {
                 const divergenceProfile = analyzeHistoricalDivergences(aligned1, aligned2, fitness.beta);
 
                 fittingPairs.push({
@@ -219,7 +251,8 @@ function evaluatePairs(candidatePairs, priceMap, minCorrelation) {
                     meanReversionRate: fitness.meanReversionRate,
                     optimalEntry: divergenceProfile.optimalEntry,
                     maxHistoricalZ: divergenceProfile.maxHistoricalZ,
-                    divergenceProfile: divergenceProfile.thresholds
+                    divergenceProfile: divergenceProfile.thresholds,
+                    isCrossSector: pair.isCrossSector
                 });
             }
         } catch (error) { }
@@ -230,8 +263,12 @@ function evaluatePairs(candidatePairs, priceMap, minCorrelation) {
 
 /**
  * Main scan function - returns structured result
+ * @param {Object} options - Scan options
+ * @param {boolean} options.crossSector - Include cross-sector pairs (default: false)
  */
-async function main() {
+async function main(options = {}) {
+    const { crossSector = false } = options;
+    
     const { symbolToSector, sectors } = loadSectorMap();
     const blacklist = loadBlacklist();
 
@@ -247,8 +284,8 @@ async function main() {
     // Group by sector
     const { groups, unmapped } = groupBySector(filtered, symbolToSector);
 
-    // Generate candidate pairs
-    const candidatePairs = generateCandidatePairs(groups);
+    // Generate candidate pairs (with optional cross-sector)
+    const candidatePairs = generateCandidatePairs(groups, crossSector);
 
     // Fetch historical prices
     const symbolsNeeded = new Set();
@@ -260,7 +297,7 @@ async function main() {
     const priceMap = await fetchHistoricalPrices(sdk, [...symbolsNeeded], DEFAULT_LOOKBACK_DAYS);
 
     // Evaluate pairs
-    const fittingPairs = evaluatePairs(candidatePairs, priceMap, DEFAULT_MIN_CORR);
+    const fittingPairs = evaluatePairs(candidatePairs, priceMap, DEFAULT_MIN_CORR, DEFAULT_CROSS_SECTOR_MIN_CORR);
 
     // Calculate composite score
     for (const pair of fittingPairs) {
@@ -270,17 +307,29 @@ async function main() {
 
     fittingPairs.sort((a, b) => b.score - a.score);
 
-    // Select top 3 per sector
+    // Select top pairs per sector
     const watchlistPairs = [];
     const sectorCounts = {};
+    const crossSectorPairs = [];
 
     for (const pair of fittingPairs) {
-        sectorCounts[pair.sector] = sectorCounts[pair.sector] || 0;
-        if (sectorCounts[pair.sector] < TOP_PER_SECTOR) {
-            watchlistPairs.push(pair);
-            sectorCounts[pair.sector]++;
+        if (pair.isCrossSector) {
+            // Collect cross-sector pairs separately
+            if (crossSectorPairs.length < TOP_CROSS_SECTOR) {
+                crossSectorPairs.push(pair);
+            }
+        } else {
+            // Top 3 per same-sector
+            sectorCounts[pair.sector] = sectorCounts[pair.sector] || 0;
+            if (sectorCounts[pair.sector] < TOP_PER_SECTOR) {
+                watchlistPairs.push(pair);
+                sectorCounts[pair.sector]++;
+            }
         }
     }
+
+    // Add top cross-sector pairs to watchlist
+    watchlistPairs.push(...crossSectorPairs);
 
     // Disconnect SDK
     const saved = suppressConsole();
@@ -290,8 +339,15 @@ async function main() {
     // Save discovered pairs
     const output = {
         timestamp: new Date().toISOString(),
-        thresholds: { minVolume: DEFAULT_MIN_VOLUME, minOI: DEFAULT_MIN_OI, minCorrelation: DEFAULT_MIN_CORR, maxHalfLife: 45 },
+        thresholds: { 
+            minVolume: DEFAULT_MIN_VOLUME, 
+            minOI: DEFAULT_MIN_OI, 
+            minCorrelation: DEFAULT_MIN_CORR, 
+            crossSectorMinCorrelation: DEFAULT_CROSS_SECTOR_MIN_CORR,
+            maxHalfLife: 45 
+        },
         lookbackDays: DEFAULT_LOOKBACK_DAYS,
+        crossSectorEnabled: crossSector,
         totalAssets: universe.length,
         filteredAssets: filtered.length,
         candidatePairs: candidatePairs.length,
@@ -316,7 +372,8 @@ async function main() {
     // Save watchlist
     const watchlist = {
         timestamp: new Date().toISOString(),
-        description: `Top ${TOP_PER_SECTOR} pairs per sector by composite score`,
+        description: `Top ${TOP_PER_SECTOR} pairs per sector${crossSector ? ` + top ${TOP_CROSS_SECTOR} cross-sector` : ''} by composite score`,
+        crossSectorEnabled: crossSector,
         totalPairs: watchlistPairs.length,
         pairs: watchlistPairs.map(p => {
             const entryThreshold = p.optimalEntry;
@@ -353,9 +410,10 @@ async function main() {
         candidatePairs: candidatePairs.length,
         fittingPairs: fittingPairs.length,
         watchlistPairs: watchlistPairs.length,
+        crossSectorPairs: crossSectorPairs.length,
+        crossSectorEnabled: crossSector,
         unmappedSymbols: unmapped
     };
 }
 
 module.exports = { main };
-

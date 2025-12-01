@@ -1,6 +1,6 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { Zap, TrendingUp, TrendingDown } from "lucide-react";
 
 interface ApproachingPair {
   pair: string;
@@ -9,6 +9,7 @@ interface ApproachingPair {
   entryThreshold: number;
   halfLife?: number;
   signalStrength: number;
+  direction?: string;
 }
 
 interface ApproachingListProps {
@@ -16,78 +17,77 @@ interface ApproachingListProps {
 }
 
 export function ApproachingList({ pairs }: ApproachingListProps) {
-  // Sort by signal strength descending
   const sortedPairs = [...pairs]
-    .filter((p) => p.signalStrength >= 0.5) // Only show pairs at 50%+
+    .filter((p) => p.signalStrength >= 0.5)
     .sort((a, b) => b.signalStrength - a.signalStrength)
-    .slice(0, 5);
-
-  if (sortedPairs.length === 0) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-lg">Approaching Entry</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-muted-foreground text-sm">
-            No pairs approaching entry threshold
-          </p>
-        </CardContent>
-      </Card>
-    );
-  }
+    .slice(0, 6);
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="text-lg">Approaching Entry</CardTitle>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {sortedPairs.map((pair) => {
-          const pct = (pair.signalStrength * 100).toFixed(0);
-          const isReady = pair.signalStrength >= 1;
+    <div>
+      <div className="flex items-center gap-2 mb-4">
+        <Zap className="w-5 h-5 text-primary" />
+        <h2 className="text-lg font-semibold">Approaching Entry</h2>
+      </div>
 
-          return (
-            <div
-              key={pair.pair}
-              className={cn(
-                "flex items-center justify-between p-3 rounded-lg",
-                isReady ? "bg-green-50 dark:bg-green-950" : "bg-muted/50"
-              )}
-            >
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="font-medium">{pair.pair}</span>
-                  {pair.sector && (
-                    <Badge variant="secondary" className="text-xs">
-                      {pair.sector}
-                    </Badge>
-                  )}
-                  {isReady && (
-                    <Badge className="bg-green-600 text-xs">Ready</Badge>
-                  )}
-                </div>
-                <div className="text-sm text-muted-foreground mt-1">
-                  Z: {pair.zScore.toFixed(2)} → entry@{pair.entryThreshold}
-                  {pair.halfLife && ` | HL: ${pair.halfLife.toFixed(1)}d`}
-                </div>
-              </div>
-              <div className="text-right">
+      {sortedPairs.length === 0 ? (
+        <div className="text-center py-12 text-muted-foreground border border-dashed border-border rounded-lg">
+          <Zap className="w-8 h-8 mx-auto mb-2 opacity-50" />
+          <p className="text-sm">No pairs near entry</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {sortedPairs.map((pair) => {
+            const pct = Math.min(100, Math.round(pair.signalStrength * 100));
+            const isReady = pair.signalStrength >= 1;
+
+            return (
+              <div
+                key={pair.pair}
+                className={cn(
+                  "relative overflow-hidden rounded-lg border p-3",
+                  isReady ? "border-emerald-500/50 bg-emerald-500/10" : "border-border"
+                )}
+              >
+                {/* Progress bar */}
                 <div
                   className={cn(
-                    "text-lg font-bold",
-                    isReady ? "text-green-600" : "text-muted-foreground"
+                    "absolute inset-y-0 left-0 opacity-10",
+                    isReady ? "bg-emerald-500" : "bg-primary"
                   )}
-                >
-                  {pct}%
+                  style={{ width: `${pct}%` }}
+                />
+
+                <div className="relative flex items-center justify-between">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      {pair.zScore > 0 ? (
+                        <TrendingDown className="w-3.5 h-3.5 text-red-400" />
+                      ) : (
+                        <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />
+                      )}
+                      <span className="font-medium">{pair.pair}</span>
+                      {pair.sector && (
+                        <Badge variant="outline" className="text-xs py-0">
+                          {pair.sector}
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="text-xs text-muted-foreground font-mono">
+                      Z: {pair.zScore.toFixed(2)} → {pair.entryThreshold}
+                    </div>
+                  </div>
+                  <div className={cn(
+                    "text-lg font-bold tabular-nums",
+                    isReady ? "text-emerald-400" : pct >= 80 ? "text-yellow-400" : "text-muted-foreground"
+                  )}>
+                    {pct}%
+                  </div>
                 </div>
               </div>
-            </div>
-          );
-        })}
-      </CardContent>
-    </Card>
+            );
+          })}
+        </div>
+      )}
+    </div>
   );
 }
-
-

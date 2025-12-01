@@ -141,24 +141,61 @@ async function handleWatchlist(chatId) {
 
 /**
  * Handle /scan command
+ * Usage: /scan [cross]
  */
-async function handleScan(chatId) {
-  const { runScanNow } = require('./scheduler');
-  await sendMessage('🔍 Running pair scan (this may take a few minutes)...', chatId);
-  const result = await runScanNow();
+async function handleScan(chatId, args) {
+  const { runScanNow, getCrossSectorEnabled } = require('./scheduler');
+  
+  // Check for cross-sector override
+  const useCrossSector = args.includes('cross') || getCrossSectorEnabled();
+  const scanType = useCrossSector ? 'with cross-sector' : 'same-sector only';
+  
+  await sendMessage(`🔍 Running pair scan (${scanType})...\nThis may take a few minutes.`, chatId);
+  const result = await runScanNow({ crossSector: useCrossSector });
   
   if (result.success) {
-    await sendMessage(
-      `✅ Scan complete!\n\n` +
-      `Total assets: ${result.totalAssets}\n` +
-      `Fitting pairs: ${result.fittingPairs}\n` +
-      `Watchlist: ${result.watchlistPairs} pairs\n\n` +
-      `Use /watchlist to see updated pairs.`,
-      chatId
-    );
+    let msg = `✅ Scan complete!\n\n`;
+    msg += `Total assets: ${result.totalAssets}\n`;
+    msg += `Fitting pairs: ${result.fittingPairs}\n`;
+    msg += `Watchlist: ${result.watchlistPairs} pairs\n`;
+    if (result.crossSectorPairs > 0) {
+      msg += `Cross-sector: ${result.crossSectorPairs} pairs\n`;
+    }
+    msg += `\nUse /watchlist to see updated pairs.`;
+    await sendMessage(msg, chatId);
   } else {
     await sendMessage(`❌ Scan failed: ${result.error}`, chatId);
   }
+}
+
+/**
+ * Handle /cross command - Toggle cross-sector scanning
+ * Usage: /cross [on|off]
+ */
+async function handleCross(chatId, args) {
+  const { setCrossSectorEnabled, getCrossSectorEnabled } = require('./scheduler');
+  
+  if (args.length === 0) {
+    const enabled = getCrossSectorEnabled();
+    return sendMessage(
+      `🔀 Cross-sector scanning: ${enabled ? 'ON ✅' : 'OFF ❌'}\n\n` +
+      `Use /cross on or /cross off to toggle.\n` +
+      `Or use /scan cross to run a one-time cross-sector scan.`,
+      chatId
+    );
+  }
+  
+  const action = args[0].toLowerCase();
+  if (!['on', 'off'].includes(action)) {
+    return sendMessage('Usage: /cross [on|off]', chatId);
+  }
+  
+  const enabled = setCrossSectorEnabled(action === 'on');
+  await sendMessage(
+    `🔀 Cross-sector scanning: ${enabled ? 'ON ✅' : 'OFF ❌'}\n\n` +
+    `Next scheduled scan will ${enabled ? 'include' : 'exclude'} cross-sector pairs.`,
+    chatId
+  );
 }
 
 /**
@@ -378,7 +415,9 @@ async function handleHelp(chatId) {
 /watchlist - Show pairs approaching entry
 
 🔍 Discovery
-/scan - Discover new pairs (slow)
+/scan - Discover new pairs (same-sector)
+/scan cross - Include cross-sector pairs
+/cross [on|off] - Toggle cross-sector default
 
 📈 Trading
 /open <pair> <long|short> - Open trade
@@ -434,7 +473,11 @@ async function handleCommand(message) {
       break;
       
     case '/scan':
-      await handleScan(chatId);
+      await handleScan(chatId, args);
+      break;
+      
+    case '/cross':
+      await handleCross(chatId, args);
       break;
       
     case '/open':

@@ -17,6 +17,7 @@ let isMonitorRunning = false;
 let isScanRunning = false;
 let lastMonitorRun = null;
 let lastScanRun = null;
+let crossSectorEnabled = false; // Toggle for cross-sector scanning
 
 /**
  * Run monitor (check watchlist and active trades)
@@ -47,8 +48,10 @@ async function runMonitorNow() {
 
 /**
  * Run pair scan (discover new pairs)
+ * @param {Object} options - Scan options
+ * @param {boolean} options.crossSector - Override cross-sector setting for this scan
  */
-async function runScanNow() {
+async function runScanNow(options = {}) {
     if (isScanRunning) {
         console.log('[SCHEDULER] Scan already running, skipping');
         return { skipped: true, reason: 'already_running' };
@@ -56,10 +59,11 @@ async function runScanNow() {
 
     isScanRunning = true;
     const startTime = Date.now();
-    console.log(`[SCHEDULER] Running scan at ${new Date().toISOString()}`);
+    const useCrossSector = options.crossSector ?? crossSectorEnabled;
+    console.log(`[SCHEDULER] Running scan at ${new Date().toISOString()} (crossSector: ${useCrossSector})`);
 
     try {
-        const result = await runScan();
+        const result = await runScan({ crossSector: useCrossSector });
         lastScanRun = new Date().toISOString();
         const duration = ((Date.now() - startTime) / 1000).toFixed(1);
         console.log(`[SCHEDULER] Scan completed in ${duration}s`);
@@ -70,6 +74,22 @@ async function runScanNow() {
     } finally {
         isScanRunning = false;
     }
+}
+
+/**
+ * Set cross-sector scanning enabled/disabled
+ */
+function setCrossSectorEnabled(enabled) {
+    crossSectorEnabled = enabled;
+    console.log(`[SCHEDULER] Cross-sector scanning ${enabled ? 'enabled' : 'disabled'}`);
+    return crossSectorEnabled;
+}
+
+/**
+ * Get cross-sector setting
+ */
+function getCrossSectorEnabled() {
+    return crossSectorEnabled;
 }
 
 /**
@@ -85,7 +105,8 @@ function getSchedulerStatus() {
         scan: {
             isRunning: isScanRunning,
             lastRun: lastScanRun,
-            schedule: '0 */12 * * *' // Every 12 hours
+            schedule: '0 */12 * * *', // Every 12 hours
+            crossSectorEnabled
         }
     };
 }
@@ -123,6 +144,8 @@ module.exports = {
     startScheduler,
     runMonitorNow,
     runScanNow,
-    getSchedulerStatus
+    getSchedulerStatus,
+    setCrossSectorEnabled,
+    getCrossSectorEnabled
 };
 
