@@ -435,8 +435,7 @@ async function main() {
     const watchlistUpdates = [];
 
     for (const pair of watchlist.pairs) {
-        if (activePairs.has(pair.pair)) continue;
-
+        const isActiveTrade = activePairs.has(pair.pair);
         const entryThreshold = pair.entryThreshold || DEFAULT_ENTRY_THRESHOLD;
         const hasOverlap = assetsInPositions.has(pair.asset1) || assetsInPositions.has(pair.asset2);
         const overlappingAsset = assetsInPositions.has(pair.asset1) ? pair.asset1 :
@@ -463,7 +462,7 @@ async function main() {
         const halfLifeFactor = 1 / Math.max(fit.halfLife, 0.5);
         const qualityScore = fit.correlation * halfLifeFactor * (fit.meanReversionRate || 0.5) * 100;
 
-        // Collect watchlist update with all fresh metrics
+        // Always update watchlist with fresh metrics (including active trades)
         watchlistUpdates.push({
             pair: pair.pair,
             asset1: pair.asset1,
@@ -481,6 +480,9 @@ async function main() {
             entryThreshold,
             lastScan: new Date().toISOString()
         });
+
+        // Skip entry/approaching logic for pairs already in active trades
+        if (isActiveTrade) continue;
 
         if (signal && validation.valid && !hasOverlap && !atMaxTrades) {
             const trade = await enterTrade(pair, fit, prices, activeTrades);
