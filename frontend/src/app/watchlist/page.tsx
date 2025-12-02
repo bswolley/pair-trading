@@ -236,9 +236,9 @@ export default function WatchlistPage() {
           </DialogHeader>
           <div className="min-h-[350px]">
             {chartPair && (
-              <ZScoreChart 
-                pair={chartPair.pair} 
-                entryThreshold={chartPair.entryThreshold} 
+              <ZScoreChart
+                pair={chartPair.pair}
+                entryThreshold={chartPair.entryThreshold}
                 days={30}
               />
             )}

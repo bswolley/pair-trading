@@ -122,10 +122,10 @@ export function ZScoreChart({ pair, entryThreshold = 2.0, days = 30 }: ZScoreCha
       <div style={{ width: '100%', height: 256 }}>
         <ResponsiveContainer width="100%" height={256}>
           <LineChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" opacity={0.3} />
+            <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.3} />
             <XAxis
               dataKey="date"
-              tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+              tick={{ fontSize: 11, fill: "#9ca3af" }}
               tickFormatter={(value) => {
                 const d = new Date(value);
                 return `${d.getMonth() + 1}/${d.getDate()}`;
@@ -134,7 +134,7 @@ export function ZScoreChart({ pair, entryThreshold = 2.0, days = 30 }: ZScoreCha
             />
             <YAxis
               domain={[minZ, maxZ]}
-              tick={{ fontSize: 11, fill: "hsl(var(--muted-foreground))" }}
+              tick={{ fontSize: 11, fill: "#9ca3af" }}
               tickFormatter={(value) => value.toFixed(1)}
             />
             <Tooltip content={<CustomTooltip />} />
@@ -142,40 +142,40 @@ export function ZScoreChart({ pair, entryThreshold = 2.0, days = 30 }: ZScoreCha
             {/* Entry threshold lines */}
             <ReferenceLine
               y={entryThreshold}
-              stroke="hsl(var(--destructive))"
+              stroke="#ef4444"
               strokeDasharray="5 5"
               strokeOpacity={0.7}
               label={{
                 value: `+${entryThreshold}`,
                 position: "right",
-                fill: "hsl(var(--destructive))",
+                fill: "#ef4444",
                 fontSize: 10,
               }}
             />
             <ReferenceLine
               y={-entryThreshold}
-              stroke="hsl(var(--primary))"
+              stroke="#10b981"
               strokeDasharray="5 5"
               strokeOpacity={0.7}
               label={{
                 value: `-${entryThreshold}`,
                 position: "right",
-                fill: "hsl(var(--primary))",
+                fill: "#10b981",
                 fontSize: 10,
               }}
             />
             
             {/* Mean line */}
-            <ReferenceLine y={0} stroke="hsl(var(--muted-foreground))" strokeOpacity={0.5} />
+            <ReferenceLine y={0} stroke="#6b7280" strokeOpacity={0.5} />
 
             {/* Z-Score line */}
             <Line
               type="monotone"
               dataKey="zScore"
-              stroke="hsl(var(--primary))"
+              stroke="#8b5cf6"
               strokeWidth={2}
               dot={false}
-              activeDot={{ r: 4, fill: "hsl(var(--primary))" }}
+              activeDot={{ r: 4, fill: "#8b5cf6" }}
             />
           </LineChart>
         </ResponsiveContainer>
