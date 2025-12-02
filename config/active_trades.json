@@ -1,12 +1,12 @@
 {
-    "BNB_BANANA": {
-        "symbol1": "BNB",
-        "symbol2": "BANANA",
-        "entryDate": "2025-11-28T18:00:00Z",
-        "entryPrice1": 876.65,
-        "entryPrice2": 10.03,
-        "weight1": 0.75,
-        "weight2": 0.25,
+    "ZEC_SUPER": {
+        "symbol1": "ZEC",
+        "symbol2": "SUPER",
+        "entryDate": "2025-12-02T18:11:30Z",
+        "entryPrice1": 331.3,
+        "entryPrice2": 0.247,
+        "weight1": 0.35,
+        "weight2": 0.65,
         "direction": "long"
     }
 }

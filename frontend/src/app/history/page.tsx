@@ -127,7 +127,7 @@ export default function HistoryPage() {
                     <tr key={`${trade.pair}-${idx}`}>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
-                          {trade.direction === "long" ? (
+                          {isWin ? (
                             <TrendingUp className="w-4 h-4 text-emerald-400" />
                           ) : (
                             <TrendingDown className="w-4 h-4 text-red-400" />
