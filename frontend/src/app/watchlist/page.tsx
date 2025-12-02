@@ -3,9 +3,16 @@
 import { useEffect, useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { List, RefreshCw, TrendingUp, TrendingDown, Zap } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { List, RefreshCw, TrendingUp, TrendingDown, Zap, LineChart } from "lucide-react";
 import * as api from "@/lib/api";
 import { cn } from "@/lib/utils";
+import { ZScoreChart } from "@/components/ZScoreChart";
 
 export default function WatchlistPage() {
   const [pairs, setPairs] = useState<api.WatchlistPair[]>([]);
@@ -13,6 +20,7 @@ export default function WatchlistPage() {
   const [selectedSector, setSelectedSector] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [chartPair, setChartPair] = useState<api.WatchlistPair | null>(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -140,6 +148,7 @@ export default function WatchlistPage() {
       {/* All Pairs Table */}
       <div>
         <h2 className="font-semibold mb-3">All Pairs</h2>
+        <p className="text-xs text-muted-foreground mb-3">Click on a pair to view Z-Score chart</p>
         <div className="border border-border rounded-lg overflow-hidden">
           <table className="w-full text-sm">
             <thead className="bg-muted/50">
@@ -151,6 +160,7 @@ export default function WatchlistPage() {
                 <th className="text-right px-4 py-3 font-medium">Signal</th>
                 <th className="text-right px-4 py-3 font-medium">HL</th>
                 <th className="text-right px-4 py-3 font-medium">Corr</th>
+                <th className="w-10"></th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
@@ -159,7 +169,14 @@ export default function WatchlistPage() {
                 const isApproaching = pair.signalStrength >= 0.5;
 
                 return (
-                  <tr key={pair.pair} className={cn(pair.isReady && "bg-emerald-500/5")}>
+                  <tr 
+                    key={pair.pair} 
+                    className={cn(
+                      "cursor-pointer hover:bg-muted/50 transition-colors",
+                      pair.isReady && "bg-emerald-500/5"
+                    )}
+                    onClick={() => setChartPair(pair)}
+                  >
                     <td className="px-4 py-3 font-medium">
                       <div className="flex items-center gap-2">
                         {pair.pair}
@@ -196,6 +213,9 @@ export default function WatchlistPage() {
                     <td className="px-4 py-3 text-right text-muted-foreground">
                       {pair.correlation?.toFixed(2)}
                     </td>
+                    <td className="px-4 py-3">
+                      <LineChart className="w-4 h-4 text-muted-foreground" />
+                    </td>
                   </tr>
                 );
               })}
@@ -203,6 +223,26 @@ export default function WatchlistPage() {
           </table>
         </div>
       </div>
+
+      {/* Z-Score Chart Dialog */}
+      <Dialog open={!!chartPair} onOpenChange={(open) => !open && setChartPair(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <LineChart className="w-5 h-5" />
+              {chartPair?.pair} Z-Score History
+              <Badge variant="outline" className="ml-2">{chartPair?.sector}</Badge>
+            </DialogTitle>
+          </DialogHeader>
+          {chartPair && (
+            <ZScoreChart 
+              pair={chartPair.pair} 
+              entryThreshold={chartPair.entryThreshold} 
+              days={30}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -265,3 +265,32 @@ export async function setCrossSectorEnabled(enabled: boolean) {
     });
 }
 
+// Z-Score history for charts
+export interface ZScoreDataPoint {
+    timestamp: number;
+    date: string;
+    zScore: number;
+    price1: number;
+    price2: number;
+}
+
+export interface ZScoreResponse {
+    pair: string;
+    asset1: string;
+    asset2: string;
+    days: number;
+    dataPoints: number;
+    data: ZScoreDataPoint[];
+    stats: {
+        correlation: number;
+        beta: number;
+        halfLife: number;
+        currentZ: number;
+    };
+}
+
+export async function getZScoreHistory(pair: string, days: number = 30) {
+    const encodedPair = encodeURIComponent(pair.replace('/', '_'));
+    return fetchAPI<ZScoreResponse>(`/api/zscore/${encodedPair}?days=${days}`);
+}
+
