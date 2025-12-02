@@ -15,27 +15,14 @@
  */
 
 const axios = require('axios');
-const fs = require('fs');
-const path = require('path');
+const db = require('../db/queries');
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 const POLL_INTERVAL = 2000;
 
-const CONFIG_DIR = path.join(__dirname, '../../config');
-
 let lastUpdateId = 0;
 let isRunning = false;
-
-function loadJSON(filename) {
-  const fp = path.join(CONFIG_DIR, filename);
-  if (!fs.existsSync(fp)) return null;
-  return JSON.parse(fs.readFileSync(fp, 'utf8'));
-}
-
-function saveJSON(filename, data) {
-  fs.writeFileSync(path.join(CONFIG_DIR, filename), JSON.stringify(data, null, 2));
-}
 
 async function sendMessage(text, chatId = TELEGRAM_CHAT_ID) {
   if (!TELEGRAM_BOT_TOKEN) return false;
@@ -64,15 +51,15 @@ async function handleStatus(chatId) {
  * Handle /trades command
  */
 async function handleTrades(chatId) {
-  const data = loadJSON('active_trades_sim.json') || { trades: [] };
+  const trades = await db.getTrades();
   
-  if (data.trades.length === 0) {
+  if (trades.length === 0) {
     return sendMessage('📈 No active trades', chatId);
   }
   
-  let msg = `📈 ACTIVE TRADES (${data.trades.length})\n\n`;
+  let msg = `📈 ACTIVE TRADES (${trades.length})\n\n`;
   
-  for (const t of data.trades) {
+  for (const t of trades) {
     const pnl = t.currentPnL || 0;
     const pnlSign = pnl >= 0 ? '+' : '';
     const days = ((Date.now() - new Date(t.entryTime)) / (1000*60*60*24)).toFixed(1);
@@ -90,20 +77,23 @@ async function handleTrades(chatId) {
  * Handle /history command
  */
 async function handleHistory(chatId) {
-  const data = loadJSON('trade_history.json') || { trades: [], stats: {} };
+  const [history, stats] = await Promise.all([
+    db.getHistory(),
+    db.getStats()
+  ]);
   
   let msg = `📜 TRADE HISTORY\n\n`;
-  msg += `Total: ${data.stats.totalTrades || 0} trades\n`;
-  msg += `Win Rate: ${data.stats.winRate || 0}% (${data.stats.wins || 0}W/${data.stats.losses || 0}L)\n`;
-  msg += `Total P&L: ${(data.stats.totalPnL || 0) >= 0 ? '+' : ''}${(data.stats.totalPnL || 0).toFixed(2)}%\n\n`;
+  msg += `Total: ${stats.totalTrades || 0} trades\n`;
+  msg += `Win Rate: ${stats.winRate || 0}% (${stats.wins || 0}W/${stats.losses || 0}L)\n`;
+  msg += `Total P&L: ${(stats.totalPnL || 0) >= 0 ? '+' : ''}${(stats.totalPnL || 0).toFixed(2)}%\n\n`;
   
   // Last 5 trades
-  const recent = (data.trades || []).slice(-5).reverse();
+  const recent = history.slice(0, 5);
   if (recent.length > 0) {
     msg += `Recent:\n`;
     for (const t of recent) {
-      const sign = t.totalPnL >= 0 ? '+' : '';
-      msg += `  ${t.pair}: ${sign}${t.totalPnL.toFixed(2)}% (${t.exitReason || 'CLOSED'})\n`;
+      const sign = (t.totalPnL || 0) >= 0 ? '+' : '';
+      msg += `  ${t.pair}: ${sign}${(t.totalPnL || 0).toFixed(2)}% (${t.exitReason || 'CLOSED'})\n`;
     }
   }
   
@@ -114,15 +104,15 @@ async function handleHistory(chatId) {
  * Handle /watchlist command
  */
 async function handleWatchlist(chatId) {
-  const data = loadJSON('watchlist.json') || { pairs: [] };
+  const pairs = await db.getWatchlist();
   
   // Get approaching entries (signal strength > 0.5)
-  const approaching = (data.pairs || [])
+  const approaching = pairs
     .filter(p => (p.signalStrength || 0) >= 0.5)
     .sort((a, b) => (b.signalStrength || 0) - (a.signalStrength || 0))
     .slice(0, 10);
   
-  let msg = `📋 WATCHLIST (${data.pairs?.length || 0} pairs)\n\n`;
+  let msg = `📋 WATCHLIST (${pairs.length} pairs)\n\n`;
   
   if (approaching.length === 0) {
     msg += `No pairs near entry threshold\n`;
@@ -132,7 +122,7 @@ async function handleWatchlist(chatId) {
       const pct = ((p.signalStrength || 0) * 100).toFixed(0);
       const status = p.isReady ? '🟢 READY' : '⏳';
       msg += `${status} ${p.pair} (${p.sector})\n`;
-      msg += `   Z: ${p.zScore.toFixed(2)} → entry@${p.entryThreshold} [${pct}%]\n\n`;
+      msg += `   Z: ${(p.zScore || 0).toFixed(2)} → entry@${p.entryThreshold} [${pct}%]\n\n`;
     }
   }
   
@@ -215,8 +205,8 @@ async function handleOpen(chatId, args) {
   }
   
   // Check if pair is in watchlist
-  const watchlist = loadJSON('watchlist.json') || { pairs: [] };
-  const watchPair = (watchlist.pairs || []).find(p => 
+  const watchlist = await db.getWatchlist();
+  const watchPair = watchlist.find(p => 
     p.pair.toUpperCase() === pair || p.pair.toUpperCase() === pairArg.toUpperCase()
   );
   
@@ -225,8 +215,8 @@ async function handleOpen(chatId, args) {
   }
   
   // Check if already in active trades
-  const activeTrades = loadJSON('active_trades_sim.json') || { trades: [] };
-  if (activeTrades.trades.some(t => t.pair === watchPair.pair)) {
+  const activeTrades = await db.getTrades();
+  if (activeTrades.some(t => t.pair === watchPair.pair)) {
     return sendMessage(`❌ Trade already open for ${watchPair.pair}`, chatId);
   }
   
@@ -253,8 +243,7 @@ async function handleOpen(chatId, args) {
     source: 'telegram'
   };
   
-  activeTrades.trades.push(trade);
-  saveJSON('active_trades_sim.json', activeTrades);
+  await db.createTrade(trade);
   
   await sendMessage(
     `✅ Trade opened!\n\n` +
@@ -277,19 +266,14 @@ async function handleClose(chatId, args) {
   const pairArg = args[0];
   const pair = pairArg.replace('_', '/').toUpperCase();
   
-  const activeTrades = loadJSON('active_trades_sim.json') || { trades: [] };
-  const idx = activeTrades.trades.findIndex(t => 
+  const activeTrades = await db.getTrades();
+  const trade = activeTrades.find(t => 
     t.pair.toUpperCase() === pair || t.pair.toUpperCase() === pairArg.toUpperCase()
   );
   
-  if (idx === -1) {
+  if (!trade) {
     return sendMessage(`❌ No active trade for ${pair}`, chatId);
   }
-  
-  const trade = activeTrades.trades[idx];
-  
-  // Move to history
-  const history = loadJSON('trade_history.json') || { trades: [], stats: { totalTrades: 0, wins: 0, losses: 0, totalPnL: 0 } };
   
   const pnl = trade.currentPnL || 0;
   const record = {
@@ -300,17 +284,11 @@ async function handleClose(chatId, args) {
     daysInTrade: ((Date.now() - new Date(trade.entryTime)) / (1000 * 60 * 60 * 24)).toFixed(1)
   };
   
-  history.trades.push(record);
-  history.stats.totalTrades++;
-  if (pnl >= 0) history.stats.wins++; else history.stats.losses++;
-  history.stats.totalPnL = (history.stats.totalPnL || 0) + pnl;
-  history.stats.winRate = ((history.stats.wins / history.stats.totalTrades) * 100).toFixed(1);
+  // Add to history (this also updates stats)
+  await db.addToHistory(record);
   
-  saveJSON('trade_history.json', history);
-  
-  // Remove from active
-  activeTrades.trades.splice(idx, 1);
-  saveJSON('active_trades_sim.json', activeTrades);
+  // Delete from active trades
+  await db.deleteTrade(trade.pair);
   
   await sendMessage(
     `🔴 Trade closed!\n\n` +
@@ -332,31 +310,31 @@ async function handlePartial(chatId, args) {
   const pairArg = args[0];
   const pair = pairArg.replace('_', '/').toUpperCase();
   
-  const activeTrades = loadJSON('active_trades_sim.json') || { trades: [] };
-  const idx = activeTrades.trades.findIndex(t => 
+  const activeTrades = await db.getTrades();
+  const trade = activeTrades.find(t => 
     t.pair.toUpperCase() === pair || t.pair.toUpperCase() === pairArg.toUpperCase()
   );
   
-  if (idx === -1) {
+  if (!trade) {
     return sendMessage(`❌ No active trade for ${pair}`, chatId);
   }
-  
-  const trade = activeTrades.trades[idx];
   
   if (trade.partialExitTaken) {
     return sendMessage(`❌ Partial already taken for ${trade.pair}`, chatId);
   }
   
-  trade.partialExitTaken = true;
-  trade.partialExitTime = new Date().toISOString();
-  trade.partialExitPnL = trade.currentPnL || 0;
+  const updates = {
+    partialExitTaken: true,
+    partialExitTime: new Date().toISOString(),
+    partialExitPnL: trade.currentPnL || 0
+  };
   
-  saveJSON('active_trades_sim.json', activeTrades);
+  await db.updateTrade(trade.pair, updates);
   
   await sendMessage(
     `💰 Partial exit recorded!\n\n` +
     `${trade.pair}\n` +
-    `50% closed at ${trade.partialExitPnL >= 0 ? '+' : ''}${trade.partialExitPnL.toFixed(2)}%`,
+    `50% closed at ${updates.partialExitPnL >= 0 ? '+' : ''}${updates.partialExitPnL.toFixed(2)}%`,
     chatId
   );
 }
@@ -366,17 +344,17 @@ async function handlePartial(chatId, args) {
  * Usage: /blacklist [asset]
  */
 async function handleBlacklist(chatId, args) {
-  const data = loadJSON('blacklist.json') || { assets: [], reasons: {} };
+  const blacklist = await db.getBlacklist();
   
   if (args.length === 0) {
     // Show current blacklist
-    if (!data.assets || data.assets.length === 0) {
+    if (!blacklist.assets || blacklist.assets.length === 0) {
       return sendMessage('🚫 Blacklist is empty', chatId);
     }
     
-    let msg = `🚫 BLACKLIST (${data.assets.length})\n\n`;
-    for (const asset of data.assets) {
-      const reason = data.reasons?.[asset] || '';
+    let msg = `🚫 BLACKLIST (${blacklist.assets.length})\n\n`;
+    for (const asset of blacklist.assets) {
+      const reason = blacklist.reasons?.[asset] || '';
       msg += `• ${asset}${reason ? ` - ${reason}` : ''}\n`;
     }
     return sendMessage(msg, chatId);
@@ -386,18 +364,11 @@ async function handleBlacklist(chatId, args) {
   const asset = args[0].toUpperCase();
   const reason = args.slice(1).join(' ') || 'Added via Telegram';
   
-  if (!data.assets) data.assets = [];
-  if (!data.reasons) data.reasons = {};
-  
-  if (data.assets.includes(asset)) {
+  if (blacklist.assets?.includes(asset)) {
     return sendMessage(`${asset} already in blacklist`, chatId);
   }
   
-  data.assets.push(asset);
-  data.reasons[asset] = reason;
-  data.updatedAt = new Date().toISOString();
-  
-  saveJSON('blacklist.json', data);
+  await db.addToBlacklist(asset, reason);
   
   await sendMessage(`✅ Added ${asset} to blacklist`, chatId);
 }
