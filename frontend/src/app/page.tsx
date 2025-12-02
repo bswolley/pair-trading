@@ -58,8 +58,13 @@ export default function BotDashboard() {
   }, [fetchData]);
 
   const totalPnL = trades.reduce((sum, t) => sum + (t.currentPnL || 0), 0);
-  const approachingPairs = watchlist.filter((p) => p.signalStrength >= 0.5);
-  const readyPairs = watchlist.filter((p) => p.isReady);
+  
+  // Exclude pairs that already have active trades
+  const activePairs = new Set(trades.map((t) => t.pair));
+  const approachingPairs = watchlist.filter(
+    (p) => p.signalStrength >= 0.5 && !activePairs.has(p.pair)
+  );
+  const readyPairs = watchlist.filter((p) => p.isReady && !activePairs.has(p.pair));
 
   return (
     <div className="space-y-8">
@@ -173,7 +178,7 @@ export default function BotDashboard() {
 
         {/* Approaching List */}
         <div>
-          <ApproachingList pairs={watchlist} />
+          <ApproachingList pairs={watchlist.filter((p) => !activePairs.has(p.pair))} />
         </div>
       </div>
     </div>

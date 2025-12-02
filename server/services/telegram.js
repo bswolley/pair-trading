@@ -194,46 +194,46 @@ async function handleCross(chatId, args) {
 async function fetchCurrentPrices(asset1, asset2) {
   const { Hyperliquid } = require('hyperliquid');
   const sdk = new Hyperliquid();
-  
+
   try {
     // Suppress SDK console output
     const origLog = console.log;
     const origErr = console.error;
-    console.log = () => {};
-    console.error = () => {};
-    
+    console.log = () => { };
+    console.error = () => { };
+
     await sdk.connect();
-    
+
     console.log = origLog;
     console.error = origErr;
-    
+
     const marketData = await sdk.info.perpetuals.getMetaAndAssetCtxs();
     const meta = await sdk.info.perpetuals.getMeta();
-    
+
     const assetMap = {};
     meta.universe.forEach((asset, idx) => {
       assetMap[asset.name.replace('-PERP', '')] = idx;
     });
-    
+
     const idx1 = assetMap[asset1];
     const idx2 = assetMap[asset2];
-    
+
     let price1 = null, price2 = null;
-    
+
     if (idx1 !== undefined && marketData[1][idx1]) {
       price1 = parseFloat(marketData[1][idx1].markPx);
     }
     if (idx2 !== undefined && marketData[1][idx2]) {
       price2 = parseFloat(marketData[1][idx2].markPx);
     }
-    
+
     // Disconnect
-    console.log = () => {};
-    console.error = () => {};
+    console.log = () => { };
+    console.error = () => { };
     await sdk.disconnect();
     console.log = origLog;
     console.error = origErr;
-    
+
     return { price1, price2 };
   } catch (err) {
     console.error('[TELEGRAM] Price fetch error:', err.message);
@@ -277,7 +277,7 @@ async function handleOpen(chatId, args) {
 
   // Fetch current prices
   const { price1, price2 } = await fetchCurrentPrices(watchPair.asset1, watchPair.asset2);
-  
+
   if (!price1 || !price2) {
     return sendMessage(`❌ Failed to fetch prices for ${watchPair.pair}`, chatId);
   }
@@ -285,41 +285,41 @@ async function handleOpen(chatId, args) {
   // Calculate current z-score using the spread
   const { checkPairFitness } = require('../../lib/pairAnalysis');
   const { Hyperliquid } = require('hyperliquid');
-  
+
   let currentZ = watchPair.zScore || 0;
   let currentCorr = watchPair.correlation || 0.8;
   let currentHL = watchPair.halfLife || 10;
-  
+
   // Try to get fresh z-score from recent price data
   try {
     const sdk = new Hyperliquid();
     const origLog = console.log;
     const origErr = console.error;
-    console.log = () => {};
-    console.error = () => {};
+    console.log = () => { };
+    console.error = () => { };
     await sdk.connect();
     console.log = origLog;
     console.error = origErr;
-    
+
     const endTime = Date.now();
     const startTime = endTime - (35 * 24 * 60 * 60 * 1000);
-    
+
     const [candles1, candles2] = await Promise.all([
       sdk.info.getCandleSnapshot(`${watchPair.asset1}-PERP`, '1d', startTime, endTime),
       sdk.info.getCandleSnapshot(`${watchPair.asset2}-PERP`, '1d', startTime, endTime)
     ]);
-    
-    console.log = () => {};
-    console.error = () => {};
+
+    console.log = () => { };
+    console.error = () => { };
     await sdk.disconnect();
     console.log = origLog;
     console.error = origErr;
-    
+
     if (candles1?.length >= 20 && candles2?.length >= 20) {
       const prices1 = candles1.sort((a, b) => a.t - b.t).slice(-30).map(c => parseFloat(c.c));
       const prices2 = candles2.sort((a, b) => a.t - b.t).slice(-30).map(c => parseFloat(c.c));
       const minLen = Math.min(prices1.length, prices2.length);
-      
+
       const fitness = checkPairFitness(prices1.slice(-minLen), prices2.slice(-minLen));
       currentZ = fitness.zScore;
       currentCorr = fitness.correlation;
