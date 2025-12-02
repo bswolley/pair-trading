@@ -240,7 +240,7 @@ async function enterTrade(pair, fitness, prices, activeTrades) {
     return trade;
 }
 
-async function exitTrade(trade, fitness, prices, activeTrades, history) {
+async function exitTrade(trade, fitness, prices, activeTrades, history, exitReason = 'MANUAL') {
     const idx = activeTrades.trades.findIndex(t => t.pair === trade.pair);
     if (idx === -1) return null;
 
@@ -256,6 +256,7 @@ async function exitTrade(trade, fitness, prices, activeTrades, history) {
         ...trade,
         exitTime: new Date().toISOString(),
         exitZScore: fitness.zScore,
+        exitReason,
         totalPnL,
         daysInTrade: parseFloat(days)
     };
@@ -430,9 +431,8 @@ async function main() {
                     trade.partialExitTime = new Date().toISOString();
                 }
             } else {
-                const result = await exitTrade(trade, fit, prices, activeTrades, history);
+                const result = await exitTrade(trade, fit, prices, activeTrades, history, exitCheck.reason);
                 if (result) {
-                    result.exitReason = exitCheck.reason;
                     result.exitEmoji = exitCheck.emoji;
                     exits.push(result);
                 }
