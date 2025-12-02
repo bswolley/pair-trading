@@ -52,24 +52,24 @@ async function handleStatus(chatId) {
  */
 async function handleTrades(chatId) {
   const trades = await db.getTrades();
-  
+
   if (trades.length === 0) {
     return sendMessage('📈 No active trades', chatId);
   }
-  
+
   let msg = `📈 ACTIVE TRADES (${trades.length})\n\n`;
-  
+
   for (const t of trades) {
     const pnl = t.currentPnL || 0;
     const pnlSign = pnl >= 0 ? '+' : '';
-    const days = ((Date.now() - new Date(t.entryTime)) / (1000*60*60*24)).toFixed(1);
+    const days = ((Date.now() - new Date(t.entryTime)) / (1000 * 60 * 60 * 24)).toFixed(1);
     const partial = t.partialExitTaken ? ' [50% closed]' : '';
-    
+
     msg += `${pnl >= 0 ? '🟢' : '🔴'} ${t.pair} (${t.sector})${partial}\n`;
     msg += `   L ${t.longAsset} / S ${t.shortAsset}\n`;
     msg += `   ${pnlSign}${pnl.toFixed(2)}% | ${days}d\n\n`;
   }
-  
+
   await sendMessage(msg, chatId);
 }
 
@@ -81,12 +81,12 @@ async function handleHistory(chatId) {
     db.getHistory(),
     db.getStats()
   ]);
-  
+
   let msg = `📜 TRADE HISTORY\n\n`;
   msg += `Total: ${stats.totalTrades || 0} trades\n`;
   msg += `Win Rate: ${stats.winRate || 0}% (${stats.wins || 0}W/${stats.losses || 0}L)\n`;
   msg += `Total P&L: ${(stats.totalPnL || 0) >= 0 ? '+' : ''}${(stats.totalPnL || 0).toFixed(2)}%\n\n`;
-  
+
   // Last 5 trades
   const recent = history.slice(0, 5);
   if (recent.length > 0) {
@@ -96,7 +96,7 @@ async function handleHistory(chatId) {
       msg += `  ${t.pair}: ${sign}${(t.totalPnL || 0).toFixed(2)}% (${t.exitReason || 'CLOSED'})\n`;
     }
   }
-  
+
   await sendMessage(msg, chatId);
 }
 
@@ -105,15 +105,15 @@ async function handleHistory(chatId) {
  */
 async function handleWatchlist(chatId) {
   const pairs = await db.getWatchlist();
-  
+
   // Get approaching entries (signal strength > 0.5)
   const approaching = pairs
     .filter(p => (p.signalStrength || 0) >= 0.5)
     .sort((a, b) => (b.signalStrength || 0) - (a.signalStrength || 0))
     .slice(0, 10);
-  
+
   let msg = `📋 WATCHLIST (${pairs.length} pairs)\n\n`;
-  
+
   if (approaching.length === 0) {
     msg += `No pairs near entry threshold\n`;
   } else {
@@ -125,7 +125,7 @@ async function handleWatchlist(chatId) {
       msg += `   Z: ${(p.zScore || 0).toFixed(2)} → entry@${p.entryThreshold} [${pct}%]\n\n`;
     }
   }
-  
+
   await sendMessage(msg, chatId);
 }
 
@@ -135,14 +135,14 @@ async function handleWatchlist(chatId) {
  */
 async function handleScan(chatId, args) {
   const { runScanNow, getCrossSectorEnabled } = require('./scheduler');
-  
+
   // Check for cross-sector override
   const useCrossSector = args.includes('cross') || getCrossSectorEnabled();
   const scanType = useCrossSector ? 'with cross-sector' : 'same-sector only';
-  
+
   await sendMessage(`🔍 Running pair scan (${scanType})...\nThis may take a few minutes.`, chatId);
   const result = await runScanNow({ crossSector: useCrossSector });
-  
+
   if (result.success) {
     let msg = `✅ Scan complete!\n\n`;
     msg += `Total assets: ${result.totalAssets}\n`;
@@ -164,7 +164,7 @@ async function handleScan(chatId, args) {
  */
 async function handleCross(chatId, args) {
   const { setCrossSectorEnabled, getCrossSectorEnabled } = require('./scheduler');
-  
+
   if (args.length === 0) {
     const enabled = getCrossSectorEnabled();
     return sendMessage(
@@ -174,12 +174,12 @@ async function handleCross(chatId, args) {
       chatId
     );
   }
-  
+
   const action = args[0].toLowerCase();
   if (!['on', 'off'].includes(action)) {
     return sendMessage('Usage: /cross [on|off]', chatId);
   }
-  
+
   const enabled = setCrossSectorEnabled(action === 'on');
   await sendMessage(
     `🔀 Cross-sector scanning: ${enabled ? 'ON ✅' : 'OFF ❌'}\n\n` +
@@ -196,30 +196,30 @@ async function handleOpen(chatId, args) {
   if (args.length < 2) {
     return sendMessage('Usage: /open <pair> <long|short>\nExample: /open BNB_BANANA long', chatId);
   }
-  
+
   const [pairArg, direction] = args;
   const pair = pairArg.replace('_', '/').toUpperCase();
-  
+
   if (!['long', 'short'].includes(direction?.toLowerCase())) {
     return sendMessage('Direction must be "long" or "short"', chatId);
   }
-  
+
   // Check if pair is in watchlist
   const watchlist = await db.getWatchlist();
-  const watchPair = watchlist.find(p => 
+  const watchPair = watchlist.find(p =>
     p.pair.toUpperCase() === pair || p.pair.toUpperCase() === pairArg.toUpperCase()
   );
-  
+
   if (!watchPair) {
     return sendMessage(`❌ Pair ${pair} not in watchlist. Run /scan first.`, chatId);
   }
-  
+
   // Check if already in active trades
   const activeTrades = await db.getTrades();
   if (activeTrades.some(t => t.pair === watchPair.pair)) {
     return sendMessage(`❌ Trade already open for ${watchPair.pair}`, chatId);
   }
-  
+
   // Create trade
   const dir = direction.toLowerCase();
   const trade = {
@@ -242,9 +242,9 @@ async function handleOpen(chatId, args) {
     entryThreshold: watchPair.entryThreshold || 2.0,
     source: 'telegram'
   };
-  
+
   await db.createTrade(trade);
-  
+
   await sendMessage(
     `✅ Trade opened!\n\n` +
     `${trade.pair} (${trade.sector})\n` +
@@ -262,19 +262,19 @@ async function handleClose(chatId, args) {
   if (args.length < 1) {
     return sendMessage('Usage: /close <pair>\nExample: /close BNB_BANANA', chatId);
   }
-  
+
   const pairArg = args[0];
   const pair = pairArg.replace('_', '/').toUpperCase();
-  
+
   const activeTrades = await db.getTrades();
-  const trade = activeTrades.find(t => 
+  const trade = activeTrades.find(t =>
     t.pair.toUpperCase() === pair || t.pair.toUpperCase() === pairArg.toUpperCase()
   );
-  
+
   if (!trade) {
     return sendMessage(`❌ No active trade for ${pair}`, chatId);
   }
-  
+
   const pnl = trade.currentPnL || 0;
   const record = {
     ...trade,
@@ -283,13 +283,13 @@ async function handleClose(chatId, args) {
     totalPnL: pnl,
     daysInTrade: ((Date.now() - new Date(trade.entryTime)) / (1000 * 60 * 60 * 24)).toFixed(1)
   };
-  
+
   // Add to history (this also updates stats)
   await db.addToHistory(record);
-  
+
   // Delete from active trades
   await db.deleteTrade(trade.pair);
-  
+
   await sendMessage(
     `🔴 Trade closed!\n\n` +
     `${trade.pair}\n` +
@@ -306,31 +306,31 @@ async function handlePartial(chatId, args) {
   if (args.length < 1) {
     return sendMessage('Usage: /partial <pair>\nExample: /partial BNB_BANANA', chatId);
   }
-  
+
   const pairArg = args[0];
   const pair = pairArg.replace('_', '/').toUpperCase();
-  
+
   const activeTrades = await db.getTrades();
-  const trade = activeTrades.find(t => 
+  const trade = activeTrades.find(t =>
     t.pair.toUpperCase() === pair || t.pair.toUpperCase() === pairArg.toUpperCase()
   );
-  
+
   if (!trade) {
     return sendMessage(`❌ No active trade for ${pair}`, chatId);
   }
-  
+
   if (trade.partialExitTaken) {
     return sendMessage(`❌ Partial already taken for ${trade.pair}`, chatId);
   }
-  
+
   const updates = {
     partialExitTaken: true,
     partialExitTime: new Date().toISOString(),
     partialExitPnL: trade.currentPnL || 0
   };
-  
+
   await db.updateTrade(trade.pair, updates);
-  
+
   await sendMessage(
     `💰 Partial exit recorded!\n\n` +
     `${trade.pair}\n` +
@@ -345,13 +345,13 @@ async function handlePartial(chatId, args) {
  */
 async function handleBlacklist(chatId, args) {
   const blacklist = await db.getBlacklist();
-  
+
   if (args.length === 0) {
     // Show current blacklist
     if (!blacklist.assets || blacklist.assets.length === 0) {
       return sendMessage('🚫 Blacklist is empty', chatId);
     }
-    
+
     let msg = `🚫 BLACKLIST (${blacklist.assets.length})\n\n`;
     for (const asset of blacklist.assets) {
       const reason = blacklist.reasons?.[asset] || '';
@@ -359,18 +359,166 @@ async function handleBlacklist(chatId, args) {
     }
     return sendMessage(msg, chatId);
   }
-  
+
   // Add to blacklist
   const asset = args[0].toUpperCase();
   const reason = args.slice(1).join(' ') || 'Added via Telegram';
-  
+
   if (blacklist.assets?.includes(asset)) {
     return sendMessage(`${asset} already in blacklist`, chatId);
   }
-  
+
   await db.addToBlacklist(asset, reason);
-  
+
   await sendMessage(`✅ Added ${asset} to blacklist`, chatId);
+}
+
+// ============================================
+// USER TRADES (separate from bot trades)
+// Stored in Supabase with source='manual'
+// ============================================
+
+/**
+ * Handle /mytrades command - Show user's manual trades
+ */
+async function handleMyTrades(chatId) {
+  const allTrades = await db.getTrades();
+  const myTrades = allTrades.filter(t => t.source === 'manual');
+
+  if (myTrades.length === 0) {
+    return sendMessage('👤 No manual trades', chatId);
+  }
+
+  let msg = `👤 MY TRADES (${myTrades.length})\n\n`;
+
+  for (const t of myTrades) {
+    const pnl = t.currentPnL || 0;
+    const pnlSign = pnl >= 0 ? '+' : '';
+    const days = ((Date.now() - new Date(t.entryTime)) / (1000 * 60 * 60 * 24)).toFixed(1);
+
+    msg += `${pnl >= 0 ? '🟢' : '🔴'} ${t.pair}\n`;
+    msg += `   L ${t.longAsset} (${(t.longWeight || 50).toFixed(0)}%) @ ${t.longEntryPrice || 0}\n`;
+    msg += `   S ${t.shortAsset} (${(t.shortWeight || 50).toFixed(0)}%) @ ${t.shortEntryPrice || 0}\n`;
+    msg += `   ${pnlSign}${pnl.toFixed(2)}% | ${days}d\n\n`;
+  }
+
+  await sendMessage(msg, chatId);
+}
+
+/**
+ * Handle /myopen command - Open a manual trade
+ * Usage: /myopen BNB_BANANA 75 876.65 25 10.03 long
+ */
+async function handleMyOpen(chatId, args) {
+  if (args.length < 6) {
+    return sendMessage(
+      'Usage: /myopen <pair> <w1%> <price1> <w2%> <price2> <long|short>\n' +
+      'Example: /myopen BNB_BANANA 75 876.65 25 10.03 long',
+      chatId
+    );
+  }
+
+  const [pairArg, w1, p1, w2, p2, direction] = args;
+  const pair = pairArg.toUpperCase().replace('_', '/');
+  const [asset1, asset2] = pair.split('/');
+
+  if (!asset1 || !asset2) {
+    return sendMessage('Invalid pair format. Use: ASSET1_ASSET2', chatId);
+  }
+
+  const dir = direction?.toLowerCase();
+  if (!['long', 'short'].includes(dir)) {
+    return sendMessage('Direction must be "long" or "short"', chatId);
+  }
+
+  // Check if already exists
+  const allTrades = await db.getTrades();
+  if (allTrades.some(t => t.pair === pair && t.source === 'manual')) {
+    return sendMessage(`❌ Manual trade already exists for ${pair}`, chatId);
+  }
+
+  const weight1 = parseFloat(w1);
+  const weight2 = parseFloat(w2);
+  const price1 = parseFloat(p1);
+  const price2 = parseFloat(p2);
+
+  const trade = {
+    pair,
+    asset1,
+    asset2,
+    sector: 'Manual',
+    entryTime: new Date().toISOString(),
+    entryZScore: 0,
+    entryPrice1: price1,
+    entryPrice2: price2,
+    direction: dir,
+    longAsset: dir === 'long' ? asset1 : asset2,
+    shortAsset: dir === 'long' ? asset2 : asset1,
+    longWeight: dir === 'long' ? weight1 : weight2,
+    shortWeight: dir === 'long' ? weight2 : weight1,
+    longEntryPrice: dir === 'long' ? price1 : price2,
+    shortEntryPrice: dir === 'long' ? price2 : price1,
+    correlation: 0,
+    beta: 1,
+    halfLife: 0,
+    source: 'manual'
+  };
+
+  await db.createTrade(trade);
+
+  await sendMessage(
+    `✅ Manual trade opened!\n\n` +
+    `${pair}\n` +
+    `L ${trade.longAsset} (${trade.longWeight}%) @ ${trade.longEntryPrice}\n` +
+    `S ${trade.shortAsset} (${trade.shortWeight}%) @ ${trade.shortEntryPrice}`,
+    chatId
+  );
+}
+
+/**
+ * Handle /myclose command - Close a manual trade
+ * Usage: /myclose BNB_BANANA
+ */
+async function handleMyClose(chatId, args) {
+  if (args.length < 1) {
+    return sendMessage('Usage: /myclose <pair>\nExample: /myclose BNB_BANANA', chatId);
+  }
+
+  const pairArg = args[0];
+  const pair = pairArg.toUpperCase().replace('_', '/');
+
+  const allTrades = await db.getTrades();
+  const trade = allTrades.find(t =>
+    (t.pair === pair || t.pair === pairArg.toUpperCase()) && t.source === 'manual'
+  );
+
+  if (!trade) {
+    return sendMessage(`❌ No manual trade for ${pair}`, chatId);
+  }
+
+  const pnl = trade.currentPnL || 0;
+  const days = ((Date.now() - new Date(trade.entryTime)) / (1000 * 60 * 60 * 24)).toFixed(1);
+
+  // Add to history
+  const record = {
+    ...trade,
+    exitTime: new Date().toISOString(),
+    exitReason: 'MANUAL_CLOSE',
+    totalPnL: pnl,
+    daysInTrade: days
+  };
+  await db.addToHistory(record);
+
+  // Delete from active
+  await db.deleteTrade(trade.pair);
+
+  await sendMessage(
+    `🔴 Manual trade closed!\n\n` +
+    `${trade.pair}\n` +
+    `P&L: ${pnl >= 0 ? '+' : ''}${pnl.toFixed(2)}%\n` +
+    `Duration: ${days} days`,
+    chatId
+  );
 }
 
 /**
@@ -381,7 +529,8 @@ async function handleHelp(chatId) {
 
 📊 Status & Info
 /status or /s - Run status check now
-/trades or /t - Show active trades
+/trades or /t - Show bot trades
+/mytrades - Show your manual trades
 /history or /h - Show trade history
 /watchlist - Show pairs approaching entry
 
@@ -390,17 +539,21 @@ async function handleHelp(chatId) {
 /scan cross - Include cross-sector pairs
 /cross [on|off] - Toggle cross-sector default
 
-📈 Trading
-/open <pair> <long|short> - Open trade
-/close <pair> - Close trade
+🤖 Bot Trading
+/open <pair> <long|short> - Open bot trade
+/close <pair> - Close bot trade
 /partial <pair> - Take 50% partial profit
+
+👤 Manual Trading
+/myopen <pair> <w1%> <p1> <w2%> <p2> <dir>
+/myclose <pair> - Close manual trade
 
 🚫 Blacklist
 /blacklist - View blacklist
 /blacklist <asset> [reason] - Add to blacklist
 
 Bot monitors every 15 min, scans every 12h.`;
-  
+
   await sendMessage(msg, chatId);
 }
 
@@ -413,66 +566,79 @@ async function handleCommand(message) {
   const parts = text.split(/\s+/);
   const command = parts[0].toLowerCase().replace('@', '').split('@')[0]; // Handle @botname suffix
   const args = parts.slice(1);
-  
+
   console.log(`[TELEGRAM] Command: ${command} from ${chatId}`);
-  
+
   // Only respond to authorized chat
   if (TELEGRAM_CHAT_ID && chatId.toString() !== TELEGRAM_CHAT_ID.toString()) {
     console.log(`[TELEGRAM] Unauthorized chat: ${chatId}`);
     return;
   }
-  
+
   switch (command) {
     case '/status':
     case '/s':
       await handleStatus(chatId);
       break;
-      
+
     case '/trades':
     case '/t':
       await handleTrades(chatId);
       break;
-      
+
     case '/history':
     case '/h':
       await handleHistory(chatId);
       break;
-      
+
     case '/watchlist':
     case '/w':
       await handleWatchlist(chatId);
       break;
-      
+
     case '/scan':
       await handleScan(chatId, args);
       break;
-      
+
     case '/cross':
       await handleCross(chatId, args);
       break;
-      
+
     case '/open':
       await handleOpen(chatId, args);
       break;
-      
+
     case '/close':
       await handleClose(chatId, args);
       break;
-      
+
     case '/partial':
       await handlePartial(chatId, args);
       break;
-      
+
     case '/blacklist':
     case '/bl':
       await handleBlacklist(chatId, args);
       break;
-      
+
+    case '/mytrades':
+    case '/my':
+      await handleMyTrades(chatId);
+      break;
+
+    case '/myopen':
+      await handleMyOpen(chatId, args);
+      break;
+
+    case '/myclose':
+      await handleMyClose(chatId, args);
+      break;
+
     case '/help':
     case '/start':
       await handleHelp(chatId);
       break;
-      
+
     default:
       if (text.startsWith('/')) {
         await sendMessage(`Unknown command: ${command}\nUse /help for commands.`, chatId);
@@ -485,7 +651,7 @@ async function handleCommand(message) {
  */
 async function pollUpdates() {
   if (!isRunning) return;
-  
+
   try {
     const response = await axios.get(
       `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/getUpdates`,
@@ -498,9 +664,9 @@ async function pollUpdates() {
         timeout: 35000
       }
     );
-    
+
     const updates = response.data.result || [];
-    
+
     for (const update of updates) {
       lastUpdateId = update.update_id;
       if (update.message?.text) {
@@ -512,7 +678,7 @@ async function pollUpdates() {
       console.error('[TELEGRAM] Poll error:', e.message);
     }
   }
-  
+
   // Continue polling
   setTimeout(pollUpdates, POLL_INTERVAL);
 }
@@ -525,15 +691,15 @@ async function startTelegramBot() {
     console.log('[TELEGRAM] No bot token, skipping');
     return;
   }
-  
+
   console.log('[TELEGRAM] Starting bot...');
   console.log(`[TELEGRAM] Chat ID: ${TELEGRAM_CHAT_ID || 'Any'}`);
-  
+
   isRunning = true;
-  
+
   // Send startup message
   await sendMessage('🤖 Bot started! Use /help for commands.');
-  
+
   // Start polling
   pollUpdates();
 }
