@@ -76,15 +76,23 @@ export default function BotDashboard() {
           </div>
           <div>
             <h1 className="text-2xl font-bold">Bot Dashboard</h1>
-            <p className="text-sm text-muted-foreground">
+            <div className="text-sm text-muted-foreground space-y-0.5">
               {scheduler?.monitor?.lastRun ? (
-                <>
-                  Updated: {new Date(scheduler.monitor.lastRun).toLocaleTimeString()}
-                  {" · "}
-                  Next: {new Date(new Date(scheduler.monitor.lastRun).getTime() + 15 * 60 * 1000).toLocaleTimeString()}
-                </>
-              ) : "Loading..."}
-            </p>
+                <p>
+                  Monitor: {new Date(scheduler.monitor.lastRun).toLocaleTimeString()}
+                  {" → "}
+                  {new Date(new Date(scheduler.monitor.lastRun).getTime() + 15 * 60 * 1000).toLocaleTimeString()}
+                </p>
+              ) : <p>Monitor: Loading...</p>}
+              {scheduler?.scan?.lastRun ? (
+                <p>
+                  Scan: {new Date(scheduler.scan.lastRun).toLocaleTimeString()}
+                  {" → "}
+                  {new Date(new Date(scheduler.scan.lastRun).getTime() + 12 * 60 * 60 * 1000).toLocaleTimeString()}
+                  {scheduler.scan.crossSectorEnabled && " (cross-sector)"}
+                </p>
+              ) : <p>Scan: Not run yet</p>}
+            </div>
           </div>
         </div>
         <Button onClick={fetchData} disabled={loading} variant="outline" size="sm">
