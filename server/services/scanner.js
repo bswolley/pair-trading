@@ -3,12 +3,14 @@
  * 
  * Discovers tradeable pairs from Hyperliquid perpetuals.
  * Returns structured result for API/Telegram.
+ * Writes to both local JSON (backup) and Supabase (persistence).
  */
 
 const fs = require('fs');
 const path = require('path');
 const { Hyperliquid } = require('hyperliquid');
 const { checkPairFitness, analyzeHistoricalDivergences } = require('../../lib/pairAnalysis');
+const db = require('../db/queries');
 
 const CONFIG_DIR = path.join(__dirname, '../../config');
 
@@ -369,40 +371,53 @@ async function main(options = {}) {
 
     fs.writeFileSync(path.join(CONFIG_DIR, 'discovered_pairs.json'), JSON.stringify(output, null, 2));
 
-    // Save watchlist
+    // Build watchlist pairs
+    const watchlistData = watchlistPairs.map(p => {
+        const entryThreshold = p.optimalEntry;
+        const signalStrength = Math.min(Math.abs(p.zScore) / entryThreshold, 1.0);
+        const direction = p.zScore < 0 ? 'long' : 'short';
+        const isReady = Math.abs(p.zScore) >= entryThreshold;
+
+        return {
+            pair: `${p.asset1}/${p.asset2}`,
+            asset1: p.asset1,
+            asset2: p.asset2,
+            sector: p.sector,
+            qualityScore: parseFloat(p.score.toFixed(2)),
+            correlation: parseFloat(p.correlation.toFixed(3)),
+            beta: parseFloat(p.beta.toFixed(3)),
+            halfLife: parseFloat(p.halfLife.toFixed(1)),
+            meanReversionRate: parseFloat(p.meanReversionRate.toFixed(3)),
+            zScore: parseFloat(p.zScore.toFixed(2)),
+            signalStrength: parseFloat(signalStrength.toFixed(2)),
+            direction,
+            isReady,
+            entryThreshold,
+            exitThreshold: EXIT_THRESHOLD,
+            maxHistoricalZ: parseFloat(p.maxHistoricalZ.toFixed(2)),
+            fundingSpread: parseFloat(p.fundingSpread.toFixed(2)),
+            lastScan: new Date().toISOString()
+        };
+    });
+
+    // Save watchlist to local JSON (backup)
     const watchlist = {
         timestamp: new Date().toISOString(),
         description: `Top ${TOP_PER_SECTOR} pairs per sector${crossSector ? ` + top ${TOP_CROSS_SECTOR} cross-sector` : ''} by composite score`,
         crossSectorEnabled: crossSector,
-        totalPairs: watchlistPairs.length,
-        pairs: watchlistPairs.map(p => {
-            const entryThreshold = p.optimalEntry;
-            const signalStrength = Math.min(Math.abs(p.zScore) / entryThreshold, 1.0);
-            const direction = p.zScore < 0 ? 'long' : 'short';
-            const isReady = Math.abs(p.zScore) >= entryThreshold;
-
-            return {
-                pair: `${p.asset1}/${p.asset2}`,
-                asset1: p.asset1,
-                asset2: p.asset2,
-                sector: p.sector,
-                qualityScore: parseFloat(p.score.toFixed(2)),
-                correlation: parseFloat(p.correlation.toFixed(3)),
-                beta: parseFloat(p.beta.toFixed(3)),
-                halfLife: parseFloat(p.halfLife.toFixed(1)),
-                meanReversionRate: parseFloat(p.meanReversionRate.toFixed(3)),
-                zScore: parseFloat(p.zScore.toFixed(2)),
-                signalStrength: parseFloat(signalStrength.toFixed(2)),
-                direction,
-                isReady,
-                entryThreshold,
-                exitThreshold: EXIT_THRESHOLD,
-                maxHistoricalZ: parseFloat(p.maxHistoricalZ.toFixed(2))
-            };
-        })
+        totalPairs: watchlistData.length,
+        pairs: watchlistData
     };
 
     fs.writeFileSync(path.join(CONFIG_DIR, 'watchlist.json'), JSON.stringify(watchlist, null, 2));
+
+    // Save watchlist to Supabase (persistence)
+    try {
+        await db.upsertWatchlist(watchlistData);
+        console.log(`[SCANNER] Saved ${watchlistData.length} pairs to Supabase`);
+    } catch (err) {
+        console.error('[SCANNER] Failed to save to Supabase:', err.message);
+    }
 
     return {
         totalAssets: universe.length,
