@@ -114,6 +114,25 @@ router.get('/:pair', async (req, res) => {
         halfLife: parseFloat(fitness.halfLife.toFixed(2)),
         currentZ: parseFloat(fitness.zScore.toFixed(4))
       };
+      
+      // Add current Z as final data point (today, even if candle is open)
+      const now = Date.now();
+      const today = new Date().toISOString().split('T')[0];
+      const lastDataPoint = zScoreData[zScoreData.length - 1];
+      
+      // Only add if it's a different date or significantly different Z
+      if (!lastDataPoint || lastDataPoint.date !== today) {
+        zScoreData.push({
+          timestamp: now,
+          date: today,
+          zScore: currentStats.currentZ,
+          price1: latestPrices1[latestPrices1.length - 1],
+          price2: latestPrices2[latestPrices2.length - 1]
+        });
+      } else {
+        // Update the last point with current Z
+        lastDataPoint.zScore = currentStats.currentZ;
+      }
     } catch (e) {}
 
     res.json({
