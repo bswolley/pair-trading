@@ -77,7 +77,13 @@ export default function BotDashboard() {
           <div>
             <h1 className="text-2xl font-bold">Bot Dashboard</h1>
             <p className="text-sm text-muted-foreground">
-              {lastUpdate ? `Updated ${lastUpdate.toLocaleTimeString()}` : "Loading..."}
+              {scheduler?.monitor?.lastRun ? (
+                <>
+                  Updated: {new Date(scheduler.monitor.lastRun).toLocaleTimeString()}
+                  {" · "}
+                  Next: {new Date(new Date(scheduler.monitor.lastRun).getTime() + 15 * 60 * 1000).toLocaleTimeString()}
+                </>
+              ) : "Loading..."}
             </p>
           </div>
         </div>
