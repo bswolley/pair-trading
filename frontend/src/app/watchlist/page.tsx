@@ -17,6 +17,7 @@ import { ZScoreChart } from "@/components/ZScoreChart";
 export default function WatchlistPage() {
   const [pairs, setPairs] = useState<api.WatchlistPair[]>([]);
   const [sectors, setSectors] = useState<Array<{ name: string; count: number }>>([]);
+  const [activePairs, setActivePairs] = useState<Set<string>>(new Set());
   const [selectedSector, setSelectedSector] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -26,13 +27,15 @@ export default function WatchlistPage() {
     setLoading(true);
     setError(null);
     try {
-      const [watchlistRes, sectorsRes] = await Promise.all([
+      const [watchlistRes, sectorsRes, tradesRes] = await Promise.all([
         api.getWatchlist(selectedSector ? { sector: selectedSector } : undefined),
         api.getWatchlistSectors(),
+        api.getTrades(),
       ]);
 
       setPairs(watchlistRes.pairs || []);
       setSectors(sectorsRes.sectors || []);
+      setActivePairs(new Set((tradesRes.trades || []).map((t) => t.pair)));
     } catch (err) {
       console.error("Error fetching watchlist:", err);
       setError(err instanceof Error ? err.message : "Failed to fetch watchlist");
@@ -45,8 +48,9 @@ export default function WatchlistPage() {
     fetchData();
   }, [fetchData]);
 
-  const readyPairs = pairs.filter((p) => p.isReady);
-  const approachingPairs = pairs.filter((p) => !p.isReady && p.signalStrength >= 0.5);
+  // Exclude pairs that already have active trades
+  const readyPairs = pairs.filter((p) => p.isReady && !activePairs.has(p.pair));
+  const approachingPairs = pairs.filter((p) => !p.isReady && p.signalStrength >= 0.5 && !activePairs.has(p.pair));
 
   return (
     <div className="space-y-8">
