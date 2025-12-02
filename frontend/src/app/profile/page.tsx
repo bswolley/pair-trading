@@ -41,7 +41,7 @@ export default function ProfilePage() {
     try {
       const tradesRes = await api.getTrades();
       const manualTrades = (tradesRes.trades || []).filter(
-        (t) => t.source === "manual" || t.source === "telegram"
+        (t) => t.source === "manual"
       );
       setTrades(manualTrades);
     } catch (err) {

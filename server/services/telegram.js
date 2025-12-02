@@ -189,6 +189,59 @@ async function handleCross(chatId, args) {
 }
 
 /**
+ * Fetch current prices for a pair from Hyperliquid
+ */
+async function fetchCurrentPrices(asset1, asset2) {
+  const { Hyperliquid } = require('hyperliquid');
+  const sdk = new Hyperliquid();
+  
+  try {
+    // Suppress SDK console output
+    const origLog = console.log;
+    const origErr = console.error;
+    console.log = () => {};
+    console.error = () => {};
+    
+    await sdk.connect();
+    
+    console.log = origLog;
+    console.error = origErr;
+    
+    const marketData = await sdk.info.perpetuals.getMetaAndAssetCtxs();
+    const meta = await sdk.info.perpetuals.getMeta();
+    
+    const assetMap = {};
+    meta.universe.forEach((asset, idx) => {
+      assetMap[asset.name.replace('-PERP', '')] = idx;
+    });
+    
+    const idx1 = assetMap[asset1];
+    const idx2 = assetMap[asset2];
+    
+    let price1 = null, price2 = null;
+    
+    if (idx1 !== undefined && marketData[1][idx1]) {
+      price1 = parseFloat(marketData[1][idx1].markPx);
+    }
+    if (idx2 !== undefined && marketData[1][idx2]) {
+      price2 = parseFloat(marketData[1][idx2].markPx);
+    }
+    
+    // Disconnect
+    console.log = () => {};
+    console.error = () => {};
+    await sdk.disconnect();
+    console.log = origLog;
+    console.error = origErr;
+    
+    return { price1, price2 };
+  } catch (err) {
+    console.error('[TELEGRAM] Price fetch error:', err.message);
+    return { price1: null, price2: null };
+  }
+}
+
+/**
  * Handle /open command
  * Usage: /open BNB_BANANA long
  */
@@ -220,6 +273,68 @@ async function handleOpen(chatId, args) {
     return sendMessage(`❌ Trade already open for ${watchPair.pair}`, chatId);
   }
 
+  await sendMessage(`⏳ Fetching prices for ${watchPair.pair}...`, chatId);
+
+  // Fetch current prices
+  const { price1, price2 } = await fetchCurrentPrices(watchPair.asset1, watchPair.asset2);
+  
+  if (!price1 || !price2) {
+    return sendMessage(`❌ Failed to fetch prices for ${watchPair.pair}`, chatId);
+  }
+
+  // Calculate current z-score using the spread
+  const { checkPairFitness } = require('../../lib/pairAnalysis');
+  const { Hyperliquid } = require('hyperliquid');
+  
+  let currentZ = watchPair.zScore || 0;
+  let currentCorr = watchPair.correlation || 0.8;
+  let currentHL = watchPair.halfLife || 10;
+  
+  // Try to get fresh z-score from recent price data
+  try {
+    const sdk = new Hyperliquid();
+    const origLog = console.log;
+    const origErr = console.error;
+    console.log = () => {};
+    console.error = () => {};
+    await sdk.connect();
+    console.log = origLog;
+    console.error = origErr;
+    
+    const endTime = Date.now();
+    const startTime = endTime - (35 * 24 * 60 * 60 * 1000);
+    
+    const [candles1, candles2] = await Promise.all([
+      sdk.info.getCandleSnapshot(`${watchPair.asset1}-PERP`, '1d', startTime, endTime),
+      sdk.info.getCandleSnapshot(`${watchPair.asset2}-PERP`, '1d', startTime, endTime)
+    ]);
+    
+    console.log = () => {};
+    console.error = () => {};
+    await sdk.disconnect();
+    console.log = origLog;
+    console.error = origErr;
+    
+    if (candles1?.length >= 20 && candles2?.length >= 20) {
+      const prices1 = candles1.sort((a, b) => a.t - b.t).slice(-30).map(c => parseFloat(c.c));
+      const prices2 = candles2.sort((a, b) => a.t - b.t).slice(-30).map(c => parseFloat(c.c));
+      const minLen = Math.min(prices1.length, prices2.length);
+      
+      const fitness = checkPairFitness(prices1.slice(-minLen), prices2.slice(-minLen));
+      currentZ = fitness.zScore;
+      currentCorr = fitness.correlation;
+      currentHL = fitness.halfLife;
+    }
+  } catch (err) {
+    console.error('[TELEGRAM] Z-score calc error:', err.message);
+  }
+
+  // Calculate weights based on beta
+  const beta = watchPair.beta || 1;
+  const absBeta = Math.abs(beta);
+  const w1 = (1 / (1 + absBeta)) * 100;
+  const w2 = (absBeta / (1 + absBeta)) * 100;
+
   // Create trade
   const dir = direction.toLowerCase();
   const trade = {
@@ -228,18 +343,23 @@ async function handleOpen(chatId, args) {
     asset2: watchPair.asset2,
     sector: watchPair.sector,
     entryTime: new Date().toISOString(),
-    entryZScore: watchPair.zScore || 0,
+    entryZScore: currentZ,
+    entryPrice1: price1,
+    entryPrice2: price2,
     direction: dir,
     longAsset: dir === 'long' ? watchPair.asset1 : watchPair.asset2,
     shortAsset: dir === 'long' ? watchPair.asset2 : watchPair.asset1,
-    longWeight: 50,
-    shortWeight: 50,
-    longEntryPrice: 0,
-    shortEntryPrice: 0,
-    beta: watchPair.beta || 1,
-    halfLife: watchPair.halfLife || 10,
-    correlation: watchPair.correlation || 0.8,
+    longWeight: dir === 'long' ? w1 : w2,
+    shortWeight: dir === 'long' ? w2 : w1,
+    longEntryPrice: dir === 'long' ? price1 : price2,
+    shortEntryPrice: dir === 'long' ? price2 : price1,
+    beta: beta,
+    halfLife: currentHL,
+    correlation: currentCorr,
     entryThreshold: watchPair.entryThreshold || 2.0,
+    currentZ: currentZ,
+    currentCorrelation: currentCorr,
+    currentHalfLife: currentHL,
     source: 'telegram'
   };
 
@@ -248,7 +368,9 @@ async function handleOpen(chatId, args) {
   await sendMessage(
     `✅ Trade opened!\n\n` +
     `${trade.pair} (${trade.sector})\n` +
-    `Long ${trade.longAsset} / Short ${trade.shortAsset}\n` +
+    `Long ${trade.longAsset} @ ${trade.longEntryPrice.toFixed(4)}\n` +
+    `Short ${trade.shortAsset} @ ${trade.shortEntryPrice.toFixed(4)}\n` +
+    `Weights: ${trade.longWeight.toFixed(0)}% / ${trade.shortWeight.toFixed(0)}%\n` +
     `Entry Z: ${trade.entryZScore.toFixed(2)}`,
     chatId
   );
