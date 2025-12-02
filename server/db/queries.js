@@ -284,7 +284,7 @@ async function addToHistory(trade) {
     if (error) throw error;
     
     // Update stats
-    await updateStats(trade.totalPnL >= 0);
+    await updateStats(trade.totalPnL >= 0, trade.totalPnL);
     return true;
   }
   
@@ -326,7 +326,7 @@ async function getStats() {
   return data.stats || { totalTrades: 0, wins: 0, losses: 0, totalPnL: 0 };
 }
 
-async function updateStats(isWin) {
+async function updateStats(isWin, pnl = 0) {
   const client = getClient();
   if (!client) return;
   
@@ -339,6 +339,7 @@ async function updateStats(isWin) {
   const newTotal = (current?.total_trades || 0) + 1;
   const newWins = (current?.wins || 0) + (isWin ? 1 : 0);
   const newLosses = (current?.losses || 0) + (isWin ? 0 : 1);
+  const newPnL = (current?.total_pnl || 0) + pnl;
   const newWinRate = newTotal > 0 ? (newWins / newTotal) * 100 : 0;
   
   await client
@@ -347,6 +348,7 @@ async function updateStats(isWin) {
       total_trades: newTotal,
       wins: newWins,
       losses: newLosses,
+      total_pnl: newPnL,
       win_rate: newWinRate
     })
     .eq('id', 1);
