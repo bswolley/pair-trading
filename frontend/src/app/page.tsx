@@ -140,7 +140,7 @@ export default function BotDashboard() {
         <div>
           <p className="text-sm text-muted-foreground mb-1">Positions</p>
           <span className="text-3xl font-bold tabular-nums">{trades.length}</span>
-          <span className="text-sm text-muted-foreground">/{process.env.NEXT_PUBLIC_MAX_TRADES || 5}</span>
+          <span className="text-sm text-muted-foreground ml-1">active</span>
         </div>
 
         {/* Approaching */}
