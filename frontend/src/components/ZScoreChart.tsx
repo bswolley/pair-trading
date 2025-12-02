@@ -184,16 +184,16 @@ export function ZScoreChart({ pair, entryThreshold = 2.0, days = 30 }: ZScoreCha
       {/* Legend */}
       <div className="flex items-center justify-center gap-6 text-xs text-muted-foreground">
         <div className="flex items-center gap-1">
-          <div className="w-3 h-0.5 bg-primary" />
+          <div className="w-4 h-0.5" style={{ backgroundColor: '#8b5cf6' }} />
           <span>Z-Score</span>
         </div>
         <div className="flex items-center gap-1">
-          <div className="w-3 h-0.5 border-t border-dashed border-destructive" />
-          <span>Short threshold (+{entryThreshold})</span>
+          <div className="w-4 h-0.5 border-t-2 border-dashed" style={{ borderColor: '#ef4444' }} />
+          <span>Short (+{entryThreshold})</span>
         </div>
         <div className="flex items-center gap-1">
-          <div className="w-3 h-0.5 border-t border-dashed border-primary" />
-          <span>Long threshold (-{entryThreshold})</span>
+          <div className="w-4 h-0.5 border-t-2 border-dashed" style={{ borderColor: '#10b981' }} />
+          <span>Long (-{entryThreshold})</span>
         </div>
       </div>
     </div>
