@@ -432,6 +432,7 @@ async function main() {
 
     // Check watchlist for entries
     const atMaxTrades = activeTrades.trades.length >= MAX_CONCURRENT_TRADES;
+    const watchlistUpdates = [];
 
     for (const pair of watchlist.pairs) {
         if (activePairs.has(pair.pair)) continue;
@@ -452,17 +453,43 @@ async function main() {
         }
 
         const z = validation.fit30d.zScore;
+        const fit = validation.fit30d;
         const signal = Math.abs(z) >= entryThreshold;
+        const signalStrength = Math.min(Math.abs(z) / entryThreshold, 1.0);
+        const direction = z < 0 ? 'long' : 'short';
+        const isReady = signal;
+
+        // Calculate quality score (same formula as scanner)
+        const halfLifeFactor = 1 / Math.max(fit.halfLife, 0.5);
+        const qualityScore = fit.correlation * halfLifeFactor * (fit.meanReversionRate || 0.5) * 100;
+
+        // Collect watchlist update with all fresh metrics
+        watchlistUpdates.push({
+            pair: pair.pair,
+            asset1: pair.asset1,
+            asset2: pair.asset2,
+            sector: pair.sector,
+            qualityScore: parseFloat(qualityScore.toFixed(2)),
+            correlation: parseFloat(fit.correlation.toFixed(4)),
+            beta: parseFloat(fit.beta.toFixed(4)),
+            halfLife: parseFloat(fit.halfLife.toFixed(2)),
+            meanReversionRate: parseFloat((fit.meanReversionRate || 0.5).toFixed(4)),
+            zScore: parseFloat(z.toFixed(4)),
+            signalStrength: parseFloat(signalStrength.toFixed(4)),
+            direction,
+            isReady,
+            entryThreshold,
+            lastScan: new Date().toISOString()
+        });
 
         if (signal && validation.valid && !hasOverlap && !atMaxTrades) {
-            const trade = await enterTrade(pair, validation.fit30d, prices, activeTrades);
+            const trade = await enterTrade(pair, fit, prices, activeTrades);
             trade.entryThreshold = entryThreshold;
             entries.push(trade);
             activePairs.add(pair.pair);
             assetsInPositions.add(pair.asset1);
             assetsInPositions.add(pair.asset2);
         } else if (Math.abs(z) >= entryThreshold * 0.5) {
-            const fit = validation.fit30d;
             const absBeta = Math.abs(fit.beta);
             const w1 = (1 / (1 + absBeta)) * 100;
             const w2 = (absBeta / (1 + absBeta)) * 100;
@@ -475,7 +502,7 @@ async function main() {
                 entryThreshold,
                 proximity: Math.abs(z) / entryThreshold,
                 halfLife: fit.halfLife,
-                direction: z < 0 ? 'long' : 'short',
+                direction,
                 longAsset: z < 0 ? pair.asset1 : pair.asset2,
                 shortAsset: z < 0 ? pair.asset2 : pair.asset1,
                 longWeight: z < 0 ? w1 : w2,
@@ -489,6 +516,16 @@ async function main() {
     }
 
     approaching.sort((a, b) => b.proximity - a.proximity);
+
+    // Update watchlist with fresh metrics
+    if (watchlistUpdates.length > 0) {
+        try {
+            await db.upsertWatchlist(watchlistUpdates);
+            console.log(`[MONITOR] Updated ${watchlistUpdates.length} watchlist pairs`);
+        } catch (err) {
+            console.error('[MONITOR] Failed to update watchlist:', err.message);
+        }
+    }
 
     const saved2 = suppressConsole();
     await sdk.disconnect();
