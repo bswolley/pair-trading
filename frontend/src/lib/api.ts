@@ -113,6 +113,7 @@ export interface StatusResponse {
             isRunning: boolean;
             lastRun: string | null;
             schedule: string;
+            crossSectorEnabled: boolean;
         };
     };
 }
