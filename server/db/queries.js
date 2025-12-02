@@ -493,6 +493,7 @@ function transformTradeFromDB(row) {
     correlation: row.correlation,
     beta: row.beta,
     halfLife: row.half_life,
+    maxHistoricalZ: row.max_historical_z,
     currentZ: row.current_z,
     currentPnL: row.current_pnl,
     currentCorrelation: row.current_correlation,
@@ -527,6 +528,7 @@ function transformTradeToDB(trade) {
   if (trade.correlation !== undefined) result.correlation = trade.correlation;
   if (trade.beta !== undefined) result.beta = trade.beta;
   if (trade.halfLife !== undefined) result.half_life = trade.halfLife;
+  if (trade.maxHistoricalZ !== undefined) result.max_historical_z = trade.maxHistoricalZ;
   if (trade.currentZ !== undefined) result.current_z = trade.currentZ;
   if (trade.currentPnL !== undefined) result.current_pnl = trade.currentPnL;
   if (trade.currentCorrelation !== undefined) result.current_correlation = trade.currentCorrelation;

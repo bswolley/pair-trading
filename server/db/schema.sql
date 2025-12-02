@@ -74,6 +74,7 @@ CREATE TABLE IF NOT EXISTS trades (
   correlation DECIMAL(5,4),
   beta DECIMAL(10,6),
   half_life DECIMAL(10,2),
+  max_historical_z DECIMAL(10,2),  -- For dynamic stop-loss
   
   -- Current state (updated by monitor)
   current_z DECIMAL(10,4),

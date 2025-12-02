@@ -20,7 +20,9 @@ const MAX_CONCURRENT_TRADES = parseInt(process.env.MAX_CONCURRENT_TRADES) || 5;
 // Thresholds
 const DEFAULT_ENTRY_THRESHOLD = 2.0;
 const EXIT_THRESHOLD = 0.5;
-const STOP_LOSS_THRESHOLD = 3.0;
+const STOP_LOSS_MULTIPLIER = 1.2;  // Exit if Z exceeds maxHistoricalZ by 20%
+const STOP_LOSS_ENTRY_MULTIPLIER = 1.5;  // Or if Z exceeds entry by 50%
+const STOP_LOSS_FLOOR = 3.0;  // Minimum stop-loss threshold
 const MIN_CORRELATION_30D = 0.6;
 const CORRELATION_BREAKDOWN = 0.4;
 const HALFLIFE_MULTIPLIER = 2;
@@ -168,11 +170,20 @@ function checkExitConditions(trade, fitness, currentPnL) {
         };
     }
 
-    if (currentZ >= STOP_LOSS_THRESHOLD) {
+    // Dynamic stop-loss based on historical max and entry Z
+    const entryZ = Math.abs(trade.entryZScore || 2.0);
+    const maxHistZ = trade.maxHistoricalZ || 3.0;
+    const dynamicStopLoss = Math.max(
+        entryZ * STOP_LOSS_ENTRY_MULTIPLIER,    // 50% beyond entry
+        maxHistZ * STOP_LOSS_MULTIPLIER,        // 20% beyond historical max
+        STOP_LOSS_FLOOR                          // Minimum floor of 3.0
+    );
+    
+    if (currentZ >= dynamicStopLoss) {
         return {
             shouldExit: true, isPartial: false, exitSize: 1.0,
             reason: 'STOP_LOSS', emoji: '🛑',
-            message: `Stop loss (Z=${fitness.zScore.toFixed(2)})`
+            message: `Stop loss (Z=${fitness.zScore.toFixed(2)} > ${dynamicStopLoss.toFixed(1)})`
         };
     }
 
@@ -219,6 +230,7 @@ async function enterTrade(pair, fitness, prices, activeTrades) {
         shortWeight: (dir === 'long' ? w2 : w1) * 100,
         longEntryPrice: dir === 'long' ? prices.currentPrice1 : prices.currentPrice2,
         shortEntryPrice: dir === 'long' ? prices.currentPrice2 : prices.currentPrice1,
+        maxHistoricalZ: pair.maxHistoricalZ || 3.0,  // For dynamic stop-loss
         source: 'bot'
     };
 
