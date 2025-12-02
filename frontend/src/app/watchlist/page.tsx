@@ -169,8 +169,8 @@ export default function WatchlistPage() {
                 const isApproaching = pair.signalStrength >= 0.5;
 
                 return (
-                  <tr 
-                    key={pair.pair} 
+                  <tr
+                    key={pair.pair}
                     className={cn(
                       "cursor-pointer hover:bg-muted/50 transition-colors",
                       pair.isReady && "bg-emerald-500/5"
@@ -226,7 +226,7 @@ export default function WatchlistPage() {
 
       {/* Z-Score Chart Dialog */}
       <Dialog open={!!chartPair} onOpenChange={(open) => !open && setChartPair(null)}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl" aria-describedby={undefined}>
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <LineChart className="w-5 h-5" />
@@ -234,13 +234,15 @@ export default function WatchlistPage() {
               <Badge variant="outline" className="ml-2">{chartPair?.sector}</Badge>
             </DialogTitle>
           </DialogHeader>
-          {chartPair && (
-            <ZScoreChart 
-              pair={chartPair.pair} 
-              entryThreshold={chartPair.entryThreshold} 
-              days={30}
-            />
-          )}
+          <div className="min-h-[350px]">
+            {chartPair && (
+              <ZScoreChart 
+                pair={chartPair.pair} 
+                entryThreshold={chartPair.entryThreshold} 
+                days={30}
+              />
+            )}
+          </div>
         </DialogContent>
       </Dialog>
     </div>
