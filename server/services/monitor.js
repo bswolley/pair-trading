@@ -495,15 +495,18 @@ async function main() {
         const qualityScore = fit.correlation * halfLifeFactor * (fit.meanReversionRate || 0.5) * 100;
 
         // Calculate beta drift for watchlist pair
-        // Use initialBeta from when pair was first added, or current beta if not set
-        const initialBeta = pair.initialBeta || pair.beta || fit.beta;
-        let betaDrift = 0;
+        // Only use initialBeta if already set (by scanner), otherwise DON'T set it
+        // This preserves the "beta at discovery" meaning
+        const hasInitialBeta = pair.initialBeta !== null && pair.initialBeta !== undefined;
+        const initialBeta = hasInitialBeta ? pair.initialBeta : null;
+        let betaDrift = null;
+        
         if (initialBeta && initialBeta !== 0) {
             betaDrift = Math.abs(fit.beta - initialBeta) / Math.abs(initialBeta);
         }
 
         // Always update watchlist with fresh metrics (including active trades)
-        watchlistUpdates.push({
+        const watchlistUpdate = {
             pair: pair.pair,
             asset1: pair.asset1,
             asset2: pair.asset2,
@@ -511,8 +514,6 @@ async function main() {
             qualityScore: parseFloat(qualityScore.toFixed(2)),
             correlation: parseFloat(fit.correlation.toFixed(4)),
             beta: parseFloat(fit.beta.toFixed(4)),
-            initialBeta: parseFloat(initialBeta.toFixed(4)),
-            betaDrift: parseFloat(betaDrift.toFixed(4)),
             halfLife: parseFloat(fit.halfLife.toFixed(2)),
             meanReversionRate: parseFloat((fit.meanReversionRate || 0.5).toFixed(4)),
             zScore: parseFloat(z.toFixed(4)),
@@ -521,7 +522,15 @@ async function main() {
             isReady,
             entryThreshold,
             lastScan: new Date().toISOString()
-        });
+        };
+        
+        // Only include beta drift fields if initialBeta was already set by scanner
+        if (hasInitialBeta) {
+            watchlistUpdate.initialBeta = parseFloat(initialBeta.toFixed(4));
+            watchlistUpdate.betaDrift = betaDrift !== null ? parseFloat(betaDrift.toFixed(4)) : null;
+        }
+        
+        watchlistUpdates.push(watchlistUpdate);
 
         // Skip entry/approaching logic for pairs already in active trades
         if (isActiveTrade) continue;

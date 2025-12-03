@@ -377,6 +377,7 @@ async function main(options = {}) {
         const signalStrength = Math.min(Math.abs(p.zScore) / entryThreshold, 1.0);
         const direction = p.zScore < 0 ? 'long' : 'short';
         const isReady = Math.abs(p.zScore) >= entryThreshold;
+        const betaValue = parseFloat(p.beta.toFixed(3));
 
         return {
             pair: `${p.asset1}/${p.asset2}`,
@@ -385,7 +386,9 @@ async function main(options = {}) {
             sector: p.sector,
             qualityScore: parseFloat(p.score.toFixed(2)),
             correlation: parseFloat(p.correlation.toFixed(3)),
-            beta: parseFloat(p.beta.toFixed(3)),
+            beta: betaValue,
+            initialBeta: betaValue,  // Set initial beta at discovery
+            betaDrift: 0,            // No drift at discovery
             halfLife: parseFloat(p.halfLife.toFixed(1)),
             meanReversionRate: parseFloat(p.meanReversionRate.toFixed(3)),
             zScore: parseFloat(p.zScore.toFixed(2)),
