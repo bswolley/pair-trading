@@ -166,6 +166,7 @@ export default function WatchlistPage() {
                 <th className="text-right px-4 py-3 font-medium">Conv</th>
                 <th className="text-right px-4 py-3 font-medium">HL</th>
                 <th className="text-right px-4 py-3 font-medium">Corr</th>
+                <th className="text-right px-4 py-3 font-medium">β Drift</th>
                 <th className="w-10"></th>
               </tr>
             </thead>
@@ -247,6 +248,20 @@ export default function WatchlistPage() {
                     </td>
                     <td className="px-4 py-3 text-right text-muted-foreground">
                       {pair.correlation?.toFixed(2)}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      {pair.betaDrift !== undefined && pair.betaDrift !== null ? (
+                        <span className={cn(
+                          "font-mono text-xs",
+                          pair.betaDrift > 0.15 ? "text-yellow-400" :
+                          pair.betaDrift > 0.05 ? "text-muted-foreground" :
+                          "text-emerald-400"
+                        )}>
+                          {(pair.betaDrift * 100).toFixed(0)}%
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground/50">—</span>
+                      )}
                     </td>
                     <td className="px-4 py-3">
                       <LineChart className="w-4 h-4 text-muted-foreground" />
