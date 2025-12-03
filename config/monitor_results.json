@@ -1,0 +1,152 @@
+{
+  "timestamp": "2025-11-28T11:08:18.217Z",
+  "duration": 15510,
+  "summary": {
+    "entry": 2,
+    "exit": 9,
+    "wait": 9,
+    "errors": 0
+  },
+  "pairs": [
+    {
+      "pair": "kBONK/PNUT",
+      "zScore": "-0.27",
+      "signal": "18%",
+      "status": "exit",
+      "direction": "long"
+    },
+    {
+      "pair": "DOGE/kBONK",
+      "zScore": "0.15",
+      "signal": "10%",
+      "status": "exit",
+      "direction": "short"
+    },
+    {
+      "pair": "kBONK/kFLOKI",
+      "zScore": "0.26",
+      "signal": "17%",
+      "status": "exit",
+      "direction": "short"
+    },
+    {
+      "pair": "XPL/OM",
+      "zScore": "-0.36",
+      "signal": "24%",
+      "status": "exit",
+      "direction": "long"
+    },
+    {
+      "pair": "XLM/HBAR",
+      "zScore": "1.86",
+      "signal": "100%",
+      "status": "entry",
+      "direction": "short"
+    },
+    {
+      "pair": "XPL/ONDO",
+      "zScore": "0.01",
+      "signal": "0%",
+      "status": "exit",
+      "direction": "short"
+    },
+    {
+      "pair": "ETHFI/DYDX",
+      "zScore": "0.35",
+      "signal": "23%",
+      "status": "exit",
+      "direction": "short"
+    },
+    {
+      "pair": "LDO/ZRO",
+      "zScore": "-0.81",
+      "signal": "54%",
+      "status": "wait",
+      "direction": "long"
+    },
+    {
+      "pair": "LTC/ATOM",
+      "zScore": "-0.29",
+      "signal": "19%",
+      "status": "exit",
+      "direction": "long"
+    },
+    {
+      "pair": "CRV/ZRO",
+      "zScore": "1.60",
+      "signal": "100%",
+      "status": "entry",
+      "direction": "short"
+    },
+    {
+      "pair": "LTC/NEAR",
+      "zScore": "-0.26",
+      "signal": "17%",
+      "status": "exit",
+      "direction": "long"
+    },
+    {
+      "pair": "VIRTUAL/WLD",
+      "zScore": "-0.81",
+      "signal": "54%",
+      "status": "wait",
+      "direction": "long"
+    },
+    {
+      "pair": "FET/FIL",
+      "zScore": "0.74",
+      "signal": "49%",
+      "status": "wait",
+      "direction": "short"
+    },
+    {
+      "pair": "PUMP/BNB",
+      "zScore": "-0.50",
+      "signal": "33%",
+      "status": "wait",
+      "direction": "long"
+    },
+    {
+      "pair": "BNB/BANANA",
+      "zScore": "-1.43",
+      "signal": "95%",
+      "status": "wait",
+      "direction": "long"
+    },
+    {
+      "pair": "AR/FIL",
+      "zScore": "0.54",
+      "signal": "36%",
+      "status": "wait",
+      "direction": "short"
+    },
+    {
+      "pair": "STBL/OM",
+      "zScore": "0.98",
+      "signal": "65%",
+      "status": "wait",
+      "direction": "short"
+    },
+    {
+      "pair": "OP/LINEA",
+      "zScore": "-0.89",
+      "signal": "59%",
+      "status": "wait",
+      "direction": "long"
+    },
+    {
+      "pair": "ARB/LINEA",
+      "zScore": "-0.99",
+      "signal": "66%",
+      "status": "wait",
+      "direction": "long"
+    },
+    {
+      "pair": "ARB/OP",
+      "zScore": "-0.49",
+      "signal": "33%",
+      "status": "exit",
+      "direction": "long"
+    }
+  ]
+}

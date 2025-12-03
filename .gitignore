@@ -41,3 +41,7 @@ coverage/
 pair_reports/
 pair_reports_pdf/
 
+# Next.js build output
+.next/
+out/
+
