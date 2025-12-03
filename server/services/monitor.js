@@ -9,7 +9,7 @@
 
 const axios = require('axios');
 const { Hyperliquid } = require('hyperliquid');
-const { checkPairFitness } = require('../../lib/pairAnalysis');
+const { checkPairFitness, calculateHurst, calculateConvictionScore } = require('../../lib/pairAnalysis');
 const { fetchCurrentFunding, calculateNetFunding } = require('../../lib/funding');
 const db = require('../db/queries');
 
@@ -61,7 +61,7 @@ function restoreConsole(orig) {
 
 async function fetchPrices(sdk, sym1, sym2) {
     const endTime = Date.now();
-    const startTime = endTime - (35 * 24 * 60 * 60 * 1000);
+    const startTime = endTime - (65 * 24 * 60 * 60 * 1000); // Increased from 35 to 65 days for Hurst calculation
 
     try {
         const [d1, d2] = await Promise.all([
@@ -79,6 +79,8 @@ async function fetchPrices(sdk, sym1, sym2) {
         if (dates.length < 10) return null;
 
         return {
+            prices1_60d: dates.slice(-60).map(d => m1.get(d)),
+            prices2_60d: dates.slice(-60).map(d => m2.get(d)),
             prices1_30d: dates.slice(-30).map(d => m1.get(d)),
             prices2_30d: dates.slice(-30).map(d => m2.get(d)),
             prices1_7d: dates.slice(-7).map(d => m1.get(d)),
@@ -497,6 +499,17 @@ async function main() {
         const direction = z < 0 ? 'long' : 'short';
         const isReady = signal;
 
+        // Calculate Hurst exponent (requires 60d data)
+        let hurst = null;
+        let hurstClassification = null;
+        if (prices.prices1_60d && prices.prices1_60d.length >= 40) {
+            const hurstResult = calculateHurst(prices.prices1_60d);
+            if (hurstResult.isValid) {
+                hurst = hurstResult.hurst;
+                hurstClassification = hurstResult.classification;
+            }
+        }
+
         // Calculate quality score (same formula as scanner)
         const halfLifeFactor = 1 / Math.max(fit.halfLife, 0.5);
         const qualityScore = fit.correlation * halfLifeFactor * (fit.meanReversionRate || 0.5) * 100;
@@ -512,6 +525,20 @@ async function main() {
             betaDrift = Math.abs(fit.beta - initialBeta) / Math.abs(initialBeta);
         }
 
+        // Calculate conviction score
+        let conviction = null;
+        if (hurst !== null) {
+            const convictionResult = calculateConvictionScore({
+                correlation: fit.correlation,
+                r2: 0.7, // Default R² since we don't have dual beta in monitor
+                halfLife: fit.halfLife,
+                hurst: hurst,
+                isCointegrated: fit.isCointegrated,
+                betaDrift: betaDrift || 0
+            });
+            conviction = convictionResult.score;
+        }
+
         // Always update watchlist with fresh metrics (including active trades)
         const watchlistUpdate = {
             pair: pair.pair,
@@ -519,6 +546,9 @@ async function main() {
             asset2: pair.asset2,
             sector: pair.sector,
             qualityScore: parseFloat(qualityScore.toFixed(2)),
+            conviction: conviction,
+            hurst: hurst,
+            hurstClassification: hurstClassification,
             correlation: parseFloat(fit.correlation.toFixed(4)),
             beta: parseFloat(fit.beta.toFixed(4)),
             halfLife: parseFloat(fit.halfLife.toFixed(2)),
