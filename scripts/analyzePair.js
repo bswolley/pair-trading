@@ -15,7 +15,7 @@ const { exec } = require('child_process');
 const { promisify } = require('util');
 const execAsync = promisify(exec);
 const { analyzePair } = require('../lib/pairAnalysis');
-const { generateZScoreChart } = require('../lib/generateZScoreChart');
+// const { generateZScoreChart } = require('../lib/generateZScoreChart'); // Not currently used
 
 // Parse arguments
 const args = process.argv.slice(2);
