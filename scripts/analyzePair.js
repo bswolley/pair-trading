@@ -15,7 +15,6 @@ const { exec } = require('child_process');
 const { promisify } = require('util');
 const execAsync = promisify(exec);
 const { analyzePair } = require('../lib/pairAnalysis');
-// const { generateZScoreChart } = require('../lib/generateZScoreChart'); // Not currently used
 
 // Parse arguments
 const args = process.argv.slice(2);
@@ -60,6 +59,9 @@ async function main() {
       timeframes: [7, 30, 90, 180],
       obvTimeframes: [7, 30]
     });
+    
+    // Advanced metrics are now calculated inside analyzePair
+    const advancedMetrics = result.advancedMetrics;
     
     // Generate report
     const report = generateReport(result);
@@ -129,6 +131,15 @@ async function main() {
       }
     });
     
+    // Print advanced metrics
+    if (advancedMetrics) {
+      console.log('\nAdvanced Metrics:');
+      console.log(`  Regime: ${advancedMetrics.regime.regime} (${advancedMetrics.regime.action})`);
+      console.log(`  Hurst: ${advancedMetrics.hurst.hurst} (${advancedMetrics.hurst.classification})`);
+      console.log(`  Dual Beta: Structural=${advancedMetrics.dualBeta.structural.beta}, Dynamic=${advancedMetrics.dualBeta.dynamic.beta} (drift: ${(advancedMetrics.dualBeta.drift * 100).toFixed(1)}%)`);
+      console.log(`  Conviction: ${advancedMetrics.conviction.score}/100`);
+    }
+    
   } catch (error) {
     console.error(`\n❌ Error: ${error.message}`);
     process.exit(1);
@@ -167,7 +178,49 @@ ${directionText}
 
 **Signal Status:** ${signalStatus}
 
-${pair.standardized ? `## Standardized Metrics
+${pair.advancedMetrics ? `## Advanced Analytics
+
+### Regime Detection
+
+| Current Regime | Confidence | Action | Risk Level |
+|----------------|------------|--------|------------|
+| **${pair.advancedMetrics.regime.regime}** | ${(pair.advancedMetrics.regime.confidence * 100).toFixed(0)}% | ${pair.advancedMetrics.regime.action} | ${pair.advancedMetrics.regime.riskLevel} |
+
+- **Z-Score Trend:** ${pair.advancedMetrics.regime.zTrend}
+- **Z-Score Volatility:** ${pair.advancedMetrics.regime.zVolatility.toFixed(3)}
+
+### Hurst Exponent
+
+| Hurst (H) | Classification | Mean-Reverting? |
+|-----------|----------------|-----------------|
+| **${pair.advancedMetrics.hurst.hurst}** | ${pair.advancedMetrics.hurst.classification} | ${pair.advancedMetrics.hurst.hurst < 0.5 ? 'Yes' : 'No'} |
+
+*H < 0.5 = mean-reverting (ideal), H = 0.5 = random walk, H > 0.5 = trending*
+
+### Dual Beta Analysis
+
+| Type | Beta | R-squared | Std Error |
+|------|------|-----------|-----------|
+| **Structural** (90d) | ${pair.advancedMetrics.dualBeta.structural.beta} | ${pair.advancedMetrics.dualBeta.structural.r2} | ${pair.advancedMetrics.dualBeta.structural.stdErr} |
+| **Dynamic** (${Math.round((pair.timeframes['30']?.halfLife || 7) * 2)}d) | ${pair.advancedMetrics.dualBeta.dynamic.beta} | ${pair.advancedMetrics.dualBeta.dynamic.r2} | ${pair.advancedMetrics.dualBeta.dynamic.stdErr} |
+
+- **Beta Drift:** ${(pair.advancedMetrics.dualBeta.drift * 100).toFixed(1)}%
+- **Regression Valid:** ${pair.advancedMetrics.dualBeta.isValid ? 'Yes' : 'No'}
+
+### Conviction Score: ${pair.advancedMetrics.conviction.score}/100
+
+| Factor | Score |
+|--------|-------|
+| Correlation | +${pair.advancedMetrics.conviction.breakdown.correlation.toFixed(1)} |
+| R-squared Quality | +${pair.advancedMetrics.conviction.breakdown.rSquared.toFixed(1)} |
+| Half-Life | +${pair.advancedMetrics.conviction.breakdown.halfLife.toFixed(1)} |
+| Hurst Factor | +${pair.advancedMetrics.conviction.breakdown.hurst.toFixed(1)} |
+| Cointegration | +${pair.advancedMetrics.conviction.breakdown.cointegration.toFixed(1)} |
+| Beta Stability | ${pair.advancedMetrics.conviction.breakdown.betaStability.toFixed(1)} |
+
+---
+
+` : ''}${pair.standardized ? `## Standardized Metrics
 
 *Calculated using fixed periods: Beta (30d), Correlation/Z-Score (30d), Cointegration (90d)*
 
