@@ -338,11 +338,23 @@ function formatStatusReport(activeTrades, entries, exits, history, approaching =
                 fundingStr = `Fund: ${fundSign}${(netFunding.netFunding8h * 100).toFixed(4)}% / 8h`;
             }
 
+            // Beta drift warning
+            let betaDriftStr = '';
+            if (t.betaDrift !== undefined && t.betaDrift !== null) {
+                const driftPct = (t.betaDrift * 100).toFixed(0);
+                if (t.betaDrift > 0.30) {
+                    betaDriftStr = `⚠️ BETA DRIFT: ${driftPct}% (critical)`;
+                } else if (t.betaDrift > 0.15) {
+                    betaDriftStr = `⚡ β drift: ${driftPct}%`;
+                }
+            }
+
             const partialTag = t.partialExitTaken ? ' [50% closed]' : '';
             msg += `${pnlEmoji} ${t.pair} (${t.sector})${partialTag}\n`;
             msg += `   L ${t.longAsset} ${t.longWeight?.toFixed(0)}% / S ${t.shortAsset} ${t.shortWeight?.toFixed(0)}%\n`;
             msg += `   Z: ${zEntry}→${zNow} | HL: ${hlEntry}→${hlNow}d\n`;
             if (fundingStr) msg += `   ${fundingStr}\n`;
+            if (betaDriftStr) msg += `   ${betaDriftStr}\n`;
             msg += `   ${pnlSign}${pnl.toFixed(2)}% | ${days}d\n\n`;
         }
 
@@ -416,6 +428,14 @@ async function main() {
         trade.currentPnL = calcPnL(trade, prices);
         trade.currentCorrelation = fit.correlation;
         trade.currentHalfLife = fit.halfLife;
+        trade.currentBeta = fit.beta;
+        
+        // Calculate beta drift (% change from entry)
+        if (trade.beta && trade.beta !== 0) {
+            trade.betaDrift = Math.abs(fit.beta - trade.beta) / Math.abs(trade.beta);
+            // Track max beta drift seen during trade
+            trade.maxBetaDrift = Math.max(trade.maxBetaDrift || 0, trade.betaDrift);
+        }
 
         const exitCheck = checkExitConditions(trade, fit, trade.currentPnL);
 
@@ -474,6 +494,14 @@ async function main() {
         const halfLifeFactor = 1 / Math.max(fit.halfLife, 0.5);
         const qualityScore = fit.correlation * halfLifeFactor * (fit.meanReversionRate || 0.5) * 100;
 
+        // Calculate beta drift for watchlist pair
+        // Use initialBeta from when pair was first added, or current beta if not set
+        const initialBeta = pair.initialBeta || pair.beta || fit.beta;
+        let betaDrift = 0;
+        if (initialBeta && initialBeta !== 0) {
+            betaDrift = Math.abs(fit.beta - initialBeta) / Math.abs(initialBeta);
+        }
+
         // Always update watchlist with fresh metrics (including active trades)
         watchlistUpdates.push({
             pair: pair.pair,
@@ -483,6 +511,8 @@ async function main() {
             qualityScore: parseFloat(qualityScore.toFixed(2)),
             correlation: parseFloat(fit.correlation.toFixed(4)),
             beta: parseFloat(fit.beta.toFixed(4)),
+            initialBeta: parseFloat(initialBeta.toFixed(4)),
+            betaDrift: parseFloat(betaDrift.toFixed(4)),
             halfLife: parseFloat(fit.halfLife.toFixed(2)),
             meanReversionRate: parseFloat((fit.meanReversionRate || 0.5).toFixed(4)),
             zScore: parseFloat(z.toFixed(4)),
@@ -552,6 +582,9 @@ async function main() {
             currentPnL: trade.currentPnL,
             currentCorrelation: trade.currentCorrelation,
             currentHalfLife: trade.currentHalfLife,
+            currentBeta: trade.currentBeta,
+            betaDrift: trade.betaDrift,
+            maxBetaDrift: trade.maxBetaDrift,
             partialExitTaken: trade.partialExitTaken,
             partialExitPnL: trade.partialExitPnL,
             partialExitTime: trade.partialExitTime

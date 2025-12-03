@@ -478,6 +478,8 @@ function transformWatchlistFromDB(row) {
     qualityScore: row.quality_score,
     correlation: row.correlation,
     beta: row.beta,
+    initialBeta: row.initial_beta,
+    betaDrift: row.beta_drift,
     halfLife: row.half_life,
     meanReversionRate: row.mean_reversion_rate,
     zScore: row.z_score,
@@ -504,6 +506,8 @@ function transformWatchlistToDB(pair) {
     quality_score: pair.qualityScore,
     correlation: pair.correlation,
     beta: pair.beta,
+    initial_beta: pair.initialBeta,
+    beta_drift: pair.betaDrift,
     half_life: pair.halfLife,
     mean_reversion_rate: pair.meanReversionRate,
     z_score: pair.zScore,
@@ -546,6 +550,9 @@ function transformTradeFromDB(row) {
     currentPnL: row.current_pnl,
     currentCorrelation: row.current_correlation,
     currentHalfLife: row.current_half_life,
+    currentBeta: row.current_beta,
+    betaDrift: row.beta_drift,
+    maxBetaDrift: row.max_beta_drift,
     partialExitTaken: row.partial_exit_taken,
     partialExitPnL: row.partial_exit_pnl,
     partialExitTime: row.partial_exit_time,
@@ -581,6 +588,9 @@ function transformTradeToDB(trade) {
   if (trade.currentPnL !== undefined) result.current_pnl = trade.currentPnL;
   if (trade.currentCorrelation !== undefined) result.current_correlation = trade.currentCorrelation;
   if (trade.currentHalfLife !== undefined) result.current_half_life = trade.currentHalfLife;
+  if (trade.currentBeta !== undefined) result.current_beta = trade.currentBeta;
+  if (trade.betaDrift !== undefined) result.beta_drift = trade.betaDrift;
+  if (trade.maxBetaDrift !== undefined) result.max_beta_drift = trade.maxBetaDrift;
   if (trade.partialExitTaken !== undefined) result.partial_exit_taken = trade.partialExitTaken;
   if (trade.partialExitPnL !== undefined) result.partial_exit_pnl = trade.partialExitPnL;
   if (trade.partialExitTime !== undefined) result.partial_exit_time = trade.partialExitTime;

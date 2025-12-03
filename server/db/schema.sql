@@ -19,6 +19,8 @@ CREATE TABLE IF NOT EXISTS watchlist (
   quality_score DECIMAL(10,2),
   correlation DECIMAL(5,4),
   beta DECIMAL(10,6),
+  initial_beta DECIMAL(10,6),
+  beta_drift DECIMAL(10,6),
   half_life DECIMAL(10,2),
   mean_reversion_rate DECIMAL(10,6),
   
@@ -81,6 +83,9 @@ CREATE TABLE IF NOT EXISTS trades (
   current_pnl DECIMAL(10,4),
   current_correlation DECIMAL(5,4),
   current_half_life DECIMAL(10,2),
+  current_beta DECIMAL(10,6),
+  beta_drift DECIMAL(10,6),
+  max_beta_drift DECIMAL(10,6),
   
   -- Partial exit tracking
   partial_exit_taken BOOLEAN DEFAULT FALSE,
