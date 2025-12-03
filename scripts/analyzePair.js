@@ -15,6 +15,7 @@ const { exec } = require('child_process');
 const { promisify } = require('util');
 const execAsync = promisify(exec);
 const { analyzePair } = require('../lib/pairAnalysis');
+const { generateZScoreChart } = require('../lib/generateZScoreChart');
 
 // Parse arguments
 const args = process.argv.slice(2);
@@ -168,11 +169,11 @@ ${directionText}
 
 ${pair.standardized ? `## Standardized Metrics
 
-*Calculated using fixed periods: Beta (7d), Correlation/Z-Score (30d), Cointegration (90d)*
+*Calculated using fixed periods: Beta (30d), Correlation/Z-Score (30d), Cointegration (90d)*
 
 | Metric | Value | Period |
 |--------|-------|--------|
-| **Beta (Hedge Ratio)** | ${pair.standardized.beta7d !== null ? pair.standardized.beta7d.toFixed(3) : 'N/A'} | 7 days |
+| **Beta (Hedge Ratio)** | ${pair.standardized.beta30d !== null ? pair.standardized.beta30d.toFixed(3) : 'N/A'} | 30 days |
 | **Correlation** | ${pair.standardized.correlation30d !== null ? pair.standardized.correlation30d.toFixed(3) : 'N/A'} | 30 days |
 | **Z-Score** | ${pair.standardized.zScore30d !== null ? pair.standardized.zScore30d.toFixed(2) : 'N/A'} | 30 days |
 | **Cointegrated** | ${pair.standardized.isCointegrated90d ? 'Yes' : 'No'} | 90 days |
@@ -181,24 +182,65 @@ ${pair.standardized ? `## Standardized Metrics
 
 ` : ''}## Statistical Metrics
 
-| Timeframe | Correlation | Beta | Z-Score | CoInt? | Hedge Ratio | Half-Life | Gamma | Theta |
+| Timeframe | Correlation | Beta | Z-Score | CoInt? | Hedge Ratio | Gamma | Theta |
 |-----------|-------------|------|---------|--------------|-------------|-----------|-------|-------|
 ${allTimeframes.map(tf => {
   const corr = tf.correlation?.toFixed(3) || 'N/A';
   const beta = tf.beta?.toFixed(3) || 'N/A';
   const zScore = tf.zScore?.toFixed(2) || 'N/A';
   const hedgeRatio = tf.hedgeRatio?.toFixed(3) || 'N/A';
-  const halfLife = tf.halfLife !== null ? tf.halfLife.toFixed(1) + 'd' : 'N/A';
   const gamma = tf.gamma?.toFixed(3) || 'N/A';
   const theta = tf.theta?.toFixed(3) || 'N/A';
   const coint = tf.isCointegrated ? 'Yes' : 'No';
   
-  return `| **${tf.days}d** | ${corr} | ${beta} | ${zScore} | ${coint} | ${hedgeRatio} | ${halfLife} | ${gamma} | ${theta} |`;
+  return `| **${tf.days}d** | ${corr} | ${beta} | ${zScore} | ${coint} | ${hedgeRatio} | ${gamma} | ${theta} |`;
 }).join('\n')}
 
 ${pair.positionSizing ? `**Position Sizing (from 30-day beta):**
 - **${pair.symbol1}:** ${(pair.positionSizing.weight1 * 100).toFixed(1)}%
 - **${pair.symbol2}:** ${(pair.positionSizing.weight2 * 100).toFixed(1)}%
+
+` : ''}${pair.standardized?.divergenceProfile ? `## Dynamic Entry Thresholds
+
+**Optimal Entry Threshold:** |Z| >= ${pair.standardized.optimalEntryThreshold?.toFixed(1) || 'N/A'}
+**Current Z-Score:** ${pair.standardized.zScore30d !== null ? pair.standardized.zScore30d.toFixed(2) : 'N/A'}
+
+*Based on 30-day historical divergence analysis*
+
+${pair.standardized.currentZROI ? `### Expected ROI from Current Position
+
+*Based on current z-score of ${pair.standardized.currentZROI.currentZ}*
+
+| Exit Strategy | Exit Z-Score | Expected ROI | Time to Reversion |
+|---------------|--------------|--------------|-------------------|
+| **Fixed Reversion** | ${pair.standardized.currentZROI.fixedExitZ} | ${pair.standardized.currentZROI.roiFixed} | ${pair.standardized.currentZROI.timeToFixed || 'N/A'} days |
+| **Percentage-Based (50%)** | ${pair.standardized.currentZROI.percentExitZ} | ${pair.standardized.currentZROI.roiPercent} | ${pair.standardized.currentZROI.timeToPercent || 'N/A'} days |
+
+` : ''}### Fixed Reversion (to |Z| < 0.5)
+
+| Threshold | Events | Reverted | Reversion Rate | Avg Time to Revert |
+|-----------|--------|----------|----------------|-------------------|
+${Object.entries(pair.standardized.divergenceProfile)
+  .filter(([threshold]) => threshold !== 'currentZROI') // Filter out ROI data
+  .sort((a, b) => parseFloat(a[0]) - parseFloat(b[0]))
+  .map(([threshold, stats]) => {
+    const avgTime = stats.avgTimeToRevert !== null ? `${stats.avgTimeToRevert} days` : 'N/A';
+    return `| **${threshold}** | ${stats.events} | ${stats.reverted} | ${stats.rate} | ${avgTime} |`;
+  }).join('\n')}
+
+${pair.standardized?.divergenceProfilePercent ? `### Percentage-Based Reversion (to |Z| < 50% of threshold)
+
+*Example: Threshold 2.0 reverts to < 1.0, Threshold 3.0 reverts to < 1.5*
+
+| Threshold | Reversion To | Events | Reverted | Reversion Rate | Avg Time to Revert |
+|-----------|--------------|--------|----------|----------------|-------------------|
+${Object.entries(pair.standardized.divergenceProfilePercent)
+  .sort((a, b) => parseFloat(a[0]) - parseFloat(b[0]))
+  .map(([threshold, stats]) => {
+    const avgTime = stats.avgTimeToRevert !== null ? `${stats.avgTimeToRevert} days` : 'N/A';
+    return `| **${threshold}** | < ${stats.reversionThreshold} | ${stats.events} | ${stats.reverted} | ${stats.rate} | ${avgTime} |`;
+  }).join('\n')}
+` : ''}
 
 ` : ''}## Price Movement
 
@@ -222,15 +264,16 @@ ${Object.values(pair.timeframes)
   .filter(tf => !tf.error && tf.obv1Change !== null && [7, 30].includes(tf.days))
   .sort((a, b) => a.days - b.days)
   .map(tf => {
-    const obv1 = tf.obv1Change !== null && tf.obv1Change !== undefined 
-      ? tf.obv1Change.toLocaleString('en-US', {maximumFractionDigits: 0}) 
+    // Format absolute value, then add sign prefix (avoid double negative)
+    const obv1Abs = tf.obv1Change !== null && tf.obv1Change !== undefined 
+      ? Math.abs(tf.obv1Change).toLocaleString('en-US', {maximumFractionDigits: 0}) 
       : 'N/A';
-    const obv2 = tf.obv2Change !== null && tf.obv2Change !== undefined 
-      ? tf.obv2Change.toLocaleString('en-US', {maximumFractionDigits: 0}) 
+    const obv2Abs = tf.obv2Change !== null && tf.obv2Change !== undefined 
+      ? Math.abs(tf.obv2Change).toLocaleString('en-US', {maximumFractionDigits: 0}) 
       : 'N/A';
     const trend1 = tf.obv1Change > 0 ? '+' : tf.obv1Change < 0 ? '-' : '';
     const trend2 = tf.obv2Change > 0 ? '+' : tf.obv2Change < 0 ? '-' : '';
-    return `| **${tf.days}d** | ${trend1}${obv1} | ${trend2}${obv2} |`;
+    return `| **${tf.days}d** | ${trend1}${obv1Abs} | ${trend2}${obv2Abs} |`;
   }).join('\n') || '| N/A | No OBV data available |'}
 
 ---
