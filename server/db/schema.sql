@@ -17,6 +17,9 @@ CREATE TABLE IF NOT EXISTS watchlist (
   
   -- Quality metrics (stable)
   quality_score DECIMAL(10,2),
+  conviction DECIMAL(5,1),                -- 0-100 score combining all factors
+  hurst DECIMAL(5,3),                     -- Hurst exponent (H < 0.5 = mean-reverting)
+  hurst_classification VARCHAR(30),       -- STRONG_MEAN_REVERSION, MEAN_REVERTING, etc.
   correlation DECIMAL(5,4),
   beta DECIMAL(10,6),
   initial_beta DECIMAL(10,6),
