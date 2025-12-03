@@ -9,7 +9,13 @@
 const fs = require('fs');
 const path = require('path');
 const { Hyperliquid } = require('hyperliquid');
-const { checkPairFitness, analyzeHistoricalDivergences } = require('../../lib/pairAnalysis');
+const { 
+    checkPairFitness, 
+    analyzeHistoricalDivergences,
+    calculateHurst,
+    calculateDualBeta,
+    calculateConvictionScore
+} = require('../../lib/pairAnalysis');
 const db = require('../db/queries');
 
 const CONFIG_DIR = path.join(__dirname, '../../config');
@@ -18,7 +24,8 @@ const DEFAULT_MIN_VOLUME = 500_000;
 const DEFAULT_MIN_OI = 100_000;
 const DEFAULT_MIN_CORR = 0.6;
 const DEFAULT_CROSS_SECTOR_MIN_CORR = 0.7; // Higher threshold for cross-sector
-const DEFAULT_LOOKBACK_DAYS = 30;
+const DEFAULT_LOOKBACK_DAYS = 60; // Increased from 30 for Hurst calculation (needs 40+ data points)
+const MAX_HURST_THRESHOLD = 0.5; // Only keep mean-reverting pairs (H < 0.5)
 const TOP_PER_SECTOR = 3;
 const TOP_CROSS_SECTOR = 5; // Top 5 cross-sector pairs total
 const EXIT_THRESHOLD = 0.5;
@@ -234,6 +241,27 @@ function evaluatePairs(candidatePairs, priceMap, minCorrelation, crossSectorMinC
             const fitness = checkPairFitness(aligned1, aligned2);
 
             if (fitness.correlation >= requiredCorr && fitness.isCointegrated && fitness.halfLife <= 45) {
+                // Calculate Hurst exponent - filter out trending pairs
+                const hurst = calculateHurst(aligned1);
+                
+                // Skip pairs that are not mean-reverting (H >= 0.5)
+                if (hurst.isValid && hurst.hurst >= MAX_HURST_THRESHOLD) {
+                    continue; // Skip trending/random walk pairs
+                }
+                
+                // Calculate dual beta for regression quality metrics
+                const dualBeta = calculateDualBeta(aligned1, aligned2, fitness.halfLife);
+                
+                // Calculate conviction score
+                const conviction = calculateConvictionScore({
+                    correlation: fitness.correlation,
+                    r2: dualBeta.structural.r2,
+                    halfLife: fitness.halfLife,
+                    hurst: hurst.hurst,
+                    isCointegrated: fitness.isCointegrated,
+                    betaDrift: dualBeta.drift
+                });
+
                 const divergenceProfile = analyzeHistoricalDivergences(aligned1, aligned2, fitness.beta);
 
                 fittingPairs.push({
@@ -254,7 +282,17 @@ function evaluatePairs(candidatePairs, priceMap, minCorrelation, crossSectorMinC
                     optimalEntry: divergenceProfile.optimalEntry,
                     maxHistoricalZ: divergenceProfile.maxHistoricalZ,
                     divergenceProfile: divergenceProfile.thresholds,
-                    isCrossSector: pair.isCrossSector
+                    isCrossSector: pair.isCrossSector,
+                    // Advanced metrics
+                    hurst: hurst.hurst,
+                    hurstClassification: hurst.classification,
+                    dualBeta: {
+                        structural: dualBeta.structural.beta,
+                        dynamic: dualBeta.dynamic.beta,
+                        drift: dualBeta.drift,
+                        r2: dualBeta.structural.r2
+                    },
+                    conviction: conviction.score
                 });
             }
         } catch (error) { }
@@ -301,10 +339,15 @@ async function main(options = {}) {
     // Evaluate pairs
     const fittingPairs = evaluatePairs(candidatePairs, priceMap, DEFAULT_MIN_CORR, DEFAULT_CROSS_SECTOR_MIN_CORR);
 
-    // Calculate composite score
+    // Use conviction score for ranking (already calculated in evaluatePairs)
+    // Fallback to simple score if conviction not available
     for (const pair of fittingPairs) {
-        const halfLifeFactor = 1 / Math.max(pair.halfLife, 0.5);
-        pair.score = pair.correlation * halfLifeFactor * pair.meanReversionRate * 100;
+        if (!pair.conviction) {
+            const halfLifeFactor = 1 / Math.max(pair.halfLife, 0.5);
+            pair.score = pair.correlation * halfLifeFactor * pair.meanReversionRate * 100;
+        } else {
+            pair.score = pair.conviction; // Use conviction as primary score
+        }
     }
 
     fittingPairs.sort((a, b) => b.score - a.score);
@@ -346,7 +389,8 @@ async function main(options = {}) {
             minOI: DEFAULT_MIN_OI, 
             minCorrelation: DEFAULT_MIN_CORR, 
             crossSectorMinCorrelation: DEFAULT_CROSS_SECTOR_MIN_CORR,
-            maxHalfLife: 45 
+            maxHalfLife: 45,
+            maxHurst: MAX_HURST_THRESHOLD
         },
         lookbackDays: DEFAULT_LOOKBACK_DAYS,
         crossSectorEnabled: crossSector,
@@ -358,6 +402,9 @@ async function main(options = {}) {
             pair: `${p.asset1}/${p.asset2}`,
             sector: p.sector,
             score: parseFloat(p.score.toFixed(2)),
+            conviction: p.conviction ? parseFloat(p.conviction.toFixed(1)) : null,
+            hurst: p.hurst ? parseFloat(p.hurst.toFixed(3)) : null,
+            hurstClassification: p.hurstClassification || null,
             correlation: parseFloat(p.correlation.toFixed(3)),
             beta: parseFloat(p.beta.toFixed(3)),
             halfLife: parseFloat(p.halfLife.toFixed(1)),
@@ -365,7 +412,8 @@ async function main(options = {}) {
             meanReversionRate: parseFloat(p.meanReversionRate.toFixed(3)),
             fundingSpread: parseFloat(p.fundingSpread.toFixed(2)),
             optimalEntry: p.optimalEntry,
-            maxHistoricalZ: parseFloat(p.maxHistoricalZ.toFixed(2))
+            maxHistoricalZ: parseFloat(p.maxHistoricalZ.toFixed(2)),
+            dualBeta: p.dualBeta || null
         }))
     };
 
@@ -385,6 +433,9 @@ async function main(options = {}) {
             asset2: p.asset2,
             sector: p.sector,
             qualityScore: parseFloat(p.score.toFixed(2)),
+            conviction: p.conviction ? parseFloat(p.conviction.toFixed(1)) : null,
+            hurst: p.hurst ? parseFloat(p.hurst.toFixed(3)) : null,
+            hurstClassification: p.hurstClassification || null,
             correlation: parseFloat(p.correlation.toFixed(3)),
             beta: betaValue,
             initialBeta: betaValue,  // Set initial beta at discovery
@@ -406,8 +457,9 @@ async function main(options = {}) {
     // Save watchlist to local JSON (backup)
     const watchlist = {
         timestamp: new Date().toISOString(),
-        description: `Top ${TOP_PER_SECTOR} pairs per sector${crossSector ? ` + top ${TOP_CROSS_SECTOR} cross-sector` : ''} by composite score`,
+        description: `Top ${TOP_PER_SECTOR} pairs per sector${crossSector ? ` + top ${TOP_CROSS_SECTOR} cross-sector` : ''} by conviction score (Hurst < ${MAX_HURST_THRESHOLD} filter applied)`,
         crossSectorEnabled: crossSector,
+        hurstThreshold: MAX_HURST_THRESHOLD,
         totalPairs: watchlistData.length,
         pairs: watchlistData
     };

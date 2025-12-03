@@ -27,7 +27,7 @@ const DEFAULT_MIN_VOLUME = 500_000;
 const DEFAULT_MIN_OI = 100_000;
 const DEFAULT_MIN_CORR = 0.6;
 const DEFAULT_CROSS_SECTOR_MIN_CORR = 0.7;
-const DEFAULT_LOOKBACK_DAYS = 30;
+const DEFAULT_LOOKBACK_DAYS = 60; // Need 60+ days for Hurst calculation (requires 40+ data points)
 
 // Parse args
 const args = process.argv.slice(2);
