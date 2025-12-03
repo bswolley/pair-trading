@@ -1,6 +1,0 @@
-{
-  "version": 3,
-  "sources": [],
-  "sections": [
-    {"offset": {"line": 4, "column": 0}, "map": {"version":3,"sources":["file:///Users/dorian/Documents/pair-trading/frontend/src/app/not-found.tsx"],"sourcesContent":["export default function NotFound() {\n  return (\n    <div className=\"flex items-center justify-center min-h-screen\">\n      <div className=\"text-center\">\n        <h1 className=\"text-4xl font-bold mb-4\">404</h1>\n        <p className=\"text-muted-foreground mb-4\">Page not found</p>\n        <a href=\"/\" className=\"text-primary hover:underline\">\n          Go back home\n        </a>\n      </div>\n    </div>\n  );\n}\n\n"],"names":[],"mappings":";;;;;;AAAe,SAAS;IACtB,qBACE,0RAAC;QAAI,WAAU;kBACb,cAAA,0RAAC;YAAI,WAAU;;8BACb,0RAAC;oBAAG,WAAU;8BAA0B;;;;;;8BACxC,0RAAC;oBAAE,WAAU;8BAA6B;;;;;;8BAC1C,0RAAC;oBAAE,MAAK;oBAAI,WAAU;8BAA+B;;;;;;;;;;;;;;;;;AAM7D"}}]
-}
