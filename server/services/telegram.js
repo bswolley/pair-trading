@@ -397,13 +397,40 @@ async function handleClose(chatId, args) {
     return sendMessage(`❌ No active trade for ${pair}`, chatId);
   }
 
-  const pnl = trade.currentPnL || 0;
+  // Fetch real-time prices
+  const { price1, price2 } = await fetchCurrentPrices(trade.asset1, trade.asset2);
+  
+  let realTimePnL = trade.currentPnL || 0;
+  let exitZScore = trade.currentZ || null;
+  
+  if (price1 && price2) {
+    // Calculate real-time P&L
+    const curLong = trade.direction === 'long' ? price1 : price2;
+    const curShort = trade.direction === 'long' ? price2 : price1;
+    
+    const longPnL = ((curLong - trade.longEntryPrice) / trade.longEntryPrice) * (trade.longWeight / 100) * 100;
+    const shortPnL = ((trade.shortEntryPrice - curShort) / trade.shortEntryPrice) * (trade.shortWeight / 100) * 100;
+    realTimePnL = longPnL + shortPnL;
+    
+    // Calculate real-time Z-score (simplified - uses beta from entry)
+    if (trade.beta) {
+      const spread = Math.log(price1) - trade.beta * Math.log(price2);
+      const entrySpread = Math.log(trade.entryPrice1 || trade.longEntryPrice) - trade.beta * Math.log(trade.entryPrice2 || trade.shortEntryPrice);
+      // Approximate Z-score change based on spread change
+      // This is a simplified calculation; full Z would need historical data
+      exitZScore = trade.entryZScore + (spread - entrySpread) / 0.1; // Rough std dev estimate
+    }
+  }
+
+  const daysInTrade = parseFloat(((Date.now() - new Date(trade.entryTime)) / (1000 * 60 * 60 * 24)).toFixed(1));
+  
   const record = {
     ...trade,
     exitTime: new Date().toISOString(),
     exitReason: 'MANUAL',
-    totalPnL: pnl,
-    daysInTrade: ((Date.now() - new Date(trade.entryTime)) / (1000 * 60 * 60 * 24)).toFixed(1)
+    exitZScore: exitZScore,
+    totalPnL: realTimePnL,
+    daysInTrade: daysInTrade
   };
 
   // Add to history (this also updates stats)
@@ -412,10 +439,16 @@ async function handleClose(chatId, args) {
   // Delete from active trades
   await db.deleteTrade(trade.pair);
 
+  const exitPriceInfo = price1 && price2 
+    ? `\n${trade.asset1}: $${price1.toFixed(4)}\n${trade.asset2}: $${price2.toFixed(4)}`
+    : '';
+
   await sendMessage(
     `🔴 Trade closed!\n\n` +
-    `${trade.pair}\n` +
-    `P&L: ${pnl >= 0 ? '+' : ''}${pnl.toFixed(2)}%`,
+    `${trade.pair}${exitPriceInfo}\n` +
+    `P&L: ${realTimePnL >= 0 ? '+' : ''}${realTimePnL.toFixed(2)}%` +
+    (exitZScore !== null ? `\nExit Z: ${exitZScore.toFixed(2)}` : '') +
+    `\nDays: ${daysInTrade}`,
     chatId
   );
 }
@@ -618,27 +651,55 @@ async function handleMyClose(chatId, args) {
     return sendMessage(`❌ No manual trade for ${pair}`, chatId);
   }
 
-  const pnl = trade.currentPnL || 0;
-  const days = ((Date.now() - new Date(trade.entryTime)) / (1000 * 60 * 60 * 24)).toFixed(1);
+  // Fetch real-time prices
+  const { price1, price2 } = await fetchCurrentPrices(trade.asset1, trade.asset2);
+  
+  let realTimePnL = trade.currentPnL || 0;
+  let exitZScore = trade.currentZ || null;
+  
+  if (price1 && price2) {
+    // Calculate real-time P&L
+    const curLong = trade.direction === 'long' ? price1 : price2;
+    const curShort = trade.direction === 'long' ? price2 : price1;
+    
+    const longPnL = ((curLong - trade.longEntryPrice) / trade.longEntryPrice) * (trade.longWeight / 100) * 100;
+    const shortPnL = ((trade.shortEntryPrice - curShort) / trade.shortEntryPrice) * (trade.shortWeight / 100) * 100;
+    realTimePnL = longPnL + shortPnL;
+    
+    // Calculate real-time Z-score (simplified)
+    if (trade.beta) {
+      const spread = Math.log(price1) - trade.beta * Math.log(price2);
+      const entrySpread = Math.log(trade.entryPrice1 || trade.longEntryPrice) - trade.beta * Math.log(trade.entryPrice2 || trade.shortEntryPrice);
+      exitZScore = trade.entryZScore + (spread - entrySpread) / 0.1;
+    }
+  }
+
+  const daysInTrade = parseFloat(((Date.now() - new Date(trade.entryTime)) / (1000 * 60 * 60 * 24)).toFixed(1));
 
   // Add to history
   const record = {
     ...trade,
     exitTime: new Date().toISOString(),
     exitReason: 'MANUAL_CLOSE',
-    totalPnL: pnl,
-    daysInTrade: days
+    exitZScore: exitZScore,
+    totalPnL: realTimePnL,
+    daysInTrade: daysInTrade
   };
   await db.addToHistory(record);
 
   // Delete from active
   await db.deleteTrade(trade.pair);
 
+  const exitPriceInfo = price1 && price2 
+    ? `\n${trade.asset1}: $${price1.toFixed(4)}\n${trade.asset2}: $${price2.toFixed(4)}`
+    : '';
+
   await sendMessage(
     `🔴 Manual trade closed!\n\n` +
-    `${trade.pair}\n` +
-    `P&L: ${pnl >= 0 ? '+' : ''}${pnl.toFixed(2)}%\n` +
-    `Duration: ${days} days`,
+    `${trade.pair}${exitPriceInfo}\n` +
+    `P&L: ${realTimePnL >= 0 ? '+' : ''}${realTimePnL.toFixed(2)}%` +
+    (exitZScore !== null ? `\nExit Z: ${exitZScore.toFixed(2)}` : '') +
+    `\nDuration: ${daysInTrade} days`,
     chatId
   );
 }
