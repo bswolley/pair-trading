@@ -166,6 +166,7 @@ export default function WatchlistPage() {
                 <th className="text-right px-4 py-3 font-medium">Conv</th>
                 <th className="text-right px-4 py-3 font-medium">HL</th>
                 <th className="text-right px-4 py-3 font-medium">Corr</th>
+                <th className="text-right px-4 py-3 font-medium">Beta</th>
                 <th className="text-right px-4 py-3 font-medium">β Drift</th>
                 <th className="w-10"></th>
               </tr>
@@ -248,6 +249,9 @@ export default function WatchlistPage() {
                     </td>
                     <td className="px-4 py-3 text-right text-muted-foreground">
                       {pair.correlation?.toFixed(2)}
+                    </td>
+                    <td className="px-4 py-3 text-right font-mono text-muted-foreground">
+                      {pair.beta?.toFixed(3)}
                     </td>
                     <td className="px-4 py-3 text-right">
                       {pair.betaDrift !== undefined && pair.betaDrift !== null ? (
