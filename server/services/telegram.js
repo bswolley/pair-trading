@@ -475,12 +475,22 @@ async function handleClose(chatId, args) {
     ? `\n${trade.asset1}: $${price1.toFixed(4)}\n${trade.asset2}: $${price2.toFixed(4)}`
     : '';
 
+  // Beta drift summary
+  let betaDriftInfo = '';
+  if (trade.maxBetaDrift !== undefined && trade.maxBetaDrift !== null) {
+    const maxDriftPct = (trade.maxBetaDrift * 100).toFixed(0);
+    if (trade.maxBetaDrift > 0.15) {
+      betaDriftInfo = `\n⚡ Max β drift: ${maxDriftPct}%`;
+    }
+  }
+
   await sendMessage(
     `🔴 Trade closed!\n\n` +
     `${trade.pair}${exitPriceInfo}\n` +
     `P&L: ${realTimePnL >= 0 ? '+' : ''}${realTimePnL.toFixed(2)}%` +
     (exitZScore !== null ? `\nExit Z: ${exitZScore.toFixed(2)}` : '') +
-    `\nDays: ${daysInTrade}`,
+    `\nDays: ${daysInTrade}` +
+    betaDriftInfo,
     chatId
   );
 }
@@ -726,12 +736,22 @@ async function handleMyClose(chatId, args) {
     ? `\n${trade.asset1}: $${price1.toFixed(4)}\n${trade.asset2}: $${price2.toFixed(4)}`
     : '';
 
+  // Beta drift summary
+  let betaDriftInfo = '';
+  if (trade.maxBetaDrift !== undefined && trade.maxBetaDrift !== null) {
+    const maxDriftPct = (trade.maxBetaDrift * 100).toFixed(0);
+    if (trade.maxBetaDrift > 0.15) {
+      betaDriftInfo = `\n⚡ Max β drift: ${maxDriftPct}%`;
+    }
+  }
+
   await sendMessage(
     `🔴 Manual trade closed!\n\n` +
     `${trade.pair}${exitPriceInfo}\n` +
     `P&L: ${realTimePnL >= 0 ? '+' : ''}${realTimePnL.toFixed(2)}%` +
     (exitZScore !== null ? `\nExit Z: ${exitZScore.toFixed(2)}` : '') +
-    `\nDuration: ${daysInTrade} days`,
+    `\nDuration: ${daysInTrade} days` +
+    betaDriftInfo,
     chatId
   );
 }

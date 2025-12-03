@@ -310,7 +310,14 @@ function formatStatusReport(activeTrades, entries, exits, history, approaching =
     if (entries.length > 0 || exits.length > 0) {
         msg += `⚡ ACTIONS\n`;
         entries.forEach(e => msg += `✅ ${e.pair} → ${e.direction === 'long' ? 'Long' : 'Short'} ${e.asset1}\n`);
-        exits.forEach(e => msg += `${e.exitEmoji || '🔴'} ${e.pair} [${e.exitReason}] ${e.totalPnL >= 0 ? '+' : ''}${e.totalPnL.toFixed(2)}%\n`);
+        exits.forEach(e => {
+            let exitLine = `${e.exitEmoji || '🔴'} ${e.pair} [${e.exitReason}] ${e.totalPnL >= 0 ? '+' : ''}${e.totalPnL.toFixed(2)}%`;
+            // Add beta drift note if significant
+            if (e.maxBetaDrift !== undefined && e.maxBetaDrift > 0.15) {
+                exitLine += ` (β drift: ${(e.maxBetaDrift * 100).toFixed(0)}%)`;
+            }
+            msg += exitLine + '\n';
+        });
         msg += `\n`;
     }
 

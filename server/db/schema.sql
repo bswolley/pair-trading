@@ -130,6 +130,8 @@ CREATE TABLE IF NOT EXISTS trade_history (
   correlation DECIMAL(5,4),
   beta DECIMAL(10,6),
   half_life DECIMAL(10,2),
+  beta_drift DECIMAL(10,6),
+  max_beta_drift DECIMAL(10,6),
   
   -- Exit data
   exit_time TIMESTAMP WITH TIME ZONE DEFAULT NOW(),

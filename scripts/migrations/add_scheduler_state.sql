@@ -18,6 +18,11 @@ ALTER TABLE watchlist
 ADD COLUMN IF NOT EXISTS initial_beta DECIMAL(10,6),
 ADD COLUMN IF NOT EXISTS beta_drift DECIMAL(10,6);
 
+-- Add beta drift columns to trade_history table
+ALTER TABLE trade_history
+ADD COLUMN IF NOT EXISTS beta_drift DECIMAL(10,6),
+ADD COLUMN IF NOT EXISTS max_beta_drift DECIMAL(10,6);
+
 -- Verify the changes
 SELECT 'stats' as table_name, column_name, data_type 
 FROM information_schema.columns 
