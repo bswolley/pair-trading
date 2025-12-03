@@ -452,14 +452,55 @@ async function handleClose(chatId, args) {
     const longPnL = ((curLong - trade.longEntryPrice) / trade.longEntryPrice) * (trade.longWeight / 100) * 100;
     const shortPnL = ((trade.shortEntryPrice - curShort) / trade.shortEntryPrice) * (trade.shortWeight / 100) * 100;
     realTimePnL = longPnL + shortPnL;
+  }
+  
+  // Calculate proper Z-score from historical data
+  const { checkPairFitness } = require('../../lib/pairAnalysis');
+  const origLog = console.log;
+  const origErr = console.error;
+  let sdk = null;
+  
+  try {
+    const { Hyperliquid: HL } = require('hyperliquid');
+    sdk = new HL();
     
-    // Calculate real-time Z-score (simplified - uses beta from entry)
-    if (trade.beta) {
-      const spread = Math.log(price1) - trade.beta * Math.log(price2);
-      const entrySpread = Math.log(trade.entryPrice1 || trade.longEntryPrice) - trade.beta * Math.log(trade.entryPrice2 || trade.shortEntryPrice);
-      // Approximate Z-score change based on spread change
-      // This is a simplified calculation; full Z would need historical data
-      exitZScore = trade.entryZScore + (spread - entrySpread) / 0.1; // Rough std dev estimate
+    console.log = () => { };
+    console.error = () => { };
+    await sdk.connect();
+    console.log = origLog;
+    console.error = origErr;
+
+    const endTime = Date.now();
+    const startTime = endTime - (35 * 24 * 60 * 60 * 1000);
+
+    const [candles1, candles2] = await Promise.all([
+      sdk.info.getCandleSnapshot(`${trade.asset1}-PERP`, '1d', startTime, endTime),
+      sdk.info.getCandleSnapshot(`${trade.asset2}-PERP`, '1d', startTime, endTime)
+    ]);
+
+    if (candles1?.length >= 20 && candles2?.length >= 20) {
+      const prices1 = candles1.sort((a, b) => a.t - b.t).slice(-30).map(c => parseFloat(c.c));
+      const prices2 = candles2.sort((a, b) => a.t - b.t).slice(-30).map(c => parseFloat(c.c));
+      const minLen = Math.min(prices1.length, prices2.length);
+
+      const fitness = checkPairFitness(prices1.slice(-minLen), prices2.slice(-minLen));
+      exitZScore = fitness.zScore;
+    }
+  } catch (err) {
+    console.log = origLog;
+    console.error = origErr;
+    console.error('[TELEGRAM] Exit Z-score calc error:', err.message);
+  } finally {
+    console.log = origLog;
+    console.error = origErr;
+    if (sdk) {
+      try {
+        console.log = () => { };
+        console.error = () => { };
+        await sdk.disconnect();
+      } catch (e) { /* ignore */ }
+      console.log = origLog;
+      console.error = origErr;
     }
   }
 
@@ -716,12 +757,55 @@ async function handleMyClose(chatId, args) {
     const longPnL = ((curLong - trade.longEntryPrice) / trade.longEntryPrice) * (trade.longWeight / 100) * 100;
     const shortPnL = ((trade.shortEntryPrice - curShort) / trade.shortEntryPrice) * (trade.shortWeight / 100) * 100;
     realTimePnL = longPnL + shortPnL;
+  }
+
+  // Calculate proper Z-score from historical data
+  const { checkPairFitness } = require('../../lib/pairAnalysis');
+  const origLog = console.log;
+  const origErr = console.error;
+  let sdk = null;
+  
+  try {
+    const { Hyperliquid: HL } = require('hyperliquid');
+    sdk = new HL();
     
-    // Calculate real-time Z-score (simplified)
-    if (trade.beta) {
-      const spread = Math.log(price1) - trade.beta * Math.log(price2);
-      const entrySpread = Math.log(trade.entryPrice1 || trade.longEntryPrice) - trade.beta * Math.log(trade.entryPrice2 || trade.shortEntryPrice);
-      exitZScore = trade.entryZScore + (spread - entrySpread) / 0.1;
+    console.log = () => { };
+    console.error = () => { };
+    await sdk.connect();
+    console.log = origLog;
+    console.error = origErr;
+
+    const endTime = Date.now();
+    const startTime = endTime - (35 * 24 * 60 * 60 * 1000);
+
+    const [candles1, candles2] = await Promise.all([
+      sdk.info.getCandleSnapshot(`${trade.asset1}-PERP`, '1d', startTime, endTime),
+      sdk.info.getCandleSnapshot(`${trade.asset2}-PERP`, '1d', startTime, endTime)
+    ]);
+
+    if (candles1?.length >= 20 && candles2?.length >= 20) {
+      const prices1 = candles1.sort((a, b) => a.t - b.t).slice(-30).map(c => parseFloat(c.c));
+      const prices2 = candles2.sort((a, b) => a.t - b.t).slice(-30).map(c => parseFloat(c.c));
+      const minLen = Math.min(prices1.length, prices2.length);
+
+      const fitness = checkPairFitness(prices1.slice(-minLen), prices2.slice(-minLen));
+      exitZScore = fitness.zScore;
+    }
+  } catch (err) {
+    console.log = origLog;
+    console.error = origErr;
+    console.error('[TELEGRAM] Exit Z-score calc error:', err.message);
+  } finally {
+    console.log = origLog;
+    console.error = origErr;
+    if (sdk) {
+      try {
+        console.log = () => { };
+        console.error = () => { };
+        await sdk.disconnect();
+      } catch (e) { /* ignore */ }
+      console.log = origLog;
+      console.error = origErr;
     }
   }
 
