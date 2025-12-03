@@ -551,7 +551,7 @@ async function main() {
             hurstClassification: hurstClassification,
             correlation: parseFloat(fit.correlation.toFixed(4)),
             beta: parseFloat(fit.beta.toFixed(4)),
-            halfLife: parseFloat(fit.halfLife.toFixed(2)),
+            halfLife: isFinite(fit.halfLife) ? parseFloat(fit.halfLife.toFixed(2)) : null,
             meanReversionRate: parseFloat((fit.meanReversionRate || 0.5).toFixed(4)),
             zScore: parseFloat(z.toFixed(4)),
             signalStrength: parseFloat(signalStrength.toFixed(4)),
