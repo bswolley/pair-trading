@@ -9,10 +9,45 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { List, RefreshCw, TrendingUp, TrendingDown, Zap, LineChart } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { List, RefreshCw, TrendingUp, TrendingDown, Zap, LineChart, HelpCircle } from "lucide-react";
 import * as api from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { ZScoreChart } from "@/components/ZScoreChart";
+
+// Metric tooltips
+const METRIC_TOOLTIPS = {
+  zScore: "Standard deviations from the mean spread. Negative = long signal, Positive = short signal.",
+  entry: "Z-Score threshold for entry. Dynamic based on historical volatility.",
+  signal: "Progress toward entry threshold. 100% = ready to trade.",
+  hurst: "Mean-reversion strength. H < 0.5 = mean-reverting (good), H > 0.5 = trending (bad).",
+  conviction: "Overall trade quality score (0-100). Higher = stronger setup.",
+  halfLife: "Expected days for spread to revert halfway to mean.",
+  correlation: "Price movement correlation between assets. Higher = stronger relationship.",
+  beta: "Hedge ratio - units of asset2 per unit of asset1.",
+  betaDrift: "Change in beta since discovery. High drift = unstable relationship.",
+};
+
+function MetricHeader({ label, tooltip }: { label: string; tooltip: string }) {
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <span className="flex items-center gap-1 cursor-help">
+          {label}
+          <HelpCircle className="w-3 h-3 text-muted-foreground/50" />
+        </span>
+      </TooltipTrigger>
+      <TooltipContent side="top" className="max-w-xs text-left">
+        <p>{tooltip}</p>
+      </TooltipContent>
+    </Tooltip>
+  );
+}
 
 export default function WatchlistPage() {
   const [pairs, setPairs] = useState<api.WatchlistPair[]>([]);
@@ -53,6 +88,7 @@ export default function WatchlistPage() {
   const approachingPairs = pairs.filter((p) => !p.isReady && p.signalStrength >= 0.5 && !activePairs.has(p.pair));
 
   return (
+    <TooltipProvider>
     <div className="space-y-8">
       {/* Header */}
       <div className="flex items-center justify-between">
@@ -159,15 +195,33 @@ export default function WatchlistPage() {
               <tr>
                 <th className="text-left px-4 py-3 font-medium">Pair</th>
                 <th className="text-left px-4 py-3 font-medium">Sector</th>
-                <th className="text-right px-4 py-3 font-medium">Z-Score</th>
-                <th className="text-right px-4 py-3 font-medium">Entry @</th>
-                <th className="text-right px-4 py-3 font-medium">Signal</th>
-                <th className="text-right px-4 py-3 font-medium">Hurst</th>
-                <th className="text-right px-4 py-3 font-medium">Conv</th>
-                <th className="text-right px-4 py-3 font-medium">HL</th>
-                <th className="text-right px-4 py-3 font-medium">Corr</th>
-                <th className="text-right px-4 py-3 font-medium">Beta</th>
-                <th className="text-right px-4 py-3 font-medium">β Drift</th>
+                <th className="text-right px-4 py-3 font-medium">
+                  <MetricHeader label="Z-Score" tooltip={METRIC_TOOLTIPS.zScore} />
+                </th>
+                <th className="text-right px-4 py-3 font-medium">
+                  <MetricHeader label="Entry @" tooltip={METRIC_TOOLTIPS.entry} />
+                </th>
+                <th className="text-right px-4 py-3 font-medium">
+                  <MetricHeader label="Signal" tooltip={METRIC_TOOLTIPS.signal} />
+                </th>
+                <th className="text-right px-4 py-3 font-medium">
+                  <MetricHeader label="Hurst" tooltip={METRIC_TOOLTIPS.hurst} />
+                </th>
+                <th className="text-right px-4 py-3 font-medium">
+                  <MetricHeader label="Conv" tooltip={METRIC_TOOLTIPS.conviction} />
+                </th>
+                <th className="text-right px-4 py-3 font-medium">
+                  <MetricHeader label="HL" tooltip={METRIC_TOOLTIPS.halfLife} />
+                </th>
+                <th className="text-right px-4 py-3 font-medium">
+                  <MetricHeader label="Corr" tooltip={METRIC_TOOLTIPS.correlation} />
+                </th>
+                <th className="text-right px-4 py-3 font-medium">
+                  <MetricHeader label="Beta" tooltip={METRIC_TOOLTIPS.beta} />
+                </th>
+                <th className="text-right px-4 py-3 font-medium">
+                  <MetricHeader label="β Drift" tooltip={METRIC_TOOLTIPS.betaDrift} />
+                </th>
                 <th className="w-10"></th>
               </tr>
             </thead>
@@ -300,5 +354,6 @@ export default function WatchlistPage() {
         </DialogContent>
       </Dialog>
     </div>
+    </TooltipProvider>
   );
 }
