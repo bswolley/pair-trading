@@ -11,6 +11,8 @@
         "analyze-multi": "node scripts/analyzeMultiplePairs.js",
         "analyze-batch": "node scripts/pair_obv_analysis.js",
         "scan": "node scripts/scanPairs.js",
+        "scan:dry": "node scripts/scanDryRun.js",
+        "scan:dry:cross": "node scripts/scanDryRun.js --cross-sector",
         "monitor": "node scripts/monitorWatchlist.js",
         "monitor:manual": "node scripts/monitorWatchlist.js --manual",
         "monitor:dry": "node scripts/monitorWatchlist.js --dry-run",

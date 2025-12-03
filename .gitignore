@@ -49,3 +49,7 @@ config/monitor_results.json
 config/active_trades_sim.json
 config/trade_history.json
 
+# Next.js build output
+.next/
+out/
+
