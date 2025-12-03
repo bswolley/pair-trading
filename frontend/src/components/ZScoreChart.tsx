@@ -77,13 +77,14 @@ export function ZScoreChart({ pair, entryThreshold = 2.0, days = 30 }: ZScoreCha
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       const d = payload[0].payload;
+      const z = d.zScore ?? 0;
       return (
         <div className="bg-background border border-border rounded-lg p-3 shadow-lg">
           <p className="text-sm font-medium">{d.date}</p>
           <p className="text-sm">
             Z-Score:{" "}
-            <span className={d.zScore >= 0 ? "text-red-400" : "text-emerald-400"}>
-              {d.zScore.toFixed(2)}
+            <span className={z >= 0 ? "text-red-400" : "text-emerald-400"}>
+              {z.toFixed(2)}
             </span>
           </p>
         </div>
@@ -99,21 +100,21 @@ export function ZScoreChart({ pair, entryThreshold = 2.0, days = 30 }: ZScoreCha
         <div className="grid grid-cols-4 gap-4 text-sm">
           <div>
             <span className="text-muted-foreground">Current Z</span>
-            <p className={`font-semibold ${stats.currentZ >= 0 ? "text-red-400" : "text-emerald-400"}`}>
-              {stats.currentZ.toFixed(2)}
+            <p className={`font-semibold ${(stats.currentZ ?? 0) >= 0 ? "text-red-400" : "text-emerald-400"}`}>
+              {stats.currentZ?.toFixed(2) ?? "—"}
             </p>
           </div>
           <div>
             <span className="text-muted-foreground">Correlation</span>
-            <p className="font-semibold">{(stats.correlation * 100).toFixed(1)}%</p>
+            <p className="font-semibold">{stats.correlation != null ? ((stats.correlation * 100).toFixed(1) + "%") : "—"}</p>
           </div>
           <div>
             <span className="text-muted-foreground">Half-Life</span>
-            <p className="font-semibold">{stats.halfLife.toFixed(1)}d</p>
+            <p className="font-semibold">{stats.halfLife?.toFixed(1) ?? "—"}d</p>
           </div>
           <div>
             <span className="text-muted-foreground">Beta</span>
-            <p className="font-semibold">{stats.beta.toFixed(3)}</p>
+            <p className="font-semibold">{stats.beta?.toFixed(3) ?? "—"}</p>
           </div>
         </div>
       )}
