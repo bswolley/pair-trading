@@ -86,7 +86,7 @@ router.get('/scheduler', (req, res) => {
 });
 
 // POST /api/status/cross-sector - Toggle cross-sector scanning
-router.post('/cross-sector', (req, res) => {
+router.post('/cross-sector', async (req, res) => {
   try {
     const { enabled } = req.body;
     
@@ -94,7 +94,7 @@ router.post('/cross-sector', (req, res) => {
       return res.status(400).json({ error: 'enabled (boolean) required' });
     }
     
-    const result = setCrossSectorEnabled(enabled);
+    const result = await setCrossSectorEnabled(enabled);
     res.json({ 
       success: true, 
       crossSectorEnabled: result 

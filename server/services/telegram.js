@@ -180,7 +180,7 @@ async function handleCross(chatId, args) {
     return sendMessage('Usage: /cross [on|off]', chatId);
   }
 
-  const enabled = setCrossSectorEnabled(action === 'on');
+  const enabled = await setCrossSectorEnabled(action === 'on');
   await sendMessage(
     `🔀 Cross-sector scanning: ${enabled ? 'ON ✅' : 'OFF ❌'}\n\n` +
     `Next scheduled scan will ${enabled ? 'include' : 'exclude'} cross-sector pairs.`,

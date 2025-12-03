@@ -184,6 +184,9 @@ CREATE TABLE IF NOT EXISTS stats (
   losses INTEGER DEFAULT 0,
   total_pnl DECIMAL(10,4) DEFAULT 0,
   win_rate DECIMAL(5,2) DEFAULT 0,
+  last_scan_time TIMESTAMP WITH TIME ZONE,
+  last_monitor_time TIMESTAMP WITH TIME ZONE,
+  cross_sector_enabled BOOLEAN DEFAULT FALSE,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   
   CONSTRAINT single_row CHECK (id = 1)

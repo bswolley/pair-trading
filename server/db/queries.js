@@ -355,6 +355,52 @@ async function updateStats(isWin, pnl = 0) {
 }
 
 // ============================================
+// SCHEDULER STATE QUERIES
+// ============================================
+
+async function getSchedulerState() {
+  const client = getClient();
+  if (!client) return null;
+  
+  const { data, error } = await client
+    .from('stats')
+    .select('last_scan_time, last_monitor_time, cross_sector_enabled')
+    .eq('id', 1)
+    .single();
+  
+  if (error) return null;
+  
+  return {
+    lastScanTime: data.last_scan_time,
+    lastMonitorTime: data.last_monitor_time,
+    crossSectorEnabled: data.cross_sector_enabled || false
+  };
+}
+
+async function updateSchedulerState(updates) {
+  const client = getClient();
+  if (!client) return;
+  
+  const updateData = {};
+  if (updates.lastScanTime !== undefined) {
+    updateData.last_scan_time = updates.lastScanTime;
+  }
+  if (updates.lastMonitorTime !== undefined) {
+    updateData.last_monitor_time = updates.lastMonitorTime;
+  }
+  if (updates.crossSectorEnabled !== undefined) {
+    updateData.cross_sector_enabled = updates.crossSectorEnabled;
+  }
+  
+  if (Object.keys(updateData).length > 0) {
+    await client
+      .from('stats')
+      .update(updateData)
+      .eq('id', 1);
+  }
+}
+
+// ============================================
 // BLACKLIST QUERIES
 // ============================================
 
@@ -621,6 +667,10 @@ module.exports = {
   getHistory,
   addToHistory,
   getStats,
+  
+  // Scheduler State
+  getSchedulerState,
+  updateSchedulerState,
   
   // Blacklist
   getBlacklist,
