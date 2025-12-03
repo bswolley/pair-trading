@@ -251,7 +251,17 @@ async function exitTrade(trade, fitness, prices, activeTrades, history, exitReas
 
     const longPnL = ((curLong - trade.longEntryPrice) / trade.longEntryPrice) * (trade.longWeight / 100) * 100;
     const shortPnL = ((trade.shortEntryPrice - curShort) / trade.shortEntryPrice) * (trade.shortWeight / 100) * 100;
-    const totalPnL = longPnL + shortPnL;
+    const fullPositionPnL = longPnL + shortPnL;
+    
+    // If partial exit was taken, total P&L = 50% from partial + 50% from remaining
+    // Otherwise, total P&L = full position P&L
+    let totalPnL;
+    if (trade.partialExitTaken && trade.partialExitPnL !== undefined) {
+        totalPnL = (trade.partialExitPnL * 0.5) + (fullPositionPnL * 0.5);
+    } else {
+        totalPnL = fullPositionPnL;
+    }
+    
     const days = ((Date.now() - new Date(trade.entryTime)) / (1000 * 60 * 60 * 24)).toFixed(1);
 
     const record = {

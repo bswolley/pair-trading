@@ -506,12 +506,20 @@ async function handleClose(chatId, args) {
 
   const daysInTrade = parseFloat(((Date.now() - new Date(trade.entryTime)) / (1000 * 60 * 60 * 24)).toFixed(1));
   
+  // If partial exit was taken, total P&L = 50% from partial + 50% from remaining
+  let totalPnL;
+  if (trade.partialExitTaken && trade.partialExitPnL !== undefined) {
+    totalPnL = (trade.partialExitPnL * 0.5) + (realTimePnL * 0.5);
+  } else {
+    totalPnL = realTimePnL;
+  }
+  
   const record = {
     ...trade,
     exitTime: new Date().toISOString(),
     exitReason: 'MANUAL',
     exitZScore: exitZScore,
-    totalPnL: realTimePnL,
+    totalPnL: totalPnL,
     daysInTrade: daysInTrade
   };
 
@@ -537,7 +545,8 @@ async function handleClose(chatId, args) {
   await sendMessage(
     `🔴 Trade closed!\n\n` +
     `${trade.pair}${exitPriceInfo}\n` +
-    `P&L: ${realTimePnL >= 0 ? '+' : ''}${realTimePnL.toFixed(2)}%` +
+    `P&L: ${totalPnL >= 0 ? '+' : ''}${totalPnL.toFixed(2)}%` +
+    (trade.partialExitTaken ? ` (partial: ${trade.partialExitPnL.toFixed(2)}%, final: ${realTimePnL.toFixed(2)}%)` : '') +
     (exitZScore !== null ? `\nExit Z: ${exitZScore.toFixed(2)}` : '') +
     `\nDays: ${daysInTrade}` +
     betaDriftInfo,
@@ -811,13 +820,21 @@ async function handleMyClose(chatId, args) {
 
   const daysInTrade = parseFloat(((Date.now() - new Date(trade.entryTime)) / (1000 * 60 * 60 * 24)).toFixed(1));
 
+  // If partial exit was taken, total P&L = 50% from partial + 50% from remaining
+  let totalPnL;
+  if (trade.partialExitTaken && trade.partialExitPnL !== undefined) {
+    totalPnL = (trade.partialExitPnL * 0.5) + (realTimePnL * 0.5);
+  } else {
+    totalPnL = realTimePnL;
+  }
+
   // Add to history
   const record = {
     ...trade,
     exitTime: new Date().toISOString(),
     exitReason: 'MANUAL_CLOSE',
     exitZScore: exitZScore,
-    totalPnL: realTimePnL,
+    totalPnL: totalPnL,
     daysInTrade: daysInTrade
   };
   await db.addToHistory(record);
@@ -841,7 +858,7 @@ async function handleMyClose(chatId, args) {
   await sendMessage(
     `🔴 Manual trade closed!\n\n` +
     `${trade.pair}${exitPriceInfo}\n` +
-    `P&L: ${realTimePnL >= 0 ? '+' : ''}${realTimePnL.toFixed(2)}%` +
+    `P&L: ${totalPnL >= 0 ? '+' : ''}${totalPnL.toFixed(2)}%` +
     (exitZScore !== null ? `\nExit Z: ${exitZScore.toFixed(2)}` : '') +
     `\nDuration: ${daysInTrade} days` +
     betaDriftInfo,
