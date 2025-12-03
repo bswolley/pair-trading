@@ -195,15 +195,18 @@ async function fetchCurrentPrices(asset1, asset2) {
   const { Hyperliquid } = require('hyperliquid');
   const sdk = new Hyperliquid();
 
+  // Save original console functions
+  const origLog = console.log;
+  const origErr = console.error;
+
   try {
-    // Suppress SDK console output
-    const origLog = console.log;
-    const origErr = console.error;
+    // Suppress SDK console output during connect
     console.log = () => { };
     console.error = () => { };
 
     await sdk.connect();
 
+    // Restore console for our operations
     console.log = origLog;
     console.error = origErr;
 
@@ -227,17 +230,34 @@ async function fetchCurrentPrices(asset1, asset2) {
       price2 = parseFloat(marketData[1][idx2].markPx);
     }
 
-    // Disconnect
+    // Suppress during disconnect
     console.log = () => { };
     console.error = () => { };
-    await sdk.disconnect();
-    console.log = origLog;
-    console.error = origErr;
+    
+    try {
+      await sdk.disconnect();
+    } catch (disconnectErr) {
+      // Ignore disconnect errors
+    }
 
     return { price1, price2 };
   } catch (err) {
+    console.log = origLog;
+    console.error = origErr;
     console.error('[TELEGRAM] Price fetch error:', err.message);
+    
+    // Try to disconnect on error
+    try {
+      await sdk.disconnect();
+    } catch (disconnectErr) {
+      // Ignore
+    }
+    
     return { price1: null, price2: null };
+  } finally {
+    // Always restore console
+    console.log = origLog;
+    console.error = origErr;
   }
 }
 
@@ -284,36 +304,33 @@ async function handleOpen(chatId, args) {
 
   // Calculate current z-score using the spread
   const { checkPairFitness } = require('../../lib/pairAnalysis');
-  const { Hyperliquid } = require('hyperliquid');
 
   let currentZ = watchPair.zScore || 0;
   let currentCorr = watchPair.correlation || 0.8;
   let currentHL = watchPair.halfLife || 10;
 
   // Try to get fresh z-score from recent price data
+  const origLog2 = console.log;
+  const origErr2 = console.error;
+  let sdk2 = null;
+  
   try {
-    const sdk = new Hyperliquid();
-    const origLog = console.log;
-    const origErr = console.error;
+    const { Hyperliquid: HL } = require('hyperliquid');
+    sdk2 = new HL();
+    
     console.log = () => { };
     console.error = () => { };
-    await sdk.connect();
-    console.log = origLog;
-    console.error = origErr;
+    await sdk2.connect();
+    console.log = origLog2;
+    console.error = origErr2;
 
     const endTime = Date.now();
     const startTime = endTime - (35 * 24 * 60 * 60 * 1000);
 
     const [candles1, candles2] = await Promise.all([
-      sdk.info.getCandleSnapshot(`${watchPair.asset1}-PERP`, '1d', startTime, endTime),
-      sdk.info.getCandleSnapshot(`${watchPair.asset2}-PERP`, '1d', startTime, endTime)
+      sdk2.info.getCandleSnapshot(`${watchPair.asset1}-PERP`, '1d', startTime, endTime),
+      sdk2.info.getCandleSnapshot(`${watchPair.asset2}-PERP`, '1d', startTime, endTime)
     ]);
-
-    console.log = () => { };
-    console.error = () => { };
-    await sdk.disconnect();
-    console.log = origLog;
-    console.error = origErr;
 
     if (candles1?.length >= 20 && candles2?.length >= 20) {
       const prices1 = candles1.sort((a, b) => a.t - b.t).slice(-30).map(c => parseFloat(c.c));
@@ -326,7 +343,22 @@ async function handleOpen(chatId, args) {
       currentHL = fitness.halfLife;
     }
   } catch (err) {
+    console.log = origLog2;
+    console.error = origErr2;
     console.error('[TELEGRAM] Z-score calc error:', err.message);
+  } finally {
+    // Always restore console and disconnect
+    console.log = origLog2;
+    console.error = origErr2;
+    if (sdk2) {
+      try {
+        console.log = () => { };
+        console.error = () => { };
+        await sdk2.disconnect();
+      } catch (e) { /* ignore */ }
+      console.log = origLog2;
+      console.error = origErr2;
+    }
   }
 
   // Calculate weights based on beta
