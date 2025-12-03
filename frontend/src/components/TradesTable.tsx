@@ -30,6 +30,9 @@ interface Trade {
   correlation?: number;
   currentCorrelation?: number;
   beta?: number;
+  currentBeta?: number;
+  betaDrift?: number;
+  maxBetaDrift?: number;
   entryThreshold?: number;
 }
 
@@ -212,7 +215,29 @@ export function TradesTable({ trades, showActions, onClose }: TradesTableProps) 
             {/* Beta & Entry Threshold */}
             <div className="flex items-center gap-4 text-xs text-muted-foreground pt-2 border-t border-border/50">
               {trade.beta && (
-                <span>Beta: <span className="font-mono">{trade.beta.toFixed(3)}</span></span>
+                <span className="flex items-center gap-1">
+                  Beta: 
+                  <span className="font-mono">{trade.beta.toFixed(3)}</span>
+                  {trade.currentBeta && (
+                    <>
+                      <ArrowRight className="w-3 h-3" />
+                      <span className="font-mono">{trade.currentBeta.toFixed(3)}</span>
+                    </>
+                  )}
+                  {trade.betaDrift !== undefined && trade.betaDrift !== null && (
+                    <Badge 
+                      variant="outline" 
+                      className={cn(
+                        "ml-1 text-[10px] px-1.5 py-0",
+                        trade.betaDrift > 0.30 ? "border-red-500 text-red-400 bg-red-500/10" :
+                        trade.betaDrift > 0.15 ? "border-yellow-500 text-yellow-400 bg-yellow-500/10" :
+                        "border-emerald-500/50 text-emerald-400/70"
+                      )}
+                    >
+                      {trade.betaDrift > 0.30 ? "⚠️" : ""} {(trade.betaDrift * 100).toFixed(0)}% drift
+                    </Badge>
+                  )}
+                </span>
               )}
               {trade.entryThreshold && (
                 <span>Entry @: <span className="font-mono">{trade.entryThreshold}</span></span>

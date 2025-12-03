@@ -31,6 +31,9 @@ export interface Trade {
     currentPnL?: number;
     currentCorrelation?: number;
     currentHalfLife?: number;
+    currentBeta?: number;
+    betaDrift?: number;
+    maxBetaDrift?: number;
     partialExitTaken?: boolean;
     partialExitPnL?: number;
     partialExitTime?: string;
@@ -45,6 +48,8 @@ export interface WatchlistPair {
     qualityScore?: number;
     correlation?: number;
     beta?: number;
+    initialBeta?: number;
+    betaDrift?: number;
     halfLife?: number;
     meanReversionRate?: number;
     zScore: number;

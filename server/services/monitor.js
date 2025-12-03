@@ -178,7 +178,7 @@ function checkExitConditions(trade, fitness, currentPnL) {
         maxHistZ * STOP_LOSS_MULTIPLIER,        // 20% beyond historical max
         STOP_LOSS_FLOOR                          // Minimum floor of 3.0
     );
-    
+
     if (currentZ >= dynamicStopLoss) {
         return {
             shouldExit: true, isPartial: false, exitSize: 1.0,
@@ -393,11 +393,11 @@ async function main() {
 
     const tradesArray = await db.getTrades();
     let activeTrades = { trades: tradesArray || [] };
-    
+
     const stats = await db.getStats();
-    let history = { 
-        trades: [], 
-        stats: stats || { totalTrades: 0, wins: 0, losses: 0, totalPnL: 0 } 
+    let history = {
+        trades: [],
+        stats: stats || { totalTrades: 0, wins: 0, losses: 0, totalPnL: 0 }
     };
 
     const sdk = new Hyperliquid();
@@ -429,7 +429,7 @@ async function main() {
         trade.currentCorrelation = fit.correlation;
         trade.currentHalfLife = fit.halfLife;
         trade.currentBeta = fit.beta;
-        
+
         // Calculate beta drift (% change from entry)
         if (trade.beta && trade.beta !== 0) {
             trade.betaDrift = Math.abs(fit.beta - trade.beta) / Math.abs(trade.beta);
@@ -500,7 +500,7 @@ async function main() {
         const hasInitialBeta = pair.initialBeta !== null && pair.initialBeta !== undefined;
         const initialBeta = hasInitialBeta ? pair.initialBeta : null;
         let betaDrift = null;
-        
+
         if (initialBeta && initialBeta !== 0) {
             betaDrift = Math.abs(fit.beta - initialBeta) / Math.abs(initialBeta);
         }
@@ -523,13 +523,13 @@ async function main() {
             entryThreshold,
             lastScan: new Date().toISOString()
         };
-        
+
         // Only include beta drift fields if initialBeta was already set by scanner
         if (hasInitialBeta) {
             watchlistUpdate.initialBeta = parseFloat(initialBeta.toFixed(4));
             watchlistUpdate.betaDrift = betaDrift !== null ? parseFloat(betaDrift.toFixed(4)) : null;
         }
-        
+
         watchlistUpdates.push(watchlistUpdate);
 
         // Skip entry/approaching logic for pairs already in active trades
