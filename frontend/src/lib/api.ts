@@ -46,6 +46,9 @@ export interface WatchlistPair {
     asset2: string;
     sector?: string;
     qualityScore?: number;
+    conviction?: number;
+    hurst?: number;
+    hurstClassification?: string;
     correlation?: number;
     beta?: number;
     initialBeta?: number;

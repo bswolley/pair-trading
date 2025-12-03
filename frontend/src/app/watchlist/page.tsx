@@ -162,9 +162,10 @@ export default function WatchlistPage() {
                 <th className="text-right px-4 py-3 font-medium">Z-Score</th>
                 <th className="text-right px-4 py-3 font-medium">Entry @</th>
                 <th className="text-right px-4 py-3 font-medium">Signal</th>
+                <th className="text-right px-4 py-3 font-medium">Hurst</th>
+                <th className="text-right px-4 py-3 font-medium">Conv</th>
                 <th className="text-right px-4 py-3 font-medium">HL</th>
                 <th className="text-right px-4 py-3 font-medium">Corr</th>
-                <th className="text-right px-4 py-3 font-medium">β Drift</th>
                 <th className="w-10"></th>
               </tr>
             </thead>
@@ -212,25 +213,40 @@ export default function WatchlistPage() {
                         {signalPct}%
                       </span>
                     </td>
+                    <td className="px-4 py-3 text-right">
+                      {pair.hurst !== undefined && pair.hurst !== null ? (
+                        <span className={cn(
+                          "font-mono text-xs",
+                          pair.hurst < 0.4 ? "text-emerald-400" :
+                          pair.hurst < 0.5 ? "text-emerald-400/70" :
+                          pair.hurst < 0.55 ? "text-yellow-400" :
+                          "text-red-400"
+                        )}>
+                          {pair.hurst.toFixed(2)}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground/50">—</span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      {pair.conviction !== undefined && pair.conviction !== null ? (
+                        <span className={cn(
+                          "font-mono text-xs font-medium",
+                          pair.conviction >= 70 ? "text-emerald-400" :
+                          pair.conviction >= 50 ? "text-yellow-400" :
+                          "text-muted-foreground"
+                        )}>
+                          {Math.round(pair.conviction)}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground/50">—</span>
+                      )}
+                    </td>
                     <td className="px-4 py-3 text-right text-muted-foreground">
                       {pair.halfLife?.toFixed(1)}d
                     </td>
                     <td className="px-4 py-3 text-right text-muted-foreground">
                       {pair.correlation?.toFixed(2)}
-                    </td>
-                    <td className="px-4 py-3 text-right">
-                      {pair.betaDrift !== undefined && pair.betaDrift !== null ? (
-                        <span className={cn(
-                          "font-mono text-xs",
-                          pair.betaDrift > 0.15 ? "text-yellow-400" :
-                          pair.betaDrift > 0.05 ? "text-muted-foreground" :
-                          "text-emerald-400"
-                        )}>
-                          {(pair.betaDrift * 100).toFixed(0)}%
-                        </span>
-                      ) : (
-                        <span className="text-muted-foreground/50">—</span>
-                      )}
                     </td>
                     <td className="px-4 py-3">
                       <LineChart className="w-4 h-4 text-muted-foreground" />

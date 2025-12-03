@@ -121,8 +121,16 @@ async function handleWatchlist(chatId) {
     for (const p of approaching) {
       const pct = ((p.signalStrength || 0) * 100).toFixed(0);
       const status = p.isReady ? '🟢 READY' : '⏳';
+      const hurstStr = p.hurst ? `H:${p.hurst.toFixed(2)}` : '';
+      const convStr = p.conviction ? `C:${Math.round(p.conviction)}` : '';
+      const metricsStr = [hurstStr, convStr].filter(Boolean).join(' ');
+      
       msg += `${status} ${p.pair} (${p.sector})\n`;
-      msg += `   Z: ${(p.zScore || 0).toFixed(2)} → entry@${p.entryThreshold} [${pct}%]\n\n`;
+      msg += `   Z: ${(p.zScore || 0).toFixed(2)} → entry@${p.entryThreshold} [${pct}%]`;
+      if (metricsStr) {
+        msg += ` ${metricsStr}`;
+      }
+      msg += `\n\n`;
     }
   }
 
@@ -146,12 +154,13 @@ async function handleScan(chatId, args) {
   if (result.success) {
     let msg = `✅ Scan complete!\n\n`;
     msg += `Total assets: ${result.totalAssets}\n`;
-    msg += `Fitting pairs: ${result.fittingPairs}\n`;
+    msg += `Fitting pairs: ${result.fittingPairs} (Hurst < 0.5 filter)\n`;
     msg += `Watchlist: ${result.watchlistPairs} pairs\n`;
     if (result.crossSectorPairs > 0) {
       msg += `Cross-sector: ${result.crossSectorPairs} pairs\n`;
     }
-    msg += `\nUse /watchlist to see updated pairs.`;
+    msg += `\n📊 Only mean-reverting pairs (H < 0.5) included.\n`;
+    msg += `Use /watchlist to see updated pairs.`;
     await sendMessage(msg, chatId);
   } else {
     await sendMessage(`❌ Scan failed: ${result.error}`, chatId);
