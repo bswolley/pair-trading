@@ -261,7 +261,7 @@ export function TradesTable({ trades, showActions, onClose }: TradesTableProps) 
                         "border-emerald-500/50 text-emerald-400/70"
                       )}
                     >
-                      {trade.betaDrift > 0.30 ? "⚠️" : ""} {(trade.betaDrift * 100).toFixed(0)}% drift
+                      {trade.betaDrift > 0.30 ? "⚠️" : ""} {(trade.betaDrift * 100).toFixed(0)}% since entry
                     </Badge>
                   )}
                 </span>
