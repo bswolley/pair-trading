@@ -122,22 +122,32 @@ export function PairAnalysisModal({ pair, open, onOpenChange }: PairAnalysisModa
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 overflow-hidden flex flex-col">
           <div className="flex items-center justify-between gap-3 flex-shrink-0 pb-2 border-b border-border">
-            <TabsList className="grid grid-cols-2">
-              <TabsTrigger value="chart" className="flex items-center gap-2">
+            <div className="flex items-center gap-2">
+              <Button
+                variant={activeTab === "chart" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setActiveTab("chart")}
+                className="flex items-center gap-2"
+              >
                 <LineChart className="w-4 h-4" />
                 Z-Score Chart
                 {hasCachedChart && (
-                  <span className="ml-1 text-[10px] text-muted-foreground">(cached)</span>
+                  <span className="ml-1 text-[10px] opacity-70">(cached)</span>
                 )}
-              </TabsTrigger>
-              <TabsTrigger value="analysis" className="flex items-center gap-2">
+              </Button>
+              <Button
+                variant={activeTab === "analysis" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setActiveTab("analysis")}
+                className="flex items-center gap-2"
+              >
                 <FileText className="w-4 h-4" />
                 Full Analysis
                 {hasCachedAnalysis && (
-                  <span className="ml-1 text-[10px] text-muted-foreground">(cached)</span>
+                  <span className="ml-1 text-[10px] opacity-70">(cached)</span>
                 )}
-              </TabsTrigger>
-            </TabsList>
+              </Button>
+            </div>
             {(hasCachedChart || hasCachedAnalysis) && (
               <Button 
                 variant="ghost" 
