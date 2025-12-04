@@ -14,8 +14,7 @@ const path = require('path');
 const { exec } = require('child_process');
 const { promisify } = require('util');
 const execAsync = promisify(exec);
-const { analyzePair, calculateCorrelation, analyzeHistoricalDivergences } = require('../lib/pairAnalysis');
-const { fetchCurrentFunding, calculateNetFunding } = require('../lib/funding');
+const { analyzePair } = require('../lib/pairAnalysis');
 
 // Parse arguments
 const args = process.argv.slice(2);
@@ -28,17 +27,8 @@ if (args.length < 2) {
   process.exit(1);
 }
 
-// Preserve 'k' prefix for Hyperliquid's kilo tokens (kSHIB, kBONK, etc.)
-const normalizeSymbol = (sym) => {
-  const upper = sym.toUpperCase();
-  // If it starts with K and the rest is a known kilo-token, use lowercase k
-  if (upper.startsWith('K') && ['KSHIB', 'KBONK', 'KPEPE', 'KFLOKI', 'KNEIRO', 'KDOGS', 'KLUNC'].includes(upper)) {
-    return 'k' + upper.slice(1);
-  }
-  return upper;
-};
-const baseSymbol = normalizeSymbol(args[0]);
-const underlyingSymbol = normalizeSymbol(args[1]);
+const baseSymbol = args[0].toUpperCase();
+const underlyingSymbol = args[1].toUpperCase();
 const direction = (args[2] || 'long').toLowerCase();
 
 if (!['long', 'short'].includes(direction)) {
@@ -70,57 +60,11 @@ async function main() {
       obvTimeframes: [7, 30]
     });
     
-    // Fetch funding rates
-    console.log('Fetching funding rates...');
-    const fundingMap = await fetchCurrentFunding();
-    
-    // Analyze historical divergences for 30d timeframe (if available)
-    let divergenceProfile = null;
-    const tf30 = result.timeframes[30];
-    if (tf30 && !tf30.error && tf30.beta) {
-      // We need prices to calculate divergence profile
-      // The analyzePair function doesn't return raw prices, so we need to extract from the 30d timeframe
-      // For now, use the beta from the 30d analysis and note that this is calculated during scan
-      console.log('Analyzing historical divergences...');
-      
-      // Get prices from Hyperliquid for 30d
-      const { Hyperliquid } = require('hyperliquid');
-      const sdk = new Hyperliquid();
-      const originalLog = console.log;
-      console.log = () => {};
-      await sdk.connect();
-      console.log = originalLog;
-      
-      const endTime = Date.now();
-      const startTime = endTime - (35 * 24 * 60 * 60 * 1000);
-      
-      const [d1, d2] = await Promise.all([
-        sdk.info.getCandleSnapshot(`${baseSymbol}-PERP`, '1d', startTime, endTime),
-        sdk.info.getCandleSnapshot(`${underlyingSymbol}-PERP`, '1d', startTime, endTime)
-      ]);
-      
-      console.log = () => {};
-      await sdk.disconnect();
-      console.log = originalLog;
-      
-      if (d1?.length && d2?.length) {
-        const m1 = new Map(), m2 = new Map();
-        d1.forEach(c => m1.set(new Date(c.t).toISOString().split('T')[0], parseFloat(c.c)));
-        d2.forEach(c => m2.set(new Date(c.t).toISOString().split('T')[0], parseFloat(c.c)));
-        
-        const dates = [...m1.keys()].filter(d => m2.has(d)).sort().slice(-30);
-        const prices1 = dates.map(d => m1.get(d));
-        const prices2 = dates.map(d => m2.get(d));
-        
-        if (prices1.length >= 15) {
-          const { beta } = calculateCorrelation(prices1, prices2);
-          divergenceProfile = analyzeHistoricalDivergences(prices1, prices2, beta);
-        }
-      }
-    }
+    // Advanced metrics are now calculated inside analyzePair
+    const advancedMetrics = result.advancedMetrics;
     
     // Generate report
-    const report = generateReport(result, fundingMap, divergenceProfile);
+    const report = generateReport(result);
     
     // Save report
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
@@ -183,19 +127,17 @@ async function main() {
         const signal = result.direction === 'short' 
           ? (tf.leftSideOvervalued ? 'READY' : 'WAIT')
           : (tf.leftSideUndervalued ? 'READY' : 'WAIT');
-        const hl = tf.halfLife !== undefined && tf.halfLife !== Infinity ? `${tf.halfLife.toFixed(1)}d` : '∞';
-        console.log(`  ${tf.days}d: Z=${tf.zScore?.toFixed(2) || 'N/A'}, Corr=${tf.correlation?.toFixed(3) || 'N/A'}, HL=${hl} ${signal}`);
+        console.log(`  ${tf.days}d: Z=${tf.zScore?.toFixed(2) || 'N/A'}, Corr=${tf.correlation?.toFixed(3) || 'N/A'}, Beta=${tf.beta?.toFixed(3) || 'N/A'} ${signal}`);
       }
     });
     
-    // Print divergence analysis summary
-    if (divergenceProfile) {
-      console.log(`\nDivergence Analysis (30d):`);
-      console.log(`  Optimal Entry: |Z| ≥ ${divergenceProfile.optimalEntry.toFixed(1)}`);
-      console.log(`  Max Historical |Z|: ${divergenceProfile.maxHistoricalZ.toFixed(2)}`);
-      console.log(`  Current Z: ${divergenceProfile.currentZ.toFixed(2)}`);
-      const readyPct = (Math.abs(divergenceProfile.currentZ) / divergenceProfile.optimalEntry * 100).toFixed(0);
-      console.log(`  Status: ${Math.abs(divergenceProfile.currentZ) >= divergenceProfile.optimalEntry ? '🟢 READY' : `⏳ ${readyPct}% to entry`}`);
+    // Print advanced metrics
+    if (advancedMetrics) {
+      console.log('\nAdvanced Metrics:');
+      console.log(`  Regime: ${advancedMetrics.regime.regime} (${advancedMetrics.regime.action})`);
+      console.log(`  Hurst: ${advancedMetrics.hurst.hurst} (${advancedMetrics.hurst.classification})`);
+      console.log(`  Dual Beta: Structural=${advancedMetrics.dualBeta.structural.beta}, Dynamic=${advancedMetrics.dualBeta.dynamic.beta} (drift: ${(advancedMetrics.dualBeta.drift * 100).toFixed(1)}%)`);
+      console.log(`  Conviction: ${advancedMetrics.conviction.score}/100`);
     }
     
   } catch (error) {
@@ -204,17 +146,13 @@ async function main() {
   }
 }
 
-function generateReport(pair, fundingMap = new Map(), divergenceProfile = null) {
+function generateReport(pair) {
   const now = new Date();
   const dateStr = now.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
   
   const directionText = pair.direction === 'long' 
     ? `**LONG ${pair.leftSide} / SHORT ${pair.symbol2}**` 
     : `**SHORT ${pair.leftSide} / LONG ${pair.symbol2}**`;
-  
-  // Determine long/short assets based on direction
-  const longAsset = pair.direction === 'long' ? pair.symbol1 : pair.symbol2;
-  const shortAsset = pair.direction === 'long' ? pair.symbol2 : pair.symbol1;
   
   const allTimeframes = Object.values(pair.timeframes)
     .filter(tf => !tf.error && tf.correlation !== undefined && [7, 30, 90, 180].includes(tf.days))
@@ -240,27 +178,124 @@ ${directionText}
 
 **Signal Status:** ${signalStatus}
 
-## Statistical Metrics
+${pair.advancedMetrics ? `## Advanced Analytics
 
-| Timeframe | Correlation | Beta | Z-Score | Half-Life | Cointegrated | Gamma | Theta |
-|-----------|-------------|------|---------|-----------|--------------|-------|-------|
+### Regime Detection
+
+| Current Regime | Confidence | Action | Risk Level |
+|----------------|------------|--------|------------|
+| **${pair.advancedMetrics.regime.regime}** | ${(pair.advancedMetrics.regime.confidence * 100).toFixed(0)}% | ${pair.advancedMetrics.regime.action} | ${pair.advancedMetrics.regime.riskLevel} |
+
+- **Z-Score Trend:** ${pair.advancedMetrics.regime.zTrend}
+- **Z-Score Volatility:** ${pair.advancedMetrics.regime.zVolatility.toFixed(3)}
+
+### Hurst Exponent
+
+| Hurst (H) | Classification | Mean-Reverting? |
+|-----------|----------------|-----------------|
+| **${pair.advancedMetrics.hurst.hurst}** | ${pair.advancedMetrics.hurst.classification} | ${pair.advancedMetrics.hurst.hurst < 0.5 ? 'Yes' : 'No'} |
+
+*H < 0.5 = mean-reverting (ideal), H = 0.5 = random walk, H > 0.5 = trending*
+
+### Dual Beta Analysis
+
+| Type | Beta | R-squared | Std Error |
+|------|------|-----------|-----------|
+| **Structural** (90d) | ${pair.advancedMetrics.dualBeta.structural.beta} | ${pair.advancedMetrics.dualBeta.structural.r2} | ${pair.advancedMetrics.dualBeta.structural.stdErr} |
+| **Dynamic** (${Math.round((pair.timeframes['30']?.halfLife || 7) * 2)}d) | ${pair.advancedMetrics.dualBeta.dynamic.beta} | ${pair.advancedMetrics.dualBeta.dynamic.r2} | ${pair.advancedMetrics.dualBeta.dynamic.stdErr} |
+
+- **Beta Drift:** ${(pair.advancedMetrics.dualBeta.drift * 100).toFixed(1)}%
+- **Regression Valid:** ${pair.advancedMetrics.dualBeta.isValid ? 'Yes' : 'No'}
+
+### Conviction Score: ${pair.advancedMetrics.conviction.score}/100
+
+| Factor | Score |
+|--------|-------|
+| Correlation | +${pair.advancedMetrics.conviction.breakdown.correlation.toFixed(1)} |
+| R-squared Quality | +${pair.advancedMetrics.conviction.breakdown.rSquared.toFixed(1)} |
+| Half-Life | +${pair.advancedMetrics.conviction.breakdown.halfLife.toFixed(1)} |
+| Hurst Factor | +${pair.advancedMetrics.conviction.breakdown.hurst.toFixed(1)} |
+| Cointegration | +${pair.advancedMetrics.conviction.breakdown.cointegration.toFixed(1)} |
+| Beta Stability | ${pair.advancedMetrics.conviction.breakdown.betaStability.toFixed(1)} |
+
+---
+
+` : ''}${pair.standardized ? `## Standardized Metrics
+
+*Calculated using fixed periods: Beta (30d), Correlation/Z-Score (30d), Cointegration (90d)*
+
+| Metric | Value | Period |
+|--------|-------|--------|
+| **Beta (Hedge Ratio)** | ${pair.standardized.beta30d !== null ? pair.standardized.beta30d.toFixed(3) : 'N/A'} | 30 days |
+| **Correlation** | ${pair.standardized.correlation30d !== null ? pair.standardized.correlation30d.toFixed(3) : 'N/A'} | 30 days |
+| **Z-Score** | ${pair.standardized.zScore30d !== null ? pair.standardized.zScore30d.toFixed(2) : 'N/A'} | 30 days |
+| **Cointegrated** | ${pair.standardized.isCointegrated90d ? 'Yes' : 'No'} | 90 days |
+| **Half-Life** | ${pair.standardized.halfLife30d !== null ? pair.standardized.halfLife30d.toFixed(1) + ' days' : 'N/A'} | 30 days |
+| **Time to Mean Reversion** | ${pair.standardized.timeToMeanReversion !== null ? pair.standardized.timeToMeanReversion.toFixed(1) + ' days' : 'N/A'} | To 0.5 z-score |
+
+` : ''}## Statistical Metrics
+
+| Timeframe | Correlation | Beta | Z-Score | CoInt? | Hedge Ratio | Gamma | Theta |
+|-----------|-------------|------|---------|--------------|-------------|-----------|-------|-------|
 ${allTimeframes.map(tf => {
   const corr = tf.correlation?.toFixed(3) || 'N/A';
   const beta = tf.beta?.toFixed(3) || 'N/A';
   const zScore = tf.zScore?.toFixed(2) || 'N/A';
-  const halfLife = tf.halfLife !== undefined && tf.halfLife !== Infinity ? tf.halfLife.toFixed(1) + 'd' : '∞';
+  const hedgeRatio = tf.hedgeRatio?.toFixed(3) || 'N/A';
   const gamma = tf.gamma?.toFixed(3) || 'N/A';
   const theta = tf.theta?.toFixed(3) || 'N/A';
   const coint = tf.isCointegrated ? 'Yes' : 'No';
   
-  let signal = '';
-  if (pair.direction === 'long' && tf.zScore < -1) signal = ' [READY]';
-  else if (pair.direction === 'short' && tf.zScore > 1) signal = ' [READY]';
-  
-  return `| **${tf.days}d** | ${corr} | ${beta} | ${zScore}${signal} | ${halfLife} | ${coint} | ${gamma} | ${theta} |`;
+  return `| **${tf.days}d** | ${corr} | ${beta} | ${zScore} | ${coint} | ${hedgeRatio} | ${gamma} | ${theta} |`;
 }).join('\n')}
 
-## Price Movement
+${pair.positionSizing ? `**Position Sizing (from 30-day beta):**
+- **${pair.symbol1}:** ${(pair.positionSizing.weight1 * 100).toFixed(1)}%
+- **${pair.symbol2}:** ${(pair.positionSizing.weight2 * 100).toFixed(1)}%
+
+` : ''}${pair.standardized?.divergenceProfile ? `## Dynamic Entry Thresholds
+
+**Optimal Entry Threshold:** |Z| >= ${pair.standardized.optimalEntryThreshold?.toFixed(1) || 'N/A'}
+**Current Z-Score:** ${pair.standardized.zScore30d !== null ? pair.standardized.zScore30d.toFixed(2) : 'N/A'}
+
+*Based on 30-day historical divergence analysis*
+
+${pair.standardized.currentZROI ? `### Expected ROI from Current Position
+
+*Based on current z-score of ${pair.standardized.currentZROI.currentZ}*
+
+| Exit Strategy | Exit Z-Score | Expected ROI | Time to Reversion |
+|---------------|--------------|--------------|-------------------|
+| **Fixed Reversion** | ${pair.standardized.currentZROI.fixedExitZ} | ${pair.standardized.currentZROI.roiFixed} | ${pair.standardized.currentZROI.timeToFixed || 'N/A'} days |
+| **Percentage-Based (50%)** | ${pair.standardized.currentZROI.percentExitZ} | ${pair.standardized.currentZROI.roiPercent} | ${pair.standardized.currentZROI.timeToPercent || 'N/A'} days |
+
+` : ''}### Fixed Reversion (to |Z| < 0.5)
+
+| Threshold | Events | Reverted | Reversion Rate | Avg Time to Revert |
+|-----------|--------|----------|----------------|-------------------|
+${Object.entries(pair.standardized.divergenceProfile)
+  .filter(([threshold]) => threshold !== 'currentZROI') // Filter out ROI data
+  .sort((a, b) => parseFloat(a[0]) - parseFloat(b[0]))
+  .map(([threshold, stats]) => {
+    const avgTime = stats.avgTimeToRevert !== null ? `${stats.avgTimeToRevert} days` : 'N/A';
+    return `| **${threshold}** | ${stats.events} | ${stats.reverted} | ${stats.rate} | ${avgTime} |`;
+  }).join('\n')}
+
+${pair.standardized?.divergenceProfilePercent ? `### Percentage-Based Reversion (to |Z| < 50% of threshold)
+
+*Example: Threshold 2.0 reverts to < 1.0, Threshold 3.0 reverts to < 1.5*
+
+| Threshold | Reversion To | Events | Reverted | Reversion Rate | Avg Time to Revert |
+|-----------|--------------|--------|----------|----------------|-------------------|
+${Object.entries(pair.standardized.divergenceProfilePercent)
+  .sort((a, b) => parseFloat(a[0]) - parseFloat(b[0]))
+  .map(([threshold, stats]) => {
+    const avgTime = stats.avgTimeToRevert !== null ? `${stats.avgTimeToRevert} days` : 'N/A';
+    return `| **${threshold}** | < ${stats.reversionThreshold} | ${stats.events} | ${stats.reverted} | ${stats.rate} | ${avgTime} |`;
+  }).join('\n')}
+` : ''}
+
+` : ''}## Price Movement
 
 | Timeframe | ${pair.symbol1} | ${pair.symbol2} |
 |-----------|----------------|-----------------|
@@ -282,108 +317,29 @@ ${Object.values(pair.timeframes)
   .filter(tf => !tf.error && tf.obv1Change !== null && [7, 30].includes(tf.days))
   .sort((a, b) => a.days - b.days)
   .map(tf => {
-    const obv1 = tf.obv1Change !== null && tf.obv1Change !== undefined 
-      ? (tf.obv1Change > 0 ? '+' : '') + tf.obv1Change.toLocaleString('en-US', {maximumFractionDigits: 0}) 
+    // Format absolute value, then add sign prefix (avoid double negative)
+    const obv1Abs = tf.obv1Change !== null && tf.obv1Change !== undefined 
+      ? Math.abs(tf.obv1Change).toLocaleString('en-US', {maximumFractionDigits: 0}) 
       : 'N/A';
-    const obv2 = tf.obv2Change !== null && tf.obv2Change !== undefined 
-      ? (tf.obv2Change > 0 ? '+' : '') + tf.obv2Change.toLocaleString('en-US', {maximumFractionDigits: 0}) 
+    const obv2Abs = tf.obv2Change !== null && tf.obv2Change !== undefined 
+      ? Math.abs(tf.obv2Change).toLocaleString('en-US', {maximumFractionDigits: 0}) 
       : 'N/A';
     const trend1 = tf.obv1Change > 0 ? '+' : tf.obv1Change < 0 ? '-' : '';
     const trend2 = tf.obv2Change > 0 ? '+' : tf.obv2Change < 0 ? '-' : '';
-    return `| **${tf.days}d** | ${trend1}${obv1} | ${trend2}${obv2} |`;
+    return `| **${tf.days}d** | ${trend1}${obv1Abs} | ${trend2}${obv2Abs} |`;
   }).join('\n') || '| N/A | No OBV data available |'}
-
-## Funding Analysis
-
-${(() => {
-  const netFunding = calculateNetFunding(longAsset, shortAsset, fundingMap);
-  
-  if (netFunding.netFunding8h === null) {
-    return '**Funding data not available**';
-  }
-  
-  const longData = fundingMap.get(longAsset);
-  const shortData = fundingMap.get(shortAsset);
-  
-  const netSign = netFunding.netFunding8h >= 0 ? '+' : '';
-  const net8h = (netFunding.netFunding8h * 100).toFixed(4);
-  const netDaily = (netFunding.netFundingDaily * 100).toFixed(4);
-  const netMonthly = (netFunding.netFundingMonthly * 100).toFixed(2);
-  
-  const longFund = longData ? longData.funding : 0;
-  const shortFund = shortData ? shortData.funding : 0;
-  const longFundPct = (longFund * 100).toFixed(4);
-  const shortFundPct = (shortFund * 100).toFixed(4);
-  
-  // Funding effect: positive funding = longs pay shorts, negative = shorts pay longs
-  const longEffect = longFund >= 0 ? 'You pay' : 'You receive';
-  const shortEffect = shortFund >= 0 ? 'You receive' : 'You pay';
-  
-  return `| Asset | Position | Funding Rate (8h) | Effect |
-|-------|----------|-------------------|--------|
-| **${longAsset}** | LONG | ${longFundPct}% | ${longEffect} |
-| **${shortAsset}** | SHORT | ${shortFundPct}% | ${shortEffect} |
-
-**Net Funding:** ${netSign}${net8h}%/8h = ${netSign}${netDaily}%/day = **${netSign}${netMonthly}%/month**
-
-${netFunding.netFunding8h >= 0 
-  ? '**Favorable carry** - You earn funding while holding this position'
-  : '**Negative carry** - You pay funding while holding this position'}`;
-})()}
-
-## Historical Divergence Analysis
-
-${(() => {
-  if (!divergenceProfile) {
-    return '**Divergence analysis not available**\n\nRun `npm run scan` to generate divergence profiles for all pairs.';
-  }
-  
-  const thresholds = divergenceProfile.thresholds;
-  const optEntry = divergenceProfile.optimalEntry;
-  const maxZ = divergenceProfile.maxHistoricalZ;
-  const currentZ = divergenceProfile.currentZ;
-  
-  let tableRows = '';
-  for (const thresh of [1.0, 1.5, 2.0, 2.5, 3.0]) {
-    const data = thresholds[thresh];
-    if (!data) continue;
-    
-    const events = data.totalEvents || 0;
-    const reverted = data.revertedEvents || 0;
-    const rate = data.reversionRate !== null ? (data.reversionRate * 100).toFixed(0) + '%' : 'N/A';
-    const avgDur = data.avgDuration !== null ? data.avgDuration.toFixed(1) + 'd' : 'N/A';
-    const avgPeak = data.avgPeakZ !== null ? data.avgPeakZ.toFixed(2) : 'N/A';
-    const isOptimal = thresh === optEntry ? ' ✓' : '';
-    
-    tableRows += `| ${thresh.toFixed(1)}${isOptimal} | ${events} | ${reverted} | ${rate} | ${avgDur} | ${avgPeak} |\n`;
-  }
-  
-  return `This analysis shows how often the Z-score reached each threshold in the past 30 days and whether it reverted back to mean (|Z| < 0.5).
-
-| Threshold | Events | Reverted | Success Rate | Avg Duration | Avg Peak |
-|-----------|--------|----------|--------------|--------------|----------|
-${tableRows}
-**Optimal Entry Threshold:** ${optEntry.toFixed(1)} (highest threshold with 100% reversion rate)
-
-**Maximum Historical |Z|:** ${maxZ.toFixed(2)} (furthest divergence seen in window)
-
-**Current Z-Score:** ${currentZ.toFixed(2)} (${Math.abs(currentZ) >= optEntry ? '**READY**' : `${(Math.abs(currentZ) / optEntry * 100).toFixed(0)}% to entry`})
-
-*Use the optimal entry threshold instead of a fixed 2.0 for better timing.*`;
-})()}
 
 ---
 
 ## Notes
 
 - **Z-Score:** Negative = ${pair.symbol1} undervalued (good for LONG), Positive = ${pair.symbol1} overvalued (good for SHORT)
-- **Half-Life:** Days for spread to revert halfway to mean (lower = faster, better)
+- **Half-Life:** Time for spread to revert halfway to mean (lower = faster reversion, better)
 - **Gamma:** Lower = more stable hedge ratio (better)
 - **Theta:** Higher = faster mean reversion (better)
 - **OBV:** Positive = accumulation (buying pressure), Negative = distribution (selling pressure)
 - **Cointegration:** Yes = pair moves together (better for pair trading)
-- **Time to Exit:** Approx. halfLife × log₂(|Z| / 0.5) days to reach exit threshold
-- **Funding:** Paid/received every 8h. Positive net = you earn; Negative net = you pay
+- **Position Sizing:** Beta-adjusted weights for delta-neutral hedging
 
 *Data sources: Hyperliquid (prices), CryptoCompare (OBV/volume)*
 `;
