@@ -159,7 +159,11 @@ async function handleScan(chatId, args) {
     if (result.crossSectorPairs > 0) {
       msg += `Cross-sector: ${result.crossSectorPairs} pairs\n`;
     }
+    if (result.removedPairs > 0) {
+      msg += `🧹 Cleaned up: ${result.removedPairs} stale pairs\n`;
+    }
     msg += `\n📊 Only mean-reverting pairs (H < 0.5) included.\n`;
+    msg += `Active trade pairs are always preserved.\n`;
     msg += `Use /watchlist to see updated pairs.`;
     await sendMessage(msg, chatId);
   } else {

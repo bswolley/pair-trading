@@ -519,9 +519,45 @@ async function main(options = {}) {
     fs.writeFileSync(path.join(CONFIG_DIR, 'watchlist.json'), JSON.stringify(watchlist, null, 2));
 
     // Save watchlist to Supabase (persistence)
+    let removedPairs = 0;
     try {
         await db.upsertWatchlist(watchlistData);
         console.log(`[SCANNER] Saved ${watchlistData.length} pairs to Supabase`);
+        
+        // Clean up old pairs: keep only new discoveries + active trades
+        const newPairNames = new Set(watchlistData.map(p => p.pair));
+        const activeTrades = await db.getTrades();
+        const activeTradePairs = new Set(activeTrades.map(t => t.pair));
+        
+        // Get all current watchlist pairs from DB
+        const currentWatchlist = await db.getWatchlist();
+        
+        // Find pairs to remove (not in new scan AND not in active trades)
+        const pairsToRemove = currentWatchlist.filter(p => 
+            !newPairNames.has(p.pair) && !activeTradePairs.has(p.pair)
+        );
+        
+        // Delete stale pairs
+        for (const pair of pairsToRemove) {
+            try {
+                await db.deleteWatchlistPair(pair.pair);
+                removedPairs++;
+            } catch (e) {
+                console.error(`[SCANNER] Failed to remove ${pair.pair}:`, e.message);
+            }
+        }
+        
+        if (removedPairs > 0) {
+            console.log(`[SCANNER] Cleaned up ${removedPairs} stale pairs from watchlist`);
+        }
+        if (activeTradePairs.size > 0) {
+            const preserved = currentWatchlist.filter(p => 
+                activeTradePairs.has(p.pair) && !newPairNames.has(p.pair)
+            );
+            if (preserved.length > 0) {
+                console.log(`[SCANNER] Preserved ${preserved.length} pairs with active trades: ${preserved.map(p => p.pair).join(', ')}`);
+            }
+        }
     } catch (err) {
         console.error('[SCANNER] Failed to save to Supabase:', err.message);
     }
@@ -534,6 +570,7 @@ async function main(options = {}) {
         watchlistPairs: watchlistPairs.length,
         crossSectorPairs: crossSectorPairs.length,
         crossSectorEnabled: crossSector,
+        removedPairs: removedPairs,
         unmappedSymbols: unmapped
     };
 }
