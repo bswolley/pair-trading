@@ -20,18 +20,17 @@ import * as api from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { ZScoreChart } from "@/components/ZScoreChart";
 
-// Metric tooltips
+// Metric tooltips with time windows
 const METRIC_TOOLTIPS = {
-  zScore: "Standard deviations from the mean spread. Negative = long signal, Positive = short signal.",
+  zScore: "Standard deviations from the mean spread (60-day window). Negative = long signal, Positive = short signal.",
   entry: "Z-Score threshold for entry. Dynamic based on historical volatility.",
   signal: "Progress toward entry threshold. 100% = ready to trade.",
-  hurst: "Mean-reversion strength. H < 0.5 = mean-reverting (good), H > 0.5 = trending (bad).",
-  conviction: "Overall trade quality score (0-100). Higher = stronger setup.",
-  halfLife: "Expected days for spread to revert halfway to mean.",
-  correlation: "Price movement correlation between assets. Higher = stronger relationship.",
-  beta: "Hedge ratio - units of asset2 per unit of asset1.",
-  weights: "Position sizing: % allocation for each leg based on hedge ratio.",
-  betaDrift: "Change in beta since discovery. High drift = unstable relationship.",
+  hurst: "Mean-reversion strength (60-day R/S analysis). H < 0.5 = mean-reverting, H > 0.5 = trending. Only pairs with H < 0.5 are kept.",
+  conviction: "Trade quality score (0-100) combining: correlation, R², half-life, Hurst, cointegration, and beta stability.",
+  halfLife: "Expected days for spread to revert halfway to mean. Calculated via AR(1) model on 60-day spread.",
+  correlation: "Pearson correlation of log returns (60-day window). Higher = stronger co-movement.",
+  weights: "Position sizing from hedge ratio (β). Calculated: w1 = 1/(1+β), w2 = β/(1+β). Uses structural β (90-day OLS regression).",
+  betaDrift: "% change in beta since pair discovery. High drift (>15%) = unstable hedge ratio, relationship may be breaking down.",
 };
 
 // Calculate position weights from beta
