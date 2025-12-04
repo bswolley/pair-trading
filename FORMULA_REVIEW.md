@@ -200,12 +200,13 @@ if (prices.prices1_60d && prices.prices1_60d.length >= 40) {
 
 #### Full Analysis
 ```javascript
-// Uses 60d prices (or longest available)
-const hurst = calculateHurst(prices1.slice(-60));
+// Line 508: Was using 90d prices ❌ (FIXED)
+// const hurst = calculateHurst(fullPrices1.slice(-90));  // OLD - WRONG
+const hurst = calculateHurst(fullPrices1.slice(-60));     // FIXED - Now matches
 ```
 
 **Formula**: R/S analysis (Rescaled Range)
-**Status**: ✅ **IDENTICAL** - All use `calculateHurst()` with 60d window
+**Status**: ✅ **NOW IDENTICAL** - Fixed to use 60d window (was 90d before)
 
 ---
 
@@ -329,7 +330,7 @@ const conviction = calculateConvictionScore({
 - [x] Z-Score calculation matches across all three
 - [x] Half-Life calculation matches (with minor fallback differences)
 - [x] Cointegration test matches across all three
-- [x] Hurst calculation matches across all three
+- [x] Hurst calculation matches across all three (FIXED: was 90d in full analysis, now 60d)
 - [ ] Dual Beta window standardized
 - [x] Monitor conviction score R² fixed
 
