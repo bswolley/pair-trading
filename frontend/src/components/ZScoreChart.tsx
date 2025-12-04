@@ -110,7 +110,11 @@ export function ZScoreChart({ pair, entryThreshold = 2.0, days = 30 }: ZScoreCha
           </div>
           <div>
             <span className="text-muted-foreground">Half-Life</span>
-            <p className="font-semibold">{stats.halfLife?.toFixed(1) ?? "—"}d</p>
+            <p className="font-semibold">
+              {stats.halfLife === null || stats.halfLife === undefined
+                ? <span className="text-yellow-400">∞</span>
+                : `${stats.halfLife.toFixed(1)}d`}
+            </p>
           </div>
           <div>
             <span className="text-muted-foreground">Beta</span>

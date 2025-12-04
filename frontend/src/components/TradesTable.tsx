@@ -76,7 +76,7 @@ export function TradesTable({ trades, showActions, onClose }: TradesTableProps) 
         // ETA calculation: halfLife * log(|z_current| / |z_target|) / log(2)
         const zTarget = 0.5;
         let eta = null;
-        if (Math.abs(currentZ) > zTarget && currentHL > 0) {
+        if (Math.abs(currentZ) > zTarget && currentHL > 0 && isFinite(currentHL)) {
           const halfLivesToExit = Math.log(Math.abs(currentZ) / zTarget) / Math.log(2);
           eta = currentHL * halfLivesToExit;
         }
@@ -169,10 +169,20 @@ export function TradesTable({ trades, showActions, onClose }: TradesTableProps) 
               <div className="space-y-1">
                 <div className="text-xs text-muted-foreground uppercase tracking-wide">Half-Life</div>
                 <div className="flex items-center gap-1 font-mono">
-                  <span className="text-muted-foreground">{entryHL.toFixed(1)}d</span>
+                  <span className="text-muted-foreground">
+                    {entryHL === 0 || entryHL === null || !isFinite(entryHL) ? '∞' : `${entryHL.toFixed(1)}d`}
+                  </span>
                   <ArrowRight className="w-3 h-3 text-muted-foreground" />
-                  <span className="font-semibold">{currentHL.toFixed(1)}d</span>
+                  <span className={cn(
+                    "font-semibold",
+                    currentHL === 0 || currentHL === null || !isFinite(currentHL) ? "text-yellow-400" : ""
+                  )}>
+                    {currentHL === 0 || currentHL === null || !isFinite(currentHL) ? '∞' : `${currentHL.toFixed(1)}d`}
+                  </span>
                 </div>
+                {(currentHL === 0 || currentHL === null || !isFinite(currentHL)) && (
+                  <div className="text-xs text-yellow-400">No mean-reversion</div>
+                )}
               </div>
 
               {/* Hurst */}
@@ -213,7 +223,9 @@ export function TradesTable({ trades, showActions, onClose }: TradesTableProps) 
                   ETA to Exit
                 </div>
                 <div className="font-mono font-semibold">
-                  {eta !== null ? (
+                  {currentHL === 0 || currentHL === null || !isFinite(currentHL) ? (
+                    <span className="text-yellow-400">∞</span>
+                  ) : eta !== null ? (
                     <span className={eta <= currentHL ? "text-emerald-400" : ""}>
                       {eta.toFixed(1)}d
                     </span>

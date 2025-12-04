@@ -301,7 +301,9 @@ export default function WatchlistPage() {
                       )}
                     </td>
                     <td className="px-4 py-3 text-right text-muted-foreground">
-                      {pair.halfLife?.toFixed(1)}d
+                      {pair.halfLife === null || pair.halfLife === undefined 
+                        ? <span className="text-yellow-400/70">∞</span>
+                        : `${pair.halfLife.toFixed(1)}d`}
                     </td>
                     <td className="px-4 py-3 text-right text-muted-foreground">
                       {pair.correlation?.toFixed(2)}

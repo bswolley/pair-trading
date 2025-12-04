@@ -378,8 +378,14 @@ function formatStatusReport(activeTrades, entries, exits, history, approaching =
             const days = ((Date.now() - new Date(t.entryTime)) / (1000 * 60 * 60 * 24)).toFixed(1);
             const zEntry = t.entryZScore?.toFixed(2) || '?';
             const zNow = (t.currentZ ?? t.entryZScore)?.toFixed(2) || zEntry;
-            const hlEntry = t.halfLife?.toFixed(1) || '?';
-            const hlNow = t.currentHalfLife?.toFixed(1) || hlEntry;
+            
+            // Use ∞ symbol for infinity/null half-life
+            const hlEntry = (t.halfLife === null || t.halfLife === undefined || !isFinite(t.halfLife)) 
+                ? '∞' 
+                : t.halfLife.toFixed(1);
+            const hlNow = (t.currentHalfLife === null || t.currentHalfLife === undefined || !isFinite(t.currentHalfLife)) 
+                ? '∞' 
+                : t.currentHalfLife.toFixed(1);
 
             const netFunding = calculateNetFunding(t.longAsset, t.shortAsset, fundingMap);
             let fundingStr = '';
@@ -415,7 +421,10 @@ function formatStatusReport(activeTrades, entries, exits, history, approaching =
             
             msg += `${pnlEmoji} ${t.pair} (${t.sector})${partialTag}\n`;
             msg += `   L ${t.longAsset} ${t.longWeight?.toFixed(0)}% / S ${t.shortAsset} ${t.shortWeight?.toFixed(0)}%\n`;
-            msg += `   Z: ${zEntry}→${zNow} | HL: ${hlEntry}→${hlNow}d\n`;
+            // Add "d" suffix only if not infinity
+            const hlEntryStr = hlEntry === '∞' ? '∞' : `${hlEntry}d`;
+            const hlNowStr = hlNow === '∞' ? '∞' : `${hlNow}d`;
+            msg += `   Z: ${zEntry}→${zNow} | HL: ${hlEntryStr}→${hlNowStr}\n`;
             if (hurstStr) msg += `   ${hurstStr}\n`;
             if (fundingStr) msg += `   ${fundingStr}\n`;
             if (betaDriftStr) msg += `   ${betaDriftStr}\n`;
@@ -494,8 +503,12 @@ async function main() {
         trade.currentZ = fit.zScore;
         trade.currentPnL = calcPnL(trade, prices);
         trade.currentCorrelation = fit.correlation;
-        trade.currentHalfLife = fit.halfLife;
         trade.currentBeta = fit.beta;
+        
+        // Current half-life uses current market conditions (fit.halfLife from checkPairFitness)
+        // This shows real-time mean-reversion speed - may differ from entry
+        // Entry half-life (trade.halfLife) is preserved from trade creation
+        trade.currentHalfLife = fit.halfLife === Infinity ? null : fit.halfLife;
 
         // Calculate current Hurst (60d)
         if (prices.prices1_60d && prices.prices1_60d.length >= 40) {
