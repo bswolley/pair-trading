@@ -13,7 +13,8 @@ const {
     checkPairFitness, 
     calculateCorrelation,
     testCointegration,
-    calculateHurst, 
+    calculateHurst,
+    calculateDualBeta,
     calculateConvictionScore 
 } = require('../../lib/pairAnalysis');
 const { fetchCurrentFunding, calculateNetFunding } = require('../../lib/funding');
@@ -115,13 +116,16 @@ function validateEntry(prices, entryThreshold = DEFAULT_ENTRY_THRESHOLD) {
 
     // STRUCTURAL TEST (90-day) - internally consistent with 90d beta
     let isCointegrated90d = false;
+    let adfStat90d = -2.5; // Default fallback
     if (prices.prices1_90d && prices.prices1_90d.length >= 60) {
         const { beta: beta90d } = calculateCorrelation(prices.prices1_90d, prices.prices2_90d);
         const coint90d = testCointegration(prices.prices1_90d, prices.prices2_90d, beta90d);
         isCointegrated90d = coint90d.isCointegrated;
+        adfStat90d = coint90d.adfStat || -2.5;
     } else {
-        // Fallback to 30d if not enough data
+        // Fallback to 30d if not enough data (fit30d doesn't have adfStat, use default)
         isCointegrated90d = fit30d.isCointegrated;
+        // Keep default -2.5 since checkPairFitness doesn't return adfStat
     }
 
     let fit7d = null;
@@ -146,6 +150,7 @@ function validateEntry(prices, entryThreshold = DEFAULT_ENTRY_THRESHOLD) {
         fit30d,
         fit7d,
         isCointegrated90d,
+        adfStat90d,
         reason: !signal30d ? 'no_signal' :
             fit30d.correlation < MIN_CORRELATION_30D ? 'low_corr' :
                 !isCointegrated90d ? 'not_coint' :
@@ -603,16 +608,38 @@ async function main() {
             betaDrift = Math.abs(fit.beta - initialBeta) / Math.abs(initialBeta);
         }
 
+        // Calculate dual beta for accurate R² (matches scanner approach)
+        // Uses 90d prices with reactive half-life for consistency
+        let dualBeta = null;
+        let actualR2 = 0.7; // Fallback default
+        let dualBetaDrift = betaDrift || 0;
+        
+        if (prices.prices1_90d && prices.prices2_90d && 
+            prices.prices1_90d.length >= 60 && prices.prices2_90d.length >= 60) {
+            try {
+                dualBeta = calculateDualBeta(prices.prices1_90d, prices.prices2_90d, fit.halfLife);
+                actualR2 = dualBeta.structural.r2;
+                // Use dualBeta drift if available (more accurate), otherwise fall back to manual calculation
+                if (dualBeta.drift !== undefined && dualBeta.drift !== null) {
+                    dualBetaDrift = dualBeta.drift;
+                }
+            } catch (e) {
+                // Fallback to default R² if calculation fails
+                console.error(`[MONITOR] Dual beta calculation failed for ${pair.pair}:`, e.message);
+            }
+        }
+
         // Calculate conviction score using 90d cointegration result for consistency with scanner
         let conviction = null;
         if (hurst !== null) {
             const convictionResult = calculateConvictionScore({
                 correlation: fit.correlation,
-                r2: 0.7, // Default R² since we don't have dual beta in monitor
+                r2: actualR2, // Use actual R² from dual beta (matches scanner)
                 halfLife: fit.halfLife,
                 hurst: hurst,
                 isCointegrated: validation.isCointegrated90d,  // Use 90d structural test
-                betaDrift: betaDrift || 0
+                adfStat: validation.adfStat90d,  // Use 90d ADF stat (matches scanner)
+                betaDrift: dualBetaDrift
             });
             conviction = convictionResult.score;
         }
