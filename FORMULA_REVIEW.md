@@ -308,10 +308,10 @@ const conviction = calculateConvictionScore({
 
 ## Recommendations
 
-### 🔴 Critical Issue
-**Monitor Conviction Score**: Uses hardcoded `r2: 0.7` instead of calculating actual R²
-- **Impact**: Conviction scores in monitor may be inaccurate
-- **Fix**: Calculate dualBeta in monitor or use actual R² from regression
+### ✅ Fixed
+**Monitor Conviction Score**: Now uses actual R² from dualBeta calculation
+- **Status**: Fixed - Monitor now calculates dualBeta and uses actual R²
+- **Implementation**: Matches scanner approach exactly (90d prices, reactive half-life)
 
 ### 🟡 Minor Issues
 1. **Dual Beta Window**: Scanner uses 90d, Full Analysis uses 180d
@@ -331,5 +331,5 @@ const conviction = calculateConvictionScore({
 - [x] Cointegration test matches across all three
 - [x] Hurst calculation matches across all three
 - [ ] Dual Beta window standardized
-- [ ] Monitor conviction score R² fixed
+- [x] Monitor conviction score R² fixed
 
