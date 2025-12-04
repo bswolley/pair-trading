@@ -413,9 +413,12 @@ function formatStatusReport(activeTrades, entries, exits, history, approaching =
         msg += `\n🎯 APPROACHING ENTRY\n\n`;
         for (const p of approaching.slice(0, 3)) {
             const pct = (p.proximity * 100).toFixed(0);
-            const status = p.hasOverlap ? '🚫 SKIP' : p.proximity >= 1 ? '🟡 READY' : '⏳';
-            const overlapNote = p.overlappingAsset ? ` [${p.overlappingAsset} in use]` : '';
-            msg += `${status} ${p.pair} (${p.sector})${overlapNote}\n`;
+            const status = p.hurstBlocked ? '📈 TRENDING' : 
+                          p.hasOverlap ? '🚫 SKIP' : 
+                          p.proximity >= 1 ? '🟡 READY' : '⏳';
+            const blockNote = p.hurstBlocked ? ` [H=${p.hurst?.toFixed(2)}]` :
+                             p.overlappingAsset ? ` [${p.overlappingAsset} in use]` : '';
+            msg += `${status} ${p.pair} (${p.sector})${blockNote}\n`;
             msg += `   Z: ${p.zScore.toFixed(2)} → entry@${p.entryThreshold} [${pct}%]\n\n`;
         }
     }
@@ -611,7 +614,10 @@ async function main() {
         // Skip entry/approaching logic for pairs already in active trades
         if (isActiveTrade) continue;
 
-        if (signal && validation.valid && !hasOverlap && !atMaxTrades) {
+        // Hurst validation: only enter mean-reverting pairs (H < 0.5)
+        const hurstValid = hurst === null || hurst < 0.5;
+        
+        if (signal && validation.valid && hurstValid && !hasOverlap && !atMaxTrades) {
             const trade = await enterTrade(pair, fit, prices, activeTrades);
             trade.entryThreshold = entryThreshold;
             entries.push(trade);
@@ -630,6 +636,8 @@ async function main() {
                 zScore: z,
                 entryThreshold,
                 proximity: Math.abs(z) / entryThreshold,
+                hurst: hurst,
+                hurstBlocked: hurst !== null && hurst >= 0.5,
                 halfLife: fit.halfLife,
                 direction,
                 longAsset: z < 0 ? pair.asset1 : pair.asset2,
