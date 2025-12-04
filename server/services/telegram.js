@@ -311,14 +311,15 @@ async function handleOpen(chatId, args) {
     return sendMessage(`❌ Failed to fetch prices for ${watchPair.pair}`, chatId);
   }
 
-  // Calculate current z-score using the spread
-  const { checkPairFitness } = require('../../lib/pairAnalysis');
+  // Calculate current z-score and Hurst using the spread
+  const { checkPairFitness, calculateHurst } = require('../../lib/pairAnalysis');
 
   let currentZ = watchPair.zScore || 0;
   let currentCorr = watchPair.correlation || 0.8;
   let currentHL = watchPair.halfLife || 10;
+  let entryHurst = watchPair.hurst || null;
 
-  // Try to get fresh z-score from recent price data
+  // Try to get fresh metrics from recent price data
   const origLog2 = console.log;
   const origErr2 = console.error;
   let sdk2 = null;
@@ -334,7 +335,7 @@ async function handleOpen(chatId, args) {
     console.error = origErr2;
 
     const endTime = Date.now();
-    const startTime = endTime - (35 * 24 * 60 * 60 * 1000);
+    const startTime = endTime - (65 * 24 * 60 * 60 * 1000);  // 65 days for Hurst
 
     const [candles1, candles2] = await Promise.all([
       sdk2.info.getCandleSnapshot(`${watchPair.asset1}-PERP`, '1d', startTime, endTime),
@@ -342,19 +343,27 @@ async function handleOpen(chatId, args) {
     ]);
 
     if (candles1?.length >= 20 && candles2?.length >= 20) {
-      const prices1 = candles1.sort((a, b) => a.t - b.t).slice(-30).map(c => parseFloat(c.c));
-      const prices2 = candles2.sort((a, b) => a.t - b.t).slice(-30).map(c => parseFloat(c.c));
-      const minLen = Math.min(prices1.length, prices2.length);
+      const prices1 = candles1.sort((a, b) => a.t - b.t).map(c => parseFloat(c.c));
+      const prices2 = candles2.sort((a, b) => a.t - b.t).map(c => parseFloat(c.c));
 
-      const fitness = checkPairFitness(prices1.slice(-minLen), prices2.slice(-minLen));
+      // Z-score from 30d data
+      const fitness = checkPairFitness(prices1.slice(-30), prices2.slice(-30));
       currentZ = fitness.zScore;
       currentCorr = fitness.correlation;
       currentHL = fitness.halfLife;
+      
+      // Hurst from 60d data
+      if (prices1.length >= 40) {
+        const hurstResult = calculateHurst(prices1.slice(-60));
+        if (hurstResult.isValid) {
+          entryHurst = hurstResult.hurst;
+        }
+      }
     }
   } catch (err) {
     console.log = origLog2;
     console.error = origErr2;
-    console.error('[TELEGRAM] Z-score calc error:', err.message);
+    console.error('[TELEGRAM] Entry metrics calc error:', err.message);
   } finally {
     // Always restore console and disconnect
     console.log = origLog2;
@@ -396,23 +405,28 @@ async function handleOpen(chatId, args) {
     shortEntryPrice: dir === 'long' ? price2 : price1,
     beta: beta,
     halfLife: currentHL,
+    hurst: entryHurst,  // Hurst at entry
     correlation: currentCorr,
     entryThreshold: watchPair.entryThreshold || 2.0,
     currentZ: currentZ,
     currentCorrelation: currentCorr,
     currentHalfLife: currentHL,
+    currentHurst: entryHurst,  // Initially same as entry
     source: 'telegram'
   };
 
   await db.createTrade(trade);
 
+  const hurstInfo = entryHurst !== null ? `\nHurst: ${entryHurst.toFixed(2)}${entryHurst >= 0.5 ? ' ⚠️ trending' : ''}` : '';
+  
   await sendMessage(
     `✅ Trade opened!\n\n` +
     `${trade.pair} (${trade.sector})\n` +
     `Long ${trade.longAsset} @ ${trade.longEntryPrice.toFixed(4)}\n` +
     `Short ${trade.shortAsset} @ ${trade.shortEntryPrice.toFixed(4)}\n` +
     `Weights: ${trade.longWeight.toFixed(0)}% / ${trade.shortWeight.toFixed(0)}%\n` +
-    `Entry Z: ${trade.entryZScore.toFixed(2)}`,
+    `Entry Z: ${trade.entryZScore.toFixed(2)}` +
+    hurstInfo,
     chatId
   );
 }
@@ -736,6 +750,7 @@ async function handleMyOpen(chatId, args) {
     correlation: 0,
     beta: 1,
     halfLife: 0,
+    hurst: null,  // No analysis for manual trades
     source: 'manual'
   };
 
