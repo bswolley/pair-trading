@@ -9,20 +9,37 @@ interface PairAnalysisReportProps {
   asset1: string;
   asset2: string;
   direction?: string;
+  cachedData?: api.AnalysisResponse | null;
+  onDataLoaded?: (data: api.AnalysisResponse) => void;
 }
 
-export function PairAnalysisReport({ asset1, asset2, direction }: PairAnalysisReportProps) {
-  const [loading, setLoading] = useState(true);
+export function PairAnalysisReport({ 
+  asset1, 
+  asset2, 
+  direction, 
+  cachedData,
+  onDataLoaded 
+}: PairAnalysisReportProps) {
+  const [loading, setLoading] = useState(!cachedData);
   const [error, setError] = useState<string | null>(null);
-  const [data, setData] = useState<api.AnalysisResponse | null>(null);
+  const [data, setData] = useState<api.AnalysisResponse | null>(cachedData || null);
 
   useEffect(() => {
+    // If we have cached data, use it
+    if (cachedData) {
+      setData(cachedData);
+      setLoading(false);
+      return;
+    }
+    
     async function fetchAnalysis() {
       setLoading(true);
       setError(null);
       try {
         const response = await api.getPairAnalysis(asset1, asset2, direction);
         setData(response);
+        // Store in cache via callback
+        onDataLoaded?.(response);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to fetch analysis");
       } finally {
@@ -30,7 +47,7 @@ export function PairAnalysisReport({ asset1, asset2, direction }: PairAnalysisRe
       }
     }
     fetchAnalysis();
-  }, [asset1, asset2, direction]);
+  }, [asset1, asset2, direction, cachedData, onDataLoaded]);
 
   if (loading) {
     return (
