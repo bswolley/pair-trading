@@ -10,7 +10,9 @@ const fs = require('fs');
 const path = require('path');
 const { Hyperliquid } = require('hyperliquid');
 const { 
-    checkPairFitness, 
+    checkPairFitness,
+    calculateCorrelation,
+    testCointegration,
     analyzeHistoricalDivergences,
     calculateHurst,
     calculateDualBeta,
@@ -24,8 +26,14 @@ const DEFAULT_MIN_VOLUME = 500_000;
 const DEFAULT_MIN_OI = 100_000;
 const DEFAULT_MIN_CORR = 0.6;
 const DEFAULT_CROSS_SECTOR_MIN_CORR = 0.7; // Higher threshold for cross-sector
-const DEFAULT_LOOKBACK_DAYS = 60; // Increased from 30 for Hurst calculation (needs 40+ data points)
 const MAX_HURST_THRESHOLD = 0.5; // Only keep mean-reverting pairs (H < 0.5)
+
+// Time windows for different metrics
+const WINDOWS = {
+    cointegration: 90,  // Structural test - longer window for confidence
+    hurst: 60,          // Needs 40+ data points for R/S analysis
+    reactive: 30        // Z-score, correlation, beta - responsive to recent market
+};
 const TOP_PER_SECTOR = 3;
 const TOP_CROSS_SECTOR = 5; // Top 5 cross-sector pairs total
 const EXIT_THRESHOLD = 0.5;
@@ -116,10 +124,11 @@ async function fetchUniverse() {
     }
 }
 
-async function fetchHistoricalPrices(sdk, symbols, days) {
+async function fetchHistoricalPrices(sdk, symbols) {
     const priceMap = new Map();
     const endTime = Date.now();
-    const startTime = endTime - ((days + 5) * 24 * 60 * 60 * 1000);
+    // Fetch enough data for the longest window (cointegration = 90 days) + buffer
+    const startTime = endTime - ((WINDOWS.cointegration + 5) * 24 * 60 * 60 * 1000);
 
     const batchSize = 5;
     for (let i = 0; i < symbols.length; i += batchSize) {
@@ -130,8 +139,18 @@ async function fetchHistoricalPrices(sdk, symbols, days) {
                 const data = await sdk.info.getCandleSnapshot(`${symbol}-PERP`, '1d', startTime, endTime);
                 if (data && data.length > 0) {
                     const sorted = data.sort((a, b) => a.t - b.t);
-                    const prices = sorted.slice(-days).map(c => parseFloat(c.c));
-                    return { symbol, prices };
+                    const allPrices = sorted.map(c => parseFloat(c.c));
+                    
+                    // Return multi-window structure
+                    return { 
+                        symbol, 
+                        prices: {
+                            all: allPrices,
+                            d90: allPrices.slice(-90),  // Cointegration
+                            d60: allPrices.slice(-60),  // Hurst
+                            d30: allPrices.slice(-30)   // Reactive metrics
+                        }
+                    };
                 }
                 return { symbol, prices: null };
             } catch (error) {
@@ -141,7 +160,8 @@ async function fetchHistoricalPrices(sdk, symbols, days) {
 
         const results = await Promise.all(promises);
         for (const { symbol, prices } of results) {
-            if (prices && prices.length >= days * 0.8) {
+            // Need at least 30 days of data for reactive metrics
+            if (prices && prices.d30.length >= 25) {
                 priceMap.set(symbol, prices);
             }
         }
@@ -223,46 +243,68 @@ function evaluatePairs(candidatePairs, priceMap, minCorrelation, crossSectorMinC
     const fittingPairs = [];
 
     for (const pair of candidatePairs) {
-        const prices1 = priceMap.get(pair.asset1.symbol);
-        const prices2 = priceMap.get(pair.asset2.symbol);
+        const priceData1 = priceMap.get(pair.asset1.symbol);
+        const priceData2 = priceMap.get(pair.asset2.symbol);
 
-        if (!prices1 || !prices2) continue;
+        if (!priceData1 || !priceData2) continue;
 
-        const minLen = Math.min(prices1.length, prices2.length);
-        const aligned1 = prices1.slice(-minLen);
-        const aligned2 = prices2.slice(-minLen);
+        // Align each window separately
+        const align = (arr1, arr2) => {
+            const len = Math.min(arr1.length, arr2.length);
+            return [arr1.slice(-len), arr2.slice(-len)];
+        };
 
-        if (minLen < 15) continue;
+        const [prices1_30d, prices2_30d] = align(priceData1.d30, priceData2.d30);
+        const [prices1_60d, prices2_60d] = align(priceData1.d60, priceData2.d60);
+        const [prices1_90d, prices2_90d] = align(priceData1.d90, priceData2.d90);
+
+        if (prices1_30d.length < 15) continue;
 
         // Use higher correlation threshold for cross-sector pairs
         const requiredCorr = pair.isCrossSector ? crossSectorMinCorrelation : minCorrelation;
 
         try {
-            const fitness = checkPairFitness(aligned1, aligned2);
+            // REACTIVE METRICS (30-day window) - responsive to recent market
+            const { correlation, beta } = calculateCorrelation(prices1_30d, prices2_30d);
+            
+            // STRUCTURAL TEST (90-day window) - confirms real relationship
+            const cointLen = Math.min(prices1_90d.length, 90);
+            const coint = testCointegration(
+                prices1_90d.slice(-cointLen), 
+                prices2_90d.slice(-cointLen), 
+                beta
+            );
+            
+            // Also get 30-day Z-score and half-life for trading
+            const reactive = testCointegration(prices1_30d, prices2_30d, beta);
 
-            if (fitness.correlation >= requiredCorr && fitness.isCointegrated && fitness.halfLife <= 45) {
-                // Calculate Hurst exponent - filter out trending pairs
-                const hurst = calculateHurst(aligned1);
+            // Must pass correlation AND 90-day cointegration test
+            if (correlation >= requiredCorr && coint.isCointegrated && reactive.halfLife <= 45) {
+                
+                // HURST (60-day window) - needs 40+ data points
+                const hurstLen = Math.min(prices1_60d.length, 60);
+                const hurst = calculateHurst(prices1_60d.slice(-hurstLen));
                 
                 // Skip pairs that are not mean-reverting (H >= 0.5)
                 if (hurst.isValid && hurst.hurst >= MAX_HURST_THRESHOLD) {
                     continue; // Skip trending/random walk pairs
                 }
                 
-                // Calculate dual beta for regression quality metrics
-                const dualBeta = calculateDualBeta(aligned1, aligned2, fitness.halfLife);
+                // Calculate dual beta for regression quality metrics (uses all data)
+                const dualBeta = calculateDualBeta(prices1_90d, prices2_90d, reactive.halfLife);
                 
                 // Calculate conviction score
                 const conviction = calculateConvictionScore({
-                    correlation: fitness.correlation,
+                    correlation: correlation,
                     r2: dualBeta.structural.r2,
-                    halfLife: fitness.halfLife,
+                    halfLife: reactive.halfLife,  // Use 30-day half-life for trading relevance
                     hurst: hurst.hurst,
-                    isCointegrated: fitness.isCointegrated,
+                    isCointegrated: coint.isCointegrated,
+                    adfStat: coint.adfStat,  // Use 90-day ADF stat for confidence
                     betaDrift: dualBeta.drift
                 });
 
-                const divergenceProfile = analyzeHistoricalDivergences(aligned1, aligned2, fitness.beta);
+                const divergenceProfile = analyzeHistoricalDivergences(prices1_30d, prices2_30d, beta);
 
                 fittingPairs.push({
                     sector: pair.sector,
@@ -273,12 +315,12 @@ function evaluatePairs(candidatePairs, priceMap, minCorrelation, crossSectorMinC
                     funding1: pair.asset1.fundingAnnualized,
                     funding2: pair.asset2.fundingAnnualized,
                     fundingSpread: pair.asset1.fundingAnnualized - pair.asset2.fundingAnnualized,
-                    correlation: fitness.correlation,
-                    beta: fitness.beta,
-                    isCointegrated: fitness.isCointegrated,
-                    halfLife: fitness.halfLife,
-                    zScore: fitness.zScore,
-                    meanReversionRate: fitness.meanReversionRate,
+                    correlation: correlation,
+                    beta: beta,
+                    isCointegrated: coint.isCointegrated,  // 90-day structural test
+                    halfLife: reactive.halfLife,           // 30-day for trading
+                    zScore: reactive.zScore,               // 30-day current state
+                    meanReversionRate: reactive.meanReversionRate,
                     optimalEntry: divergenceProfile.optimalEntry,
                     maxHistoricalZ: divergenceProfile.maxHistoricalZ,
                     divergenceProfile: divergenceProfile.thresholds,
@@ -292,7 +334,13 @@ function evaluatePairs(candidatePairs, priceMap, minCorrelation, crossSectorMinC
                         drift: dualBeta.drift,
                         r2: dualBeta.structural.r2
                     },
-                    conviction: conviction.score
+                    conviction: conviction.score,
+                    // Window info for transparency
+                    windows: {
+                        cointegration: cointLen,
+                        hurst: hurstLen,
+                        reactive: prices1_30d.length
+                    }
                 });
             }
         } catch (error) { }
@@ -334,7 +382,7 @@ async function main(options = {}) {
         symbolsNeeded.add(pair.asset2.symbol);
     }
 
-    const priceMap = await fetchHistoricalPrices(sdk, [...symbolsNeeded], DEFAULT_LOOKBACK_DAYS);
+    const priceMap = await fetchHistoricalPrices(sdk, [...symbolsNeeded]);
 
     // Evaluate pairs
     const fittingPairs = evaluatePairs(candidatePairs, priceMap, DEFAULT_MIN_CORR, DEFAULT_CROSS_SECTOR_MIN_CORR);
@@ -392,7 +440,7 @@ async function main(options = {}) {
             maxHalfLife: 45,
             maxHurst: MAX_HURST_THRESHOLD
         },
-        lookbackDays: DEFAULT_LOOKBACK_DAYS,
+        windows: WINDOWS,  // Multi-window configuration
         crossSectorEnabled: crossSector,
         totalAssets: universe.length,
         filteredAssets: filtered.length,

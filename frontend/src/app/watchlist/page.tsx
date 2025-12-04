@@ -22,14 +22,14 @@ import { ZScoreChart } from "@/components/ZScoreChart";
 
 // Metric tooltips with time windows
 const METRIC_TOOLTIPS = {
-  zScore: "Standard deviations from the mean spread (60-day window). Negative = long signal, Positive = short signal.",
-  entry: "Z-Score threshold for entry. Dynamic based on historical volatility.",
+  zScore: "Standard deviations from the mean spread (30-day window). Negative = long signal, Positive = short signal.",
+  entry: "Z-Score threshold for entry. Dynamic based on historical divergence analysis.",
   signal: "Progress toward entry threshold. 100% = ready to trade.",
   hurst: "Mean-reversion strength (60-day R/S analysis). H < 0.5 = mean-reverting, H > 0.5 = trending. Only pairs with H < 0.5 are kept.",
-  conviction: "Trade quality score (0-100) combining: correlation, R², half-life, Hurst, cointegration, and beta stability.",
-  halfLife: "Expected days for spread to revert halfway to mean. Calculated via AR(1) model on 60-day spread.",
-  correlation: "Pearson correlation of log returns (60-day window). Higher = stronger co-movement.",
-  weights: "Position sizing from hedge ratio (β). Calculated: w1 = 1/(1+β), w2 = β/(1+β). Uses structural β (90-day OLS regression).",
+  conviction: "Trade quality score (0-100) combining: correlation (30d), R² (90d), half-life (30d), Hurst (60d), cointegration (90d), beta stability.",
+  halfLife: "Expected days for spread to revert halfway to mean (30-day window). Matches trading horizon.",
+  correlation: "Pearson correlation of log returns (30-day window). Higher = stronger co-movement.",
+  weights: "Position sizing from hedge ratio (β). Calculated: w1 = 1/(1+β), w2 = β/(1+β). Uses 30-day β from OLS regression.",
   betaDrift: "% change in beta since pair discovery. High drift (>15%) = unstable hedge ratio, relationship may be breaking down.",
 };
 
