@@ -9,7 +9,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { List, RefreshCw, TrendingUp, TrendingDown, Zap, HelpCircle } from "lucide-react";
+import { List, RefreshCw, TrendingUp, TrendingDown, Zap, HelpCircle, LineChart } from "lucide-react";
 import * as api from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { PairAnalysisModal } from "@/components/PairAnalysisModal";
