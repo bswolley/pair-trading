@@ -55,7 +55,7 @@ export function PairAnalysisReport({ asset1, asset2, direction }: PairAnalysisRe
   const { advanced, standardized, timeframes, divergence, expectedROI, percentageReversion, funding, obv, signal, currentPrices } = data;
 
   return (
-    <div className="space-y-6 text-sm">
+    <div className="space-y-6 text-sm max-w-full">
       {/* Current Prices */}
       <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
         <div className="flex items-center gap-6">

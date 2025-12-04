@@ -27,7 +27,7 @@ export function PairAnalysisModal({ pair, open, onOpenChange }: PairAnalysisModa
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent 
-        className="!max-w-[95vw] max-h-[95vh] w-[95vw] h-[95vh] overflow-hidden flex flex-col sm:!max-w-[95vw]"
+        className="!max-w-[90vw] max-h-[95vh] w-[90vw] h-[95vh] overflow-hidden flex flex-col sm:!max-w-[90vw]"
         aria-describedby={undefined}
       >
         <DialogHeader className="flex-shrink-0">
@@ -58,8 +58,8 @@ export function PairAnalysisModal({ pair, open, onOpenChange }: PairAnalysisModa
             </TabsTrigger>
           </TabsList>
 
-          <div className="flex-1 overflow-auto mt-4">
-            <TabsContent value="chart" className="m-0 h-full">
+          <div className="flex-1 overflow-auto mt-4 px-6 pb-6">
+            <TabsContent value="chart" className="m-0 h-full px-4">
               <ZScoreChart
                 pair={pair.pair}
                 entryThreshold={pair.entryThreshold || 2.0}
@@ -67,7 +67,7 @@ export function PairAnalysisModal({ pair, open, onOpenChange }: PairAnalysisModa
               />
             </TabsContent>
 
-            <TabsContent value="analysis" className="m-0 h-full">
+            <TabsContent value="analysis" className="m-0 h-full px-4">
               <PairAnalysisReport
                 asset1={pair.asset1}
                 asset2={pair.asset2}
