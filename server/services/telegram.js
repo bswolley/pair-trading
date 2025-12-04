@@ -454,11 +454,12 @@ async function handleClose(chatId, args) {
     realTimePnL = longPnL + shortPnL;
   }
   
-  // Calculate proper Z-score from historical data
-  const { checkPairFitness } = require('../../lib/pairAnalysis');
+  // Calculate proper Z-score and Hurst from historical data
+  const { checkPairFitness, calculateHurst } = require('../../lib/pairAnalysis');
   const origLog = console.log;
   const origErr = console.error;
   let sdk = null;
+  let exitHurst = null;
   
   try {
     const { Hyperliquid: HL } = require('hyperliquid');
@@ -471,7 +472,7 @@ async function handleClose(chatId, args) {
     console.error = origErr;
 
     const endTime = Date.now();
-    const startTime = endTime - (35 * 24 * 60 * 60 * 1000);
+    const startTime = endTime - (65 * 24 * 60 * 60 * 1000);  // 65 days for Hurst (needs 60d)
 
     const [candles1, candles2] = await Promise.all([
       sdk.info.getCandleSnapshot(`${trade.asset1}-PERP`, '1d', startTime, endTime),
@@ -479,17 +480,25 @@ async function handleClose(chatId, args) {
     ]);
 
     if (candles1?.length >= 20 && candles2?.length >= 20) {
-      const prices1 = candles1.sort((a, b) => a.t - b.t).slice(-30).map(c => parseFloat(c.c));
-      const prices2 = candles2.sort((a, b) => a.t - b.t).slice(-30).map(c => parseFloat(c.c));
-      const minLen = Math.min(prices1.length, prices2.length);
+      const prices1 = candles1.sort((a, b) => a.t - b.t).map(c => parseFloat(c.c));
+      const prices2 = candles2.sort((a, b) => a.t - b.t).map(c => parseFloat(c.c));
 
-      const fitness = checkPairFitness(prices1.slice(-minLen), prices2.slice(-minLen));
+      // Z-score from 30d data
+      const fitness = checkPairFitness(prices1.slice(-30), prices2.slice(-30));
       exitZScore = fitness.zScore;
+      
+      // Hurst from 60d data
+      if (prices1.length >= 40) {
+        const hurstResult = calculateHurst(prices1.slice(-60));
+        if (hurstResult.isValid) {
+          exitHurst = hurstResult.hurst;
+        }
+      }
     }
   } catch (err) {
     console.log = origLog;
     console.error = origErr;
-    console.error('[TELEGRAM] Exit Z-score calc error:', err.message);
+    console.error('[TELEGRAM] Exit metrics calc error:', err.message);
   } finally {
     console.log = origLog;
     console.error = origErr;
@@ -519,6 +528,7 @@ async function handleClose(chatId, args) {
     exitTime: new Date().toISOString(),
     exitReason: 'MANUAL',
     exitZScore: exitZScore,
+    exitHurst: exitHurst,
     totalPnL: totalPnL,
     daysInTrade: daysInTrade
   };
@@ -542,12 +552,21 @@ async function handleClose(chatId, args) {
     }
   }
 
+  // Hurst info
+  let hurstInfo = '';
+  if (exitHurst !== null) {
+    const hEntry = trade.hurst?.toFixed(2) || '?';
+    hurstInfo = `\nHurst: ${hEntry} → ${exitHurst.toFixed(2)}`;
+    if (exitHurst >= 0.5) hurstInfo += ' ⚠️ trending';
+  }
+
   await sendMessage(
     `🔴 Trade closed!\n\n` +
     `${trade.pair}${exitPriceInfo}\n` +
     `P&L: ${totalPnL >= 0 ? '+' : ''}${totalPnL.toFixed(2)}%` +
     (trade.partialExitTaken ? ` (partial: ${trade.partialExitPnL.toFixed(2)}%, final: ${realTimePnL.toFixed(2)}%)` : '') +
     (exitZScore !== null ? `\nExit Z: ${exitZScore.toFixed(2)}` : '') +
+    hurstInfo +
     `\nDays: ${daysInTrade}` +
     betaDriftInfo,
     chatId
@@ -768,11 +787,12 @@ async function handleMyClose(chatId, args) {
     realTimePnL = longPnL + shortPnL;
   }
 
-  // Calculate proper Z-score from historical data
-  const { checkPairFitness } = require('../../lib/pairAnalysis');
+  // Calculate proper Z-score and Hurst from historical data
+  const { checkPairFitness, calculateHurst } = require('../../lib/pairAnalysis');
   const origLog = console.log;
   const origErr = console.error;
   let sdk = null;
+  let exitHurst = null;
   
   try {
     const { Hyperliquid: HL } = require('hyperliquid');
@@ -785,7 +805,7 @@ async function handleMyClose(chatId, args) {
     console.error = origErr;
 
     const endTime = Date.now();
-    const startTime = endTime - (35 * 24 * 60 * 60 * 1000);
+    const startTime = endTime - (65 * 24 * 60 * 60 * 1000);  // 65 days for Hurst (needs 60d)
 
     const [candles1, candles2] = await Promise.all([
       sdk.info.getCandleSnapshot(`${trade.asset1}-PERP`, '1d', startTime, endTime),
@@ -793,17 +813,25 @@ async function handleMyClose(chatId, args) {
     ]);
 
     if (candles1?.length >= 20 && candles2?.length >= 20) {
-      const prices1 = candles1.sort((a, b) => a.t - b.t).slice(-30).map(c => parseFloat(c.c));
-      const prices2 = candles2.sort((a, b) => a.t - b.t).slice(-30).map(c => parseFloat(c.c));
-      const minLen = Math.min(prices1.length, prices2.length);
+      const prices1 = candles1.sort((a, b) => a.t - b.t).map(c => parseFloat(c.c));
+      const prices2 = candles2.sort((a, b) => a.t - b.t).map(c => parseFloat(c.c));
 
-      const fitness = checkPairFitness(prices1.slice(-minLen), prices2.slice(-minLen));
+      // Z-score from 30d data
+      const fitness = checkPairFitness(prices1.slice(-30), prices2.slice(-30));
       exitZScore = fitness.zScore;
+      
+      // Hurst from 60d data
+      if (prices1.length >= 40) {
+        const hurstResult = calculateHurst(prices1.slice(-60));
+        if (hurstResult.isValid) {
+          exitHurst = hurstResult.hurst;
+        }
+      }
     }
   } catch (err) {
     console.log = origLog;
     console.error = origErr;
-    console.error('[TELEGRAM] Exit Z-score calc error:', err.message);
+    console.error('[TELEGRAM] Exit metrics calc error:', err.message);
   } finally {
     console.log = origLog;
     console.error = origErr;
@@ -834,6 +862,7 @@ async function handleMyClose(chatId, args) {
     exitTime: new Date().toISOString(),
     exitReason: 'MANUAL_CLOSE',
     exitZScore: exitZScore,
+    exitHurst: exitHurst,
     totalPnL: totalPnL,
     daysInTrade: daysInTrade
   };
@@ -855,11 +884,20 @@ async function handleMyClose(chatId, args) {
     }
   }
 
+  // Hurst info
+  let hurstInfo = '';
+  if (exitHurst !== null) {
+    const hEntry = trade.hurst?.toFixed(2) || '?';
+    hurstInfo = `\nHurst: ${hEntry} → ${exitHurst.toFixed(2)}`;
+    if (exitHurst >= 0.5) hurstInfo += ' ⚠️ trending';
+  }
+
   await sendMessage(
     `🔴 Manual trade closed!\n\n` +
     `${trade.pair}${exitPriceInfo}\n` +
     `P&L: ${totalPnL >= 0 ? '+' : ''}${totalPnL.toFixed(2)}%` +
     (exitZScore !== null ? `\nExit Z: ${exitZScore.toFixed(2)}` : '') +
+    hurstInfo +
     `\nDuration: ${daysInTrade} days` +
     betaDriftInfo,
     chatId
