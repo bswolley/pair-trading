@@ -9,7 +9,13 @@
 
 const axios = require('axios');
 const { Hyperliquid } = require('hyperliquid');
-const { checkPairFitness, calculateHurst, calculateConvictionScore } = require('../../lib/pairAnalysis');
+const { 
+    checkPairFitness, 
+    calculateCorrelation,
+    testCointegration,
+    calculateHurst, 
+    calculateConvictionScore 
+} = require('../../lib/pairAnalysis');
 const { fetchCurrentFunding, calculateNetFunding } = require('../../lib/funding');
 const db = require('../db/queries');
 
@@ -59,9 +65,17 @@ function restoreConsole(orig) {
     console.error = orig.error;
 }
 
+// Time windows - must match scanner for consistency
+const WINDOWS = {
+    cointegration: 90,  // Structural test - longer window for confidence
+    hurst: 60,          // Needs 40+ data points for R/S analysis
+    reactive: 30        // Z-score, correlation, beta - responsive to recent market
+};
+
 async function fetchPrices(sdk, sym1, sym2) {
     const endTime = Date.now();
-    const startTime = endTime - (65 * 24 * 60 * 60 * 1000); // Increased from 35 to 65 days for Hurst calculation
+    // Fetch enough data for cointegration window (90 days) + buffer
+    const startTime = endTime - ((WINDOWS.cointegration + 5) * 24 * 60 * 60 * 1000);
 
     try {
         const [d1, d2] = await Promise.all([
@@ -79,6 +93,8 @@ async function fetchPrices(sdk, sym1, sym2) {
         if (dates.length < 10) return null;
 
         return {
+            prices1_90d: dates.slice(-90).map(d => m1.get(d)),
+            prices2_90d: dates.slice(-90).map(d => m2.get(d)),
             prices1_60d: dates.slice(-60).map(d => m1.get(d)),
             prices2_60d: dates.slice(-60).map(d => m2.get(d)),
             prices1_30d: dates.slice(-30).map(d => m1.get(d)),
@@ -94,7 +110,19 @@ async function fetchPrices(sdk, sym1, sym2) {
 }
 
 function validateEntry(prices, entryThreshold = DEFAULT_ENTRY_THRESHOLD) {
+    // REACTIVE METRICS (30-day) - for trading decisions
     const fit30d = checkPairFitness(prices.prices1_30d, prices.prices2_30d);
+
+    // STRUCTURAL TEST (90-day) - for cointegration confidence
+    // Use 30d beta for consistency, but test cointegration on longer window
+    let isCointegrated90d = false;
+    if (prices.prices1_90d && prices.prices1_90d.length >= 60) {
+        const coint90d = testCointegration(prices.prices1_90d, prices.prices2_90d, fit30d.beta);
+        isCointegrated90d = coint90d.isCointegrated;
+    } else {
+        // Fallback to 30d if not enough data
+        isCointegrated90d = fit30d.isCointegrated;
+    }
 
     let fit7d = null;
     try {
@@ -109,7 +137,7 @@ function validateEntry(prices, entryThreshold = DEFAULT_ENTRY_THRESHOLD) {
 
     const valid = signal30d &&
         fit30d.correlation >= MIN_CORRELATION_30D &&
-        fit30d.isCointegrated &&
+        isCointegrated90d &&  // Use 90-day cointegration test
         fit30d.halfLife <= 30 &&
         (!fit7d || (signal7d && sameDirection));
 
@@ -117,9 +145,10 @@ function validateEntry(prices, entryThreshold = DEFAULT_ENTRY_THRESHOLD) {
         valid,
         fit30d,
         fit7d,
+        isCointegrated90d,
         reason: !signal30d ? 'no_signal' :
             fit30d.correlation < MIN_CORRELATION_30D ? 'low_corr' :
-                !fit30d.isCointegrated ? 'not_coint' :
+                !isCointegrated90d ? 'not_coint' :
                     fit30d.halfLife > 30 ? 'slow_reversion' :
                         (fit7d && !sameDirection) ? 'conflicting_tf' : 'ok'
     };
@@ -535,7 +564,7 @@ async function main() {
             betaDrift = Math.abs(fit.beta - initialBeta) / Math.abs(initialBeta);
         }
 
-        // Calculate conviction score
+        // Calculate conviction score using 90d cointegration result for consistency with scanner
         let conviction = null;
         if (hurst !== null) {
             const convictionResult = calculateConvictionScore({
@@ -543,7 +572,7 @@ async function main() {
                 r2: 0.7, // Default R² since we don't have dual beta in monitor
                 halfLife: fit.halfLife,
                 hurst: hurst,
-                isCointegrated: fit.isCointegrated,
+                isCointegrated: validation.isCointegrated90d,  // Use 90d structural test
                 betaDrift: betaDrift || 0
             });
             conviction = convictionResult.score;
