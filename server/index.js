@@ -25,6 +25,7 @@ const historyRoutes = require('./routes/history');
 const blacklistRoutes = require('./routes/blacklist');
 const statusRoutes = require('./routes/status');
 const zscoreRoutes = require('./routes/zscore');
+const analyzeRoutes = require('./routes/analyze');
 
 // Services
 const { startScheduler, runScanNow, runMonitorNow } = require('./services/scheduler');
@@ -101,6 +102,7 @@ app.use('/api/history', historyRoutes);
 app.use('/api/blacklist', blacklistRoutes);
 app.use('/api/status', statusRoutes);
 app.use('/api/zscore', zscoreRoutes);
+app.use('/api/analyze', analyzeRoutes);
 
 // Manual trigger endpoints
 app.post('/api/scan', async (req, res) => {

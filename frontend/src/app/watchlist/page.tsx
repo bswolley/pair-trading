@@ -4,21 +4,15 @@ import { useEffect, useState, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
   Tooltip,
   TooltipContent,
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { List, RefreshCw, TrendingUp, TrendingDown, Zap, LineChart, HelpCircle } from "lucide-react";
+import { List, RefreshCw, TrendingUp, TrendingDown, Zap, HelpCircle } from "lucide-react";
 import * as api from "@/lib/api";
 import { cn } from "@/lib/utils";
-import { ZScoreChart } from "@/components/ZScoreChart";
+import { PairAnalysisModal } from "@/components/PairAnalysisModal";
 
 // Metric tooltips with time windows
 const METRIC_TOOLTIPS = {
@@ -350,27 +344,12 @@ export default function WatchlistPage() {
         </div>
       </div>
 
-      {/* Z-Score Chart Dialog */}
-      <Dialog open={!!chartPair} onOpenChange={(open) => !open && setChartPair(null)}>
-        <DialogContent className="max-w-2xl" aria-describedby={undefined}>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <LineChart className="w-5 h-5" />
-              {chartPair?.pair} Z-Score History
-              <Badge variant="outline" className="ml-2">{chartPair?.sector}</Badge>
-            </DialogTitle>
-          </DialogHeader>
-          <div className="min-h-[350px]">
-            {chartPair && (
-              <ZScoreChart
-                pair={chartPair.pair}
-                entryThreshold={chartPair.entryThreshold}
-                days={30}
-              />
-            )}
-          </div>
-        </DialogContent>
-      </Dialog>
+      {/* Pair Analysis Modal (Chart + Full Report) */}
+      <PairAnalysisModal
+        pair={chartPair}
+        open={!!chartPair}
+        onOpenChange={(open) => !open && setChartPair(null)}
+      />
     </div>
     </TooltipProvider>
   );

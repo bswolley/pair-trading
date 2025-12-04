@@ -305,3 +305,116 @@ export async function getZScoreHistory(pair: string, days: number = 30) {
     return fetchAPI<ZScoreResponse>(`/api/zscore/${encodedPair}?days=${days}`);
 }
 
+// Pair Analysis
+export interface AnalysisRegime {
+    regime: string;
+    confidence: number;
+    action: string;
+    riskLevel: string;
+    zTrend: string;
+    zVolatility: number;
+}
+
+export interface AnalysisHurst {
+    hurst: number | null;
+    classification: string;
+}
+
+export interface AnalysisDualBeta {
+    structural: { beta: number; r2: number; stdErr: number };
+    dynamic: { beta: number; r2: number; stdErr: number };
+    drift: number;
+    isValid: boolean;
+}
+
+export interface AnalysisConviction {
+    score: number;
+    breakdown: {
+        correlation: number;
+        rSquared: number;
+        halfLife: number;
+        hurst: number;
+        cointegration: number;
+        betaStability: number;
+    };
+}
+
+export interface AnalysisTimeframe {
+    days: number;
+    correlation?: number;
+    beta?: number;
+    zScore?: number;
+    halfLife?: number | null;
+    isCointegrated?: boolean;
+    gamma?: number | null;
+    theta?: number | null;
+    price1Start?: number;
+    price1End?: number;
+    price2Start?: number;
+    price2End?: number;
+    error?: string;
+}
+
+export interface AnalysisDivergence {
+    optimalEntry: number;
+    maxHistoricalZ: number;
+    currentZ: number;
+    thresholds: Record<string, {
+        totalEvents: number;
+        revertedEvents: number;
+        reversionRate: number | null;
+        avgDuration: number | null;
+        avgPeakZ: number | null;
+    }>;
+}
+
+export interface AnalysisFunding {
+    longAsset: string;
+    shortAsset: string;
+    longRate: number;
+    shortRate: number;
+    net8h: number;
+    netDaily: number;
+    netMonthly: number;
+    favorable: boolean;
+}
+
+export interface AnalysisResponse {
+    pair: string;
+    asset1: string;
+    asset2: string;
+    direction: string;
+    generatedAt: string;
+    processingTimeMs: number;
+    currentPrices: Record<string, number>;
+    signal: {
+        zScore30d: number;
+        isReady: boolean;
+        direction: string;
+        strength: number;
+    };
+    advanced: {
+        regime: AnalysisRegime;
+        hurst: AnalysisHurst;
+        dualBeta: AnalysisDualBeta | null;
+        conviction: AnalysisConviction;
+    };
+    standardized: {
+        beta: number;
+        correlation: number;
+        zScore: number;
+        halfLife: number | null;
+        isCointegrated: boolean;
+        positionSizing: { weight1: number; weight2: number };
+    };
+    timeframes: Record<number, AnalysisTimeframe>;
+    divergence: AnalysisDivergence | null;
+    funding: AnalysisFunding | null;
+    obv: Record<number, Record<string, number>>;
+}
+
+export async function getPairAnalysis(asset1: string, asset2: string, direction?: string) {
+    const query = direction ? `?direction=${direction}` : '';
+    return fetchAPI<AnalysisResponse>(`/api/analyze/${encodeURIComponent(asset1)}/${encodeURIComponent(asset2)}${query}`);
+}
+
