@@ -30,8 +30,17 @@ const METRIC_TOOLTIPS = {
   halfLife: "Expected days for spread to revert halfway to mean.",
   correlation: "Price movement correlation between assets. Higher = stronger relationship.",
   beta: "Hedge ratio - units of asset2 per unit of asset1.",
+  weights: "Position sizing: % allocation for each leg based on hedge ratio.",
   betaDrift: "Change in beta since discovery. High drift = unstable relationship.",
 };
+
+// Calculate position weights from beta
+function getWeights(beta: number | undefined | null): { w1: number; w2: number } | null {
+  if (beta === undefined || beta === null || beta <= 0) return null;
+  const w1 = 1 / (1 + beta);
+  const w2 = beta / (1 + beta);
+  return { w1: Math.round(w1 * 100), w2: Math.round(w2 * 100) };
+}
 
 function MetricHeader({ label, tooltip }: { label: string; tooltip: string }) {
   return (
@@ -217,7 +226,7 @@ export default function WatchlistPage() {
                   <MetricHeader label="Corr" tooltip={METRIC_TOOLTIPS.correlation} />
                 </th>
                 <th className="text-right px-4 py-3 font-medium">
-                  <MetricHeader label="Beta" tooltip={METRIC_TOOLTIPS.beta} />
+                  <MetricHeader label="Weights" tooltip={METRIC_TOOLTIPS.weights} />
                 </th>
                 <th className="text-right px-4 py-3 font-medium">
                   <MetricHeader label="β Drift" tooltip={METRIC_TOOLTIPS.betaDrift} />
@@ -304,8 +313,18 @@ export default function WatchlistPage() {
                     <td className="px-4 py-3 text-right text-muted-foreground">
                       {pair.correlation?.toFixed(2)}
                     </td>
-                    <td className="px-4 py-3 text-right font-mono text-muted-foreground">
-                      {pair.beta?.toFixed(3)}
+                    <td className="px-4 py-3 text-right font-mono text-xs">
+                      {(() => {
+                        const weights = getWeights(pair.beta);
+                        if (!weights) return <span className="text-muted-foreground/50">—</span>;
+                        return (
+                          <span className="text-muted-foreground">
+                            <span className="text-emerald-400">{weights.w1}%</span>
+                            <span className="mx-0.5">/</span>
+                            <span className="text-red-400">{weights.w2}%</span>
+                          </span>
+                        );
+                      })()}
                     </td>
                     <td className="px-4 py-3 text-right">
                       {pair.betaDrift !== undefined && pair.betaDrift !== null ? (
