@@ -39,6 +39,8 @@ export interface Trade {
     partialExitTaken?: boolean;
     partialExitPnL?: number;
     partialExitTime?: string;
+    healthScore?: number;
+    healthStatus?: string;
     source?: string;
 }
 

@@ -36,6 +36,8 @@ interface Trade {
   betaDrift?: number;
   maxBetaDrift?: number;
   entryThreshold?: number;
+  healthScore?: number;
+  healthStatus?: string;
 }
 
 interface TradesTableProps {
@@ -113,6 +115,22 @@ export function TradesTable({ trades, showActions, onClose }: TradesTableProps) 
                     {trade.partialExitTaken && (
                       <Badge className="bg-yellow-500/20 text-yellow-400 text-xs">
                         50% Closed
+                      </Badge>
+                    )}
+                    {trade.healthScore !== undefined && trade.healthStatus && (
+                      <Badge 
+                        variant="outline"
+                        className={cn(
+                          "text-xs",
+                          trade.healthStatus === 'STRONG' ? "border-emerald-500 text-emerald-400 bg-emerald-500/10" :
+                          trade.healthStatus === 'OK' ? "border-yellow-500 text-yellow-400 bg-yellow-500/10" :
+                          trade.healthStatus === 'WEAK' ? "border-orange-500 text-orange-400 bg-orange-500/10" :
+                          "border-red-500 text-red-400 bg-red-500/10"
+                        )}
+                      >
+                        {trade.healthStatus === 'STRONG' ? '🟢' :
+                         trade.healthStatus === 'OK' ? '🟡' :
+                         trade.healthStatus === 'WEAK' ? '🟠' : '🔴'} {trade.healthScore}
                       </Badge>
                     )}
                   </div>

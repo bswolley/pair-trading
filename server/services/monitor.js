@@ -40,6 +40,106 @@ const PARTIAL_EXIT_1_SIZE = 0.5;
 const FINAL_EXIT_PNL = 5.0;
 const FINAL_EXIT_ZSCORE = 0.5;
 
+/**
+ * Calculate trade health score
+ * Answers: "Is the trade going in the right direction?"
+ * 
+ * @returns {{ score: number, status: string, emoji: string, signals: string[] }}
+ */
+function calculateHealthScore(trade, currentFitness) {
+    const signals = [];
+    let score = 0;
+    
+    const entryZ = Math.abs(trade.entryZScore || 2.0);
+    const currentZ = Math.abs(currentFitness.zScore || trade.currentZ || entryZ);
+    const entryHL = trade.halfLife || 15;
+    const currentHL = currentFitness.halfLife;
+    const entryCorr = trade.correlation || 0.8;
+    const currentCorr = currentFitness.correlation;
+    const currentHurst = trade.currentHurst;
+    const pnl = trade.currentPnL || 0;
+    const betaDrift = trade.betaDrift || 0;
+    
+    // 1. Z-Score Direction (+2/-2)
+    const zDelta = entryZ - currentZ;
+    const zPctChange = entryZ > 0 ? (zDelta / entryZ * 100) : 0;
+    if (currentZ < entryZ * 0.9) {
+        score += 2;
+        signals.push('Z reverting ' + zPctChange.toFixed(0) + '%');
+    } else if (currentZ > entryZ * 1.2) {
+        score -= 2;
+        signals.push('Z diverging!');
+    }
+    
+    // 2. PnL (+2/-2)
+    if (pnl > 1) {
+        score += 2;
+        signals.push('PnL +' + pnl.toFixed(1) + '%');
+    } else if (pnl > 0) {
+        score += 1;
+    } else if (pnl < -2) {
+        score -= 2;
+        signals.push('PnL ' + pnl.toFixed(1) + '%');
+    }
+    
+    // 3. Correlation (+1/-2)
+    if (currentCorr >= 0.6) {
+        score += 1;
+    } else if (currentCorr < 0.5) {
+        score -= 2;
+        signals.push('Corr ' + currentCorr.toFixed(2));
+    }
+    
+    // 4. Half-life stability (+1/-2)
+    if (currentHL !== null && currentHL !== undefined && isFinite(currentHL) && entryHL > 0) {
+        const hlRatio = currentHL / entryHL;
+        if (hlRatio <= 1.5) {
+            score += 1;
+        } else if (hlRatio > 3) {
+            score -= 2;
+            signals.push('HL ' + entryHL.toFixed(0) + '→' + currentHL.toFixed(0) + 'd');
+        } else {
+            score -= 1;
+        }
+    }
+    
+    // 5. Hurst (+1/-2)
+    if (currentHurst !== null && currentHurst !== undefined) {
+        if (currentHurst < 0.45) {
+            score += 1;
+        } else if (currentHurst >= 0.5) {
+            score -= 2;
+            signals.push('H=' + currentHurst.toFixed(2) + ' trending');
+        }
+    }
+    
+    // 6. Beta drift (+1/-1)
+    if (betaDrift < 0.10) {
+        score += 1;
+    } else if (betaDrift > 0.25) {
+        score -= 1;
+        signals.push('β drift ' + (betaDrift * 100).toFixed(0) + '%');
+    }
+    
+    // Determine status
+    let status, emoji;
+    if (score >= 5) {
+        status = 'STRONG';
+        emoji = '🟢';
+    } else if (score >= 2) {
+        status = 'OK';
+        emoji = '🟡';
+    } else if (score >= 0) {
+        status = 'WEAK';
+        emoji = '🟠';
+    } else {
+        status = 'BROKEN';
+        emoji = '🔴';
+    }
+    
+    return { score, status, emoji, signals };
+}
+
 async function sendTelegram(message) {
     if (!TELEGRAM_BOT_TOKEN || !TELEGRAM_CHAT_ID) return false;
     try {
@@ -424,7 +524,13 @@ function formatStatusReport(activeTrades, entries, exits, history, approaching =
                 }
             }
             
-            msg += `${pnlEmoji} ${t.pair} (${t.sector})${partialTag}\n`;
+            // Health score indicator
+            const healthEmoji = t.healthStatus === 'STRONG' ? '🟢' :
+                               t.healthStatus === 'OK' ? '🟡' :
+                               t.healthStatus === 'WEAK' ? '🟠' : '🔴';
+            const healthTag = t.healthScore !== undefined ? ` ${healthEmoji}${t.healthScore}` : '';
+            
+            msg += `${pnlEmoji} ${t.pair} (${t.sector})${partialTag}${healthTag}\n`;
             msg += `   L ${t.longAsset} ${t.longWeight?.toFixed(0)}% / S ${t.shortAsset} ${t.shortWeight?.toFixed(0)}%\n`;
             // Add "d" suffix only if not infinity
             const hlEntryStr = hlEntry === '∞' ? '∞' : `${hlEntry}d`;
@@ -433,6 +539,10 @@ function formatStatusReport(activeTrades, entries, exits, history, approaching =
             if (hurstStr) msg += `   ${hurstStr}\n`;
             if (fundingStr) msg += `   ${fundingStr}\n`;
             if (betaDriftStr) msg += `   ${betaDriftStr}\n`;
+            // Health signals (only show if concerning)
+            if (t.healthSignals && t.healthSignals.length > 0 && t.healthScore < 5) {
+                msg += `   ${t.healthSignals.join(' | ')}\n`;
+            }
             msg += `   ${pnlSign}${pnl.toFixed(2)}% | ${days}d\n\n`;
         }
 
@@ -529,6 +639,12 @@ async function main() {
             // Track max beta drift seen during trade
             trade.maxBetaDrift = Math.max(trade.maxBetaDrift || 0, trade.betaDrift);
         }
+
+        // Calculate health score
+        const healthResult = calculateHealthScore(trade, fit);
+        trade.healthScore = healthResult.score;
+        trade.healthStatus = healthResult.status;
+        trade.healthSignals = healthResult.signals;
 
         const exitCheck = checkExitConditions(trade, fit, trade.currentPnL);
 
@@ -747,7 +863,9 @@ async function main() {
             maxBetaDrift: trade.maxBetaDrift,
             partialExitTaken: trade.partialExitTaken,
             partialExitPnL: trade.partialExitPnL,
-            partialExitTime: trade.partialExitTime
+            partialExitTime: trade.partialExitTime,
+            healthScore: trade.healthScore,
+            healthStatus: trade.healthStatus
         });
     }
 
