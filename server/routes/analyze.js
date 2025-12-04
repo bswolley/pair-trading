@@ -105,8 +105,8 @@ router.get('/:asset1/:asset2', async (req, res) => {
         halfLife: result.standardized.halfLife30d,
         isCointegrated: result.standardized.isCointegrated90d,
         positionSizing: result.positionSizing ? {
-          weight1: result.positionSizing.weight1 * 100,
-          weight2: result.positionSizing.weight2 * 100
+          weight1: Math.round(result.positionSizing.weight1 * 100 * 10) / 10, // Round to 1 decimal
+          weight2: Math.round(result.positionSizing.weight2 * 100 * 10) / 10
         } : null
       } : null,
 
@@ -134,18 +134,50 @@ router.get('/:asset1/:asset2', async (req, res) => {
       // Divergence analysis
       divergence: result.standardized?.divergenceProfile ? {
         optimalEntry: result.standardized.optimalEntryThreshold || 1.5,
-        maxHistoricalZ: result.standardized.divergenceProfile.maxHistoricalZ || 0,
+        // Calculate maxHistoricalZ as highest threshold with events, or current Z if higher
+        maxHistoricalZ: (() => {
+          const currentZ = Math.abs(result.standardized.zScore30d || 0);
+          let maxThreshold = 0;
+          if (result.standardized.divergenceProfile) {
+            for (const [threshold, stats] of Object.entries(result.standardized.divergenceProfile)) {
+              if (threshold !== 'currentZROI' && stats.events > 0) {
+                maxThreshold = Math.max(maxThreshold, parseFloat(threshold));
+              }
+            }
+          }
+          return Math.max(maxThreshold, currentZ);
+        })(),
         currentZ: result.standardized.zScore30d || 0,
         thresholds: Object.entries(result.standardized.divergenceProfile)
-          .filter(([key]) => key !== 'maxHistoricalZ' && key !== 'currentZ')
+          .filter(([key]) => key !== 'maxHistoricalZ' && key !== 'currentZ' && key !== 'currentZROI')
           .reduce((acc, [threshold, stats]) => {
+            // Parse rate from string like "93.8%" to number (0.938)
+            let reversionRate = null;
+            if (stats.rate) {
+              if (typeof stats.rate === 'string') {
+                const rateNum = parseFloat(stats.rate.replace('%', ''));
+                reversionRate = isNaN(rateNum) ? null : rateNum / 100;
+              } else if (typeof stats.rate === 'number') {
+                reversionRate = stats.rate;
+              }
+            }
+            
+            // Parse avgTimeToRevert from string to number
+            let avgDuration = null;
+            if (stats.avgTimeToRevert) {
+              if (typeof stats.avgTimeToRevert === 'string') {
+                const durationNum = parseFloat(stats.avgTimeToRevert);
+                avgDuration = isNaN(durationNum) ? null : durationNum;
+              } else if (typeof stats.avgTimeToRevert === 'number') {
+                avgDuration = stats.avgTimeToRevert;
+              }
+            }
+            
             acc[threshold] = {
               totalEvents: stats.events || 0,
               revertedEvents: stats.reverted || 0,
-              reversionRate: stats.rate !== null && stats.rate !== undefined ? stats.rate : null,
-              avgDuration: (stats.avgTimeToRevert !== null && stats.avgTimeToRevert !== undefined && typeof stats.avgTimeToRevert === 'number') 
-                ? stats.avgTimeToRevert 
-                : null,
+              reversionRate,
+              avgDuration,
               avgPeakZ: stats.avgPeakZ || null
             };
             return acc;
@@ -154,24 +186,54 @@ router.get('/:asset1/:asset2', async (req, res) => {
 
       // Expected ROI
       expectedROI: result.standardized?.currentZROI ? {
-        currentZ: result.standardized.currentZROI.currentZ,
-        fixedExitZ: result.standardized.currentZROI.fixedExitZ,
-        roiFixed: result.standardized.currentZROI.roiFixed,
-        timeToFixed: result.standardized.currentZROI.timeToFixed,
-        percentExitZ: result.standardized.currentZROI.percentExitZ,
-        roiPercent: result.standardized.currentZROI.roiPercent,
+        currentZ: parseFloat(result.standardized.currentZROI.currentZ) || 0,
+        fixedExitZ: parseFloat(result.standardized.currentZROI.fixedExitZ) || 0.5,
+        roiFixed: result.standardized.currentZROI.roiFixed || '0%',
+        timeToFixed: result.standardized.currentZROI.timeToFixed 
+          ? (typeof result.standardized.currentZROI.timeToFixed === 'string' 
+              ? parseFloat(result.standardized.currentZROI.timeToFixed) 
+              : result.standardized.currentZROI.timeToFixed)
+          : null,
+        percentExitZ: parseFloat(result.standardized.currentZROI.percentExitZ) || 0,
+        roiPercent: result.standardized.currentZROI.roiPercent || '0%',
         timeToPercent: result.standardized.currentZROI.timeToPercent
+          ? (typeof result.standardized.currentZROI.timeToPercent === 'string'
+              ? parseFloat(result.standardized.currentZROI.timeToPercent)
+              : result.standardized.currentZROI.timeToPercent)
+          : null
       } : null,
 
       // Percentage-based reversion
       percentageReversion: result.standardized?.divergenceProfilePercent ? 
         Object.entries(result.standardized.divergenceProfilePercent).reduce((acc, [threshold, stats]) => {
+          // Parse rate from string like "93.8%" to number (0.938)
+          let reversionRate = null;
+          if (stats.rate) {
+            if (typeof stats.rate === 'string') {
+              const rateNum = parseFloat(stats.rate.replace('%', ''));
+              reversionRate = isNaN(rateNum) ? null : rateNum / 100;
+            } else if (typeof stats.rate === 'number') {
+              reversionRate = stats.rate;
+            }
+          }
+          
+          // Parse avgTimeToRevert from string to number
+          let avgDuration = null;
+          if (stats.avgTimeToRevert) {
+            if (typeof stats.avgTimeToRevert === 'string') {
+              const durationNum = parseFloat(stats.avgTimeToRevert);
+              avgDuration = isNaN(durationNum) ? null : durationNum;
+            } else if (typeof stats.avgTimeToRevert === 'number') {
+              avgDuration = stats.avgTimeToRevert;
+            }
+          }
+          
           acc[threshold] = {
             exitZ: parseFloat(threshold) * 0.5,
             totalEvents: stats.events || 0,
             revertedEvents: stats.reverted || 0,
-            reversionRate: stats.rate !== null && stats.rate !== undefined ? stats.rate : null,
-            avgDuration: stats.avgTimeToRevert !== null && stats.avgTimeToRevert !== undefined ? stats.avgTimeToRevert : null
+            reversionRate,
+            avgDuration
           };
           return acc;
         }, {}) : null,

@@ -27,7 +27,7 @@ export function PairAnalysisModal({ pair, open, onOpenChange }: PairAnalysisModa
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent 
-        className="max-w-5xl max-h-[90vh] w-[95vw] overflow-hidden flex flex-col"
+        className="!max-w-[95vw] max-h-[95vh] w-[95vw] h-[95vh] overflow-hidden flex flex-col sm:!max-w-[95vw]"
         aria-describedby={undefined}
       >
         <DialogHeader className="flex-shrink-0">

@@ -120,8 +120,8 @@ export function ZScoreChart({ pair, entryThreshold = 2.0, days = 30 }: ZScoreCha
       )}
 
       {/* Chart */}
-      <div style={{ width: '100%', height: 256 }}>
-        <ResponsiveContainer width="100%" height={256}>
+      <div style={{ width: '100%', height: 500 }}>
+        <ResponsiveContainer width="100%" height={500}>
           <LineChart data={data} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#374151" opacity={0.3} />
             <XAxis
