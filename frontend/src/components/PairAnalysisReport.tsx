@@ -52,10 +52,27 @@ export function PairAnalysisReport({ asset1, asset2, direction }: PairAnalysisRe
 
   if (!data) return null;
 
-  const { advanced, standardized, timeframes, divergence, funding, obv, signal } = data;
+  const { advanced, standardized, timeframes, divergence, expectedROI, percentageReversion, funding, obv, signal, currentPrices } = data;
 
   return (
     <div className="space-y-6 text-sm">
+      {/* Current Prices */}
+      <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
+        <div className="flex items-center gap-6">
+          <div>
+            <span className="text-muted-foreground text-xs">Current Prices</span>
+            <div className="flex items-center gap-4 mt-1">
+              <span className="font-mono font-medium">
+                {asset1}: ${currentPrices[asset1]?.toFixed(4) ?? "—"}
+              </span>
+              <span className="font-mono font-medium">
+                {asset2}: ${currentPrices[asset2]?.toFixed(4) ?? "—"}
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* Signal Status */}
       <div className={cn(
         "p-4 rounded-lg border",
@@ -358,6 +375,82 @@ export function PairAnalysisReport({ asset1, asset2, direction }: PairAnalysisRe
                       </td>
                       <td className="text-right px-2">
                         {stats.avgDuration !== null ? stats.avgDuration.toFixed(1) + "d" : "—"}
+                      </td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </div>
+        </Section>
+      )}
+
+      {/* Expected ROI */}
+      {expectedROI && (
+        <Section title="Expected ROI from Current Position">
+          <p className="text-xs text-muted-foreground mb-3">
+            Based on current |Z| = {expectedROI.currentZ}
+          </p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="text-muted-foreground border-b border-border">
+                  <th className="text-left py-2 px-2">Exit Strategy</th>
+                  <th className="text-right px-2">Exit Z-Score</th>
+                  <th className="text-right px-2">Expected ROI</th>
+                  <th className="text-right px-2">Time to Reversion</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr className="border-b border-border/50">
+                  <td className="py-2 px-2 font-medium">Fixed Reversion</td>
+                  <td className="text-right px-2 font-mono">{expectedROI.fixedExitZ}</td>
+                  <td className="text-right px-2 font-mono text-emerald-400">{expectedROI.roiFixed}</td>
+                  <td className="text-right px-2">{expectedROI.timeToFixed} days</td>
+                </tr>
+                <tr className="border-b border-border/50">
+                  <td className="py-2 px-2 font-medium">Percentage-Based (50%)</td>
+                  <td className="text-right px-2 font-mono">{expectedROI.percentExitZ}</td>
+                  <td className="text-right px-2 font-mono text-emerald-400">{expectedROI.roiPercent}</td>
+                  <td className="text-right px-2">{expectedROI.timeToPercent} days</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </Section>
+      )}
+
+      {/* Percentage-Based Reversion */}
+      {percentageReversion && Object.keys(percentageReversion).length > 0 && (
+        <Section title="Percentage-Based Reversion (to 50% of threshold)">
+          <p className="text-xs text-muted-foreground mb-3">
+            Example: Threshold 2.0 reverts to &lt; 1.0, Threshold 3.0 reverts to &lt; 1.5
+          </p>
+          <div className="overflow-x-auto">
+            <table className="w-full text-xs">
+              <thead>
+                <tr className="text-muted-foreground border-b border-border">
+                  <th className="text-left py-2 px-2">Threshold</th>
+                  <th className="text-right px-2">Reversion To</th>
+                  <th className="text-right px-2">Events</th>
+                  <th className="text-right px-2">Reverted</th>
+                  <th className="text-right px-2">Success Rate</th>
+                </tr>
+              </thead>
+              <tbody>
+                {Object.entries(percentageReversion)
+                  .sort(([a], [b]) => parseFloat(a) - parseFloat(b))
+                  .map(([threshold, stats]) => (
+                    <tr key={threshold} className="border-b border-border/50">
+                      <td className="py-2 px-2 font-medium">{threshold}</td>
+                      <td className="text-right px-2">&lt; {stats.exitZ.toFixed(2)}</td>
+                      <td className="text-right px-2">{stats.totalEvents}</td>
+                      <td className="text-right px-2">{stats.revertedEvents}</td>
+                      <td className={cn(
+                        "text-right px-2 font-medium",
+                        stats.reversionRate !== null && stats.reversionRate >= 0.7 ? "text-emerald-400" :
+                        stats.reversionRate !== null && stats.reversionRate >= 0.5 ? "text-yellow-400" : ""
+                      )}>
+                        {stats.reversionRate !== null ? (stats.reversionRate * 100).toFixed(0) + "%" : "—"}
                       </td>
                     </tr>
                   ))}

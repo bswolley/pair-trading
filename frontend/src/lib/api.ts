@@ -379,6 +379,16 @@ export interface AnalysisFunding {
     favorable: boolean;
 }
 
+export interface AnalysisExpectedROI {
+    currentZ: number;
+    fixedExitZ: number;
+    roiFixed: string;
+    timeToFixed: number;
+    percentExitZ: number;
+    roiPercent: string;
+    timeToPercent: number;
+}
+
 export interface AnalysisResponse {
     pair: string;
     asset1: string;
@@ -409,6 +419,8 @@ export interface AnalysisResponse {
     };
     timeframes: Record<number, AnalysisTimeframe>;
     divergence: AnalysisDivergence | null;
+    expectedROI: AnalysisExpectedROI | null;
+    percentageReversion: Record<string, { exitZ: number; totalEvents: number; revertedEvents: number; reversionRate: number | null; avgDuration: number | null }> | null;
     funding: AnalysisFunding | null;
     obv: Record<number, Record<string, number>>;
 }

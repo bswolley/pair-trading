@@ -221,6 +221,45 @@ router.get('/:asset1/:asset2', async (req, res) => {
       fitness30.beta
     );
 
+    // 6b. Calculate percentage-based reversion (exit at 50% of entry threshold)
+    const percentageReversion = {};
+    if (divergenceProfile?.thresholds) {
+      for (const [threshold, stats] of Object.entries(divergenceProfile.thresholds)) {
+        const threshNum = parseFloat(threshold);
+        const exitZ = threshNum * 0.5; // 50% reversion target
+        percentageReversion[threshold] = {
+          exitZ,
+          ...stats
+        };
+      }
+    }
+
+    // 6c. Expected ROI from current position
+    let expectedROI = null;
+    const currentZ = Math.abs(fitness30.zScore);
+    const hl = fitness30.halfLife;
+    if (currentZ > 0.5 && hl && hl !== Infinity && hl < 100) {
+      // Fixed reversion (to Z = 0.5)
+      const fixedExitZ = 0.5;
+      const roiFixed = ((currentZ - fixedExitZ) / currentZ) * 100 * fitness30.beta;
+      const timeToFixed = hl * Math.log2(currentZ / fixedExitZ);
+      
+      // Percentage-based (to 50% of current Z)
+      const percentExitZ = currentZ * 0.5;
+      const roiPercent = ((currentZ - percentExitZ) / currentZ) * 100 * fitness30.beta;
+      const timeToPercent = hl;
+      
+      expectedROI = {
+        currentZ: parseFloat(currentZ.toFixed(2)),
+        fixedExitZ,
+        roiFixed: parseFloat(roiFixed.toFixed(2)) + '%',
+        timeToFixed: parseFloat(timeToFixed.toFixed(1)),
+        percentExitZ: parseFloat(percentExitZ.toFixed(2)),
+        roiPercent: parseFloat(roiPercent.toFixed(2)) + '%',
+        timeToPercent: parseFloat(timeToPercent.toFixed(1))
+      };
+    }
+
     // 7. Position Sizing
     const beta = fitness30.beta;
     const w1 = 1 / (1 + beta);
@@ -326,6 +365,12 @@ router.get('/:asset1/:asset2', async (req, res) => {
 
       // Divergence analysis
       divergence: divergenceProfile,
+      
+      // Expected ROI
+      expectedROI,
+      
+      // Percentage-based reversion
+      percentageReversion,
 
       // Funding
       funding,
