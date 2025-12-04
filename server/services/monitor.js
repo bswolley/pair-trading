@@ -400,9 +400,23 @@ function formatStatusReport(activeTrades, entries, exits, history, approaching =
             }
 
             const partialTag = t.partialExitTaken ? ' [50% closed]' : '';
+            
+            // Hurst warning if drifting toward trending
+            let hurstStr = '';
+            if (t.currentHurst !== undefined && t.currentHurst !== null) {
+                const hEntry = t.hurst?.toFixed(2) || '?';
+                const hNow = t.currentHurst.toFixed(2);
+                if (t.currentHurst >= 0.5) {
+                    hurstStr = `📈 H: ${hEntry}→${hNow} (trending!)`;
+                } else if (t.currentHurst >= 0.45) {
+                    hurstStr = `⚡ H: ${hEntry}→${hNow}`;
+                }
+            }
+            
             msg += `${pnlEmoji} ${t.pair} (${t.sector})${partialTag}\n`;
             msg += `   L ${t.longAsset} ${t.longWeight?.toFixed(0)}% / S ${t.shortAsset} ${t.shortWeight?.toFixed(0)}%\n`;
             msg += `   Z: ${zEntry}→${zNow} | HL: ${hlEntry}→${hlNow}d\n`;
+            if (hurstStr) msg += `   ${hurstStr}\n`;
             if (fundingStr) msg += `   ${fundingStr}\n`;
             if (betaDriftStr) msg += `   ${betaDriftStr}\n`;
             msg += `   ${pnlSign}${pnl.toFixed(2)}% | ${days}d\n\n`;
@@ -686,6 +700,7 @@ async function main() {
             currentCorrelation: trade.currentCorrelation,
             currentHalfLife: trade.currentHalfLife,
             currentBeta: trade.currentBeta,
+            currentHurst: trade.currentHurst,
             betaDrift: trade.betaDrift,
             maxBetaDrift: trade.maxBetaDrift,
             partialExitTaken: trade.partialExitTaken,

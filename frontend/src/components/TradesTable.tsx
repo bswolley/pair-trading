@@ -21,6 +21,8 @@ interface Trade {
   entryZScore?: number;
   halfLife?: number;
   currentHalfLife?: number;
+  hurst?: number;
+  currentHurst?: number;
   entryTime?: string;
   partialExitTaken?: boolean;
   longAsset?: string;
@@ -173,22 +175,35 @@ export function TradesTable({ trades, showActions, onClose }: TradesTableProps) 
                 </div>
               </div>
 
-              {/* Correlation */}
+              {/* Hurst */}
               <div className="space-y-1">
-                <div className="text-xs text-muted-foreground uppercase tracking-wide">Correlation</div>
+                <div className="text-xs text-muted-foreground uppercase tracking-wide">Hurst</div>
                 <div className="flex items-center gap-1 font-mono">
-                  <span className="text-muted-foreground">{entryCorr.toFixed(2)}</span>
-                  <ArrowRight className={cn(
-                    "w-3 h-3",
-                    corrDelta >= 0 ? "text-emerald-400" : "text-red-400"
-                  )} />
-                  <span className={cn(
-                    "font-semibold",
-                    corrDelta >= 0 ? "text-emerald-400" : currentCorr < 0.5 ? "text-red-400" : ""
-                  )}>
-                    {currentCorr.toFixed(2)}
-                  </span>
+                  {trade.hurst !== undefined && trade.hurst !== null ? (
+                    <span className="text-muted-foreground">{trade.hurst.toFixed(2)}</span>
+                  ) : (
+                    <span className="text-muted-foreground/50">—</span>
+                  )}
+                  {trade.currentHurst !== undefined && trade.currentHurst !== null && (
+                    <>
+                      <ArrowRight className={cn(
+                        "w-3 h-3",
+                        trade.currentHurst < 0.5 ? "text-emerald-400" : "text-red-400"
+                      )} />
+                      <span className={cn(
+                        "font-semibold",
+                        trade.currentHurst < 0.4 ? "text-emerald-400" :
+                        trade.currentHurst < 0.5 ? "text-emerald-400/70" :
+                        trade.currentHurst < 0.55 ? "text-yellow-400" : "text-red-400"
+                      )}>
+                        {trade.currentHurst.toFixed(2)}
+                      </span>
+                    </>
+                  )}
                 </div>
+                {trade.currentHurst !== undefined && trade.currentHurst !== null && trade.currentHurst >= 0.5 && (
+                  <div className="text-xs text-red-400">⚠️ Trending</div>
+                )}
               </div>
 
               {/* ETA */}
