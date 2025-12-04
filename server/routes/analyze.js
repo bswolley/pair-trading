@@ -159,13 +159,13 @@ router.get('/:asset1/:asset2', async (req, res) => {
     let hurstResult = { hurst: null, classification: 'UNKNOWN' };
     if (data60) {
       const spread60 = data60.prices1.map((p, i) => p - fitness30.beta * data60.prices2[i]);
-      const hurst = calculateHurst(spread60);
+      const hurstData = calculateHurst(spread60);
+      // calculateHurst returns { hurst: number, isValid: boolean, classification: string }
       hurstResult = {
-        hurst: hurst !== null ? parseFloat(hurst.toFixed(3)) : null,
-        classification: hurst === null ? 'UNKNOWN' : 
-          hurst < 0.4 ? 'STRONG_REVERSION' :
-          hurst < 0.5 ? 'MEAN_REVERTING' :
-          hurst < 0.6 ? 'RANDOM_WALK' : 'TRENDING'
+        hurst: hurstData.hurst !== null && !isNaN(hurstData.hurst) 
+          ? parseFloat(hurstData.hurst.toFixed(3)) 
+          : null,
+        classification: hurstData.classification || 'UNKNOWN'
       };
     }
 
