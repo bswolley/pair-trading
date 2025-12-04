@@ -10,7 +10,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ZScoreChart } from "./ZScoreChart";
 import { PairAnalysisReport } from "./PairAnalysisReport";
-import { WatchlistPair, AnalysisResponse } from "@/lib/api";
+import { WatchlistPair, AnalysisResponse, ZScoreResponse } from "@/lib/api";
 import { LineChart, FileText, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -20,8 +20,9 @@ interface PairAnalysisModalProps {
   onOpenChange: (open: boolean) => void;
 }
 
-// Cache for analysis results - persists across modal opens
+// Cache for analysis and chart results - persists across modal opens
 const analysisCache = new Map<string, { data: AnalysisResponse; timestamp: number }>();
+const chartCache = new Map<string, { data: ZScoreResponse; timestamp: number }>();
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 export function PairAnalysisModal({ pair, open, onOpenChange }: PairAnalysisModalProps) {
@@ -34,8 +35,8 @@ export function PairAnalysisModal({ pair, open, onOpenChange }: PairAnalysisModa
     return `${pair.asset1}_${pair.asset2}_${pair.direction || 'auto'}`;
   }, [pair]);
   
-  // Check if we have valid cached data
-  const getCachedData = useCallback(() => {
+  // Check if we have valid cached analysis data
+  const getCachedAnalysis = useCallback(() => {
     const key = getCacheKey();
     if (!key) return null;
     
@@ -51,11 +52,35 @@ export function PairAnalysisModal({ pair, open, onOpenChange }: PairAnalysisModa
     return cached.data;
   }, [getCacheKey]);
   
-  // Store data in cache
-  const setCachedData = useCallback((data: AnalysisResponse) => {
+  // Check if we have valid cached chart data
+  const getCachedChart = useCallback(() => {
+    const key = getCacheKey();
+    if (!key) return null;
+    
+    const cached = chartCache.get(key);
+    if (!cached) return null;
+    
+    // Check if cache is still valid
+    if (Date.now() - cached.timestamp > CACHE_TTL) {
+      chartCache.delete(key);
+      return null;
+    }
+    
+    return cached.data;
+  }, [getCacheKey]);
+  
+  // Store analysis data in cache
+  const setCachedAnalysis = useCallback((data: AnalysisResponse) => {
     const key = getCacheKey();
     if (!key) return;
     analysisCache.set(key, { data, timestamp: Date.now() });
+  }, [getCacheKey]);
+  
+  // Store chart data in cache
+  const setCachedChart = useCallback((data: ZScoreResponse) => {
+    const key = getCacheKey();
+    if (!key) return;
+    chartCache.set(key, { data, timestamp: Date.now() });
   }, [getCacheKey]);
   
   // Force refresh
@@ -63,9 +88,13 @@ export function PairAnalysisModal({ pair, open, onOpenChange }: PairAnalysisModa
     const key = getCacheKey();
     if (key) {
       analysisCache.delete(key);
+      chartCache.delete(key);
     }
     setRefreshKey(prev => prev + 1);
   };
+  
+  const hasCachedAnalysis = !!getCachedAnalysis();
+  const hasCachedChart = !!getCachedChart();
 
   if (!pair) return null;
 
@@ -92,27 +121,30 @@ export function PairAnalysisModal({ pair, open, onOpenChange }: PairAnalysisModa
         </DialogHeader>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 overflow-hidden flex flex-col">
-          <div className="flex items-center gap-2 flex-shrink-0">
-            <TabsList className="grid w-full grid-cols-2">
+          <div className="flex items-center justify-between gap-3 flex-shrink-0 pb-2 border-b border-border">
+            <TabsList className="grid grid-cols-2">
               <TabsTrigger value="chart" className="flex items-center gap-2">
                 <LineChart className="w-4 h-4" />
                 Z-Score Chart
+                {hasCachedChart && (
+                  <span className="ml-1 text-[10px] text-muted-foreground">(cached)</span>
+                )}
               </TabsTrigger>
               <TabsTrigger value="analysis" className="flex items-center gap-2">
                 <FileText className="w-4 h-4" />
                 Full Analysis
-                {getCachedData() && (
+                {hasCachedAnalysis && (
                   <span className="ml-1 text-[10px] text-muted-foreground">(cached)</span>
                 )}
               </TabsTrigger>
             </TabsList>
-            {activeTab === "analysis" && (
+            {(hasCachedChart || hasCachedAnalysis) && (
               <Button 
                 variant="ghost" 
                 size="sm" 
                 onClick={handleRefresh}
                 className="flex-shrink-0"
-                title="Refresh analysis"
+                title="Refresh data"
               >
                 <RefreshCw className="w-4 h-4" />
               </Button>
@@ -122,20 +154,23 @@ export function PairAnalysisModal({ pair, open, onOpenChange }: PairAnalysisModa
           <div className="flex-1 overflow-auto mt-4 px-6 pb-6">
             <TabsContent value="chart" className="m-0 h-full px-4">
               <ZScoreChart
+                key={`chart-${refreshKey}`}
                 pair={pair.pair}
                 entryThreshold={pair.entryThreshold || 2.0}
                 days={30}
+                cachedData={getCachedChart()}
+                onDataLoaded={setCachedChart}
               />
             </TabsContent>
 
             <TabsContent value="analysis" className="m-0 h-full px-4">
               <PairAnalysisReport
-                key={refreshKey}
+                key={`analysis-${refreshKey}`}
                 asset1={pair.asset1}
                 asset2={pair.asset2}
                 direction={pair.direction}
-                cachedData={getCachedData()}
-                onDataLoaded={setCachedData}
+                cachedData={getCachedAnalysis()}
+                onDataLoaded={setCachedAnalysis}
               />
             </TabsContent>
           </div>

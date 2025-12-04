@@ -18,15 +18,31 @@ interface ZScoreChartProps {
   pair: string;
   entryThreshold?: number;
   days?: number;
+  cachedData?: api.ZScoreResponse | null;
+  onDataLoaded?: (data: api.ZScoreResponse) => void;
 }
 
-export function ZScoreChart({ pair, entryThreshold = 2.0, days = 30 }: ZScoreChartProps) {
-  const [loading, setLoading] = useState(true);
+export function ZScoreChart({ 
+  pair, 
+  entryThreshold = 2.0, 
+  days = 30,
+  cachedData,
+  onDataLoaded 
+}: ZScoreChartProps) {
+  const [loading, setLoading] = useState(!cachedData);
   const [error, setError] = useState<string | null>(null);
-  const [data, setData] = useState<api.ZScoreDataPoint[]>([]);
-  const [stats, setStats] = useState<api.ZScoreResponse["stats"] | null>(null);
+  const [data, setData] = useState<api.ZScoreDataPoint[]>(cachedData?.data || []);
+  const [stats, setStats] = useState<api.ZScoreResponse["stats"] | null>(cachedData?.stats || null);
 
   useEffect(() => {
+    // If we have cached data, use it
+    if (cachedData) {
+      setData(cachedData.data);
+      setStats(cachedData.stats);
+      setLoading(false);
+      return;
+    }
+    
     async function fetchData() {
       setLoading(true);
       setError(null);
@@ -34,6 +50,8 @@ export function ZScoreChart({ pair, entryThreshold = 2.0, days = 30 }: ZScoreCha
         const response = await api.getZScoreHistory(pair, days);
         setData(response.data);
         setStats(response.stats);
+        // Store in cache via callback
+        onDataLoaded?.(response);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to fetch data");
       } finally {
@@ -41,7 +59,7 @@ export function ZScoreChart({ pair, entryThreshold = 2.0, days = 30 }: ZScoreCha
       }
     }
     fetchData();
-  }, [pair, days]);
+  }, [pair, days, cachedData, onDataLoaded]);
 
   if (loading) {
     return (
