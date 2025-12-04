@@ -237,7 +237,7 @@ function checkExitConditions(trade, fitness, currentPnL) {
     return { shouldExit: false, isPartial: false, exitSize: 0, reason: null, emoji: null, message: null };
 }
 
-async function enterTrade(pair, fitness, prices, activeTrades) {
+async function enterTrade(pair, fitness, prices, activeTrades, hurst = null) {
     const absBeta = Math.abs(fitness.beta);
     const w1 = 1 / (1 + absBeta), w2 = absBeta / (1 + absBeta);
     const dir = fitness.zScore < 0 ? 'long' : 'short';
@@ -254,6 +254,7 @@ async function enterTrade(pair, fitness, prices, activeTrades) {
         correlation: fitness.correlation,
         beta: fitness.beta,
         halfLife: fitness.halfLife,
+        hurst: hurst,  // Hurst at entry
         direction: dir,
         longAsset: dir === 'long' ? pair.asset1 : pair.asset2,
         shortAsset: dir === 'long' ? pair.asset2 : pair.asset1,
@@ -297,6 +298,7 @@ async function exitTrade(trade, fitness, prices, activeTrades, history, exitReas
         ...trade,
         exitTime: new Date().toISOString(),
         exitZScore: fitness.zScore,
+        exitHurst: trade.currentHurst,  // Hurst at exit
         exitReason,
         totalPnL,
         daysInTrade: parseFloat(days)
@@ -481,6 +483,14 @@ async function main() {
         trade.currentHalfLife = fit.halfLife;
         trade.currentBeta = fit.beta;
 
+        // Calculate current Hurst (60d)
+        if (prices.prices1_60d && prices.prices1_60d.length >= 40) {
+            const hurstResult = calculateHurst(prices.prices1_60d);
+            if (hurstResult.isValid) {
+                trade.currentHurst = hurstResult.hurst;
+            }
+        }
+
         // Calculate beta drift (% change from entry)
         if (trade.beta && trade.beta !== 0) {
             trade.betaDrift = Math.abs(fit.beta - trade.beta) / Math.abs(trade.beta);
@@ -618,7 +628,7 @@ async function main() {
         const hurstValid = hurst === null || hurst < 0.5;
         
         if (signal && validation.valid && hurstValid && !hasOverlap && !atMaxTrades) {
-            const trade = await enterTrade(pair, fit, prices, activeTrades);
+            const trade = await enterTrade(pair, fit, prices, activeTrades, hurst);
             trade.entryThreshold = entryThreshold;
             entries.push(trade);
             activePairs.add(pair.pair);

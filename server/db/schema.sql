@@ -79,6 +79,7 @@ CREATE TABLE IF NOT EXISTS trades (
   correlation DECIMAL(5,4),
   beta DECIMAL(10,6),
   half_life DECIMAL(10,2),
+  hurst DECIMAL(5,3),              -- Hurst exponent at entry (H < 0.5 = mean-reverting)
   max_historical_z DECIMAL(10,2),  -- For dynamic stop-loss
   
   -- Current state (updated by monitor)
@@ -87,6 +88,7 @@ CREATE TABLE IF NOT EXISTS trades (
   current_correlation DECIMAL(5,4),
   current_half_life DECIMAL(10,2),
   current_beta DECIMAL(10,6),
+  current_hurst DECIMAL(5,3),      -- Current Hurst (updated by monitor)
   beta_drift DECIMAL(10,6),
   max_beta_drift DECIMAL(10,6),
   
@@ -133,12 +135,14 @@ CREATE TABLE IF NOT EXISTS trade_history (
   correlation DECIMAL(5,4),
   beta DECIMAL(10,6),
   half_life DECIMAL(10,2),
+  hurst DECIMAL(5,3),              -- Hurst at entry
   beta_drift DECIMAL(10,6),
   max_beta_drift DECIMAL(10,6),
   
   -- Exit data
   exit_time TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   exit_z_score DECIMAL(10,4),
+  exit_hurst DECIMAL(5,3),         -- Hurst at exit
   exit_reason VARCHAR(50), -- 'TARGET', 'STOP_LOSS', 'TIME_STOP', 'BREAKDOWN', 'MANUAL', etc.
   total_pnl DECIMAL(10,4),
   days_in_trade DECIMAL(10,2),

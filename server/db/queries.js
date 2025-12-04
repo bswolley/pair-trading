@@ -551,12 +551,14 @@ function transformTradeFromDB(row) {
     correlation: row.correlation,
     beta: row.beta,
     halfLife: row.half_life,
+    hurst: row.hurst,
     maxHistoricalZ: row.max_historical_z,
     currentZ: row.current_z,
     currentPnL: row.current_pnl,
     currentCorrelation: row.current_correlation,
     currentHalfLife: row.current_half_life,
     currentBeta: row.current_beta,
+    currentHurst: row.current_hurst,
     betaDrift: row.beta_drift,
     maxBetaDrift: row.max_beta_drift,
     partialExitTaken: row.partial_exit_taken,
@@ -589,12 +591,14 @@ function transformTradeToDB(trade) {
   if (trade.correlation !== undefined) result.correlation = trade.correlation;
   if (trade.beta !== undefined) result.beta = trade.beta;
   if (trade.halfLife !== undefined) result.half_life = trade.halfLife;
+  if (trade.hurst !== undefined) result.hurst = trade.hurst;
   if (trade.maxHistoricalZ !== undefined) result.max_historical_z = trade.maxHistoricalZ;
   if (trade.currentZ !== undefined) result.current_z = trade.currentZ;
   if (trade.currentPnL !== undefined) result.current_pnl = trade.currentPnL;
   if (trade.currentCorrelation !== undefined) result.current_correlation = trade.currentCorrelation;
   if (trade.currentHalfLife !== undefined) result.current_half_life = trade.currentHalfLife;
   if (trade.currentBeta !== undefined) result.current_beta = trade.currentBeta;
+  if (trade.currentHurst !== undefined) result.current_hurst = trade.currentHurst;
   if (trade.betaDrift !== undefined) result.beta_drift = trade.betaDrift;
   if (trade.maxBetaDrift !== undefined) result.max_beta_drift = trade.maxBetaDrift;
   if (trade.partialExitTaken !== undefined) result.partial_exit_taken = trade.partialExitTaken;
@@ -623,10 +627,12 @@ function transformHistoryFromDB(row) {
     correlation: row.correlation,
     beta: row.beta,
     halfLife: row.half_life,
+    hurst: row.hurst,
     betaDrift: row.beta_drift,
     maxBetaDrift: row.max_beta_drift,
     exitTime: row.exit_time,
     exitZScore: row.exit_z_score,
+    exitHurst: row.exit_hurst,
     exitReason: row.exit_reason,
     totalPnL: row.total_pnl,
     daysInTrade: row.days_in_trade,
@@ -656,10 +662,12 @@ function transformHistoryToDB(trade) {
     correlation: trade.correlation,
     beta: trade.beta,
     half_life: trade.halfLife,
+    hurst: trade.hurst,
     beta_drift: trade.betaDrift,
     max_beta_drift: trade.maxBetaDrift,
     exit_time: trade.exitTime || new Date().toISOString(),
     exit_z_score: trade.exitZScore,
+    exit_hurst: trade.exitHurst,
     exit_reason: trade.exitReason,
     total_pnl: trade.totalPnL,
     days_in_trade: trade.daysInTrade,

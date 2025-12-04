@@ -27,11 +27,13 @@ export interface Trade {
     correlation?: number;
     beta?: number;
     halfLife?: number;
+    hurst?: number;
     currentZ?: number;
     currentPnL?: number;
     currentCorrelation?: number;
     currentHalfLife?: number;
     currentBeta?: number;
+    currentHurst?: number;
     betaDrift?: number;
     maxBetaDrift?: number;
     partialExitTaken?: boolean;
