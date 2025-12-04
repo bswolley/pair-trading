@@ -865,7 +865,8 @@ async function main() {
             partialExitPnL: trade.partialExitPnL,
             partialExitTime: trade.partialExitTime,
             healthScore: trade.healthScore,
-            healthStatus: trade.healthStatus
+            healthStatus: trade.healthStatus,
+            healthSignals: trade.healthSignals
         });
     }
 

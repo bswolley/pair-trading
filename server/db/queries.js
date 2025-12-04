@@ -566,6 +566,7 @@ function transformTradeFromDB(row) {
     partialExitTime: row.partial_exit_time,
     healthScore: row.health_score,
     healthStatus: row.health_status,
+    healthSignals: row.health_signals,
     source: row.source,
     notes: row.notes
   };
@@ -608,6 +609,7 @@ function transformTradeToDB(trade) {
   if (trade.partialExitTime !== undefined) result.partial_exit_time = trade.partialExitTime;
   if (trade.healthScore !== undefined) result.health_score = trade.healthScore;
   if (trade.healthStatus !== undefined) result.health_status = trade.healthStatus;
+  if (trade.healthSignals !== undefined) result.health_signals = trade.healthSignals;
   if (trade.source !== undefined) result.source = trade.source;
   if (trade.notes !== undefined) result.notes = trade.notes;
   
