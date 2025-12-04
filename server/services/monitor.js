@@ -113,11 +113,11 @@ function validateEntry(prices, entryThreshold = DEFAULT_ENTRY_THRESHOLD) {
     // REACTIVE METRICS (30-day) - for trading decisions
     const fit30d = checkPairFitness(prices.prices1_30d, prices.prices2_30d);
 
-    // STRUCTURAL TEST (90-day) - for cointegration confidence
-    // Use 30d beta for consistency, but test cointegration on longer window
+    // STRUCTURAL TEST (90-day) - internally consistent with 90d beta
     let isCointegrated90d = false;
     if (prices.prices1_90d && prices.prices1_90d.length >= 60) {
-        const coint90d = testCointegration(prices.prices1_90d, prices.prices2_90d, fit30d.beta);
+        const { beta: beta90d } = calculateCorrelation(prices.prices1_90d, prices.prices2_90d);
+        const coint90d = testCointegration(prices.prices1_90d, prices.prices2_90d, beta90d);
         isCointegrated90d = coint90d.isCointegrated;
     } else {
         // Fallback to 30d if not enough data

@@ -267,12 +267,16 @@ function evaluatePairs(candidatePairs, priceMap, minCorrelation, crossSectorMinC
             // REACTIVE METRICS (30-day window) - responsive to recent market
             const { correlation, beta } = calculateCorrelation(prices1_30d, prices2_30d);
             
-            // STRUCTURAL TEST (90-day window) - confirms real relationship
+            // STRUCTURAL TEST (90-day window) - internally consistent with 90d beta
             const cointLen = Math.min(prices1_90d.length, 90);
+            const { beta: beta90d } = calculateCorrelation(
+                prices1_90d.slice(-cointLen), 
+                prices2_90d.slice(-cointLen)
+            );
             const coint = testCointegration(
                 prices1_90d.slice(-cointLen), 
                 prices2_90d.slice(-cointLen), 
-                beta
+                beta90d  // Use 90d beta for 90d cointegration test
             );
             
             // Also get 30-day Z-score and half-life for trading
