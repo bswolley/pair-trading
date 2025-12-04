@@ -2,23 +2,12 @@
  * Pair Analysis API
  * 
  * Generates comprehensive analysis reports for trading pairs.
- * Matches the output format of scripts/analyzePair.js
+ * Uses the same logic as scripts/analyzePair.js (analyzePair function)
  */
 
 const express = require('express');
 const router = express.Router();
-const { Hyperliquid } = require('hyperliquid');
-const {
-  analyzePair,
-  calculateCorrelation,
-  checkPairFitness,
-  analyzeHistoricalDivergences,
-  calculateHurst,
-  calculateDualBeta,
-  detectRegime,
-  calculateConvictionScore,
-  testCointegration
-} = require('../../lib/pairAnalysis');
+const { analyzePair } = require('../../lib/pairAnalysis');
 const { fetchCurrentFunding, calculateNetFunding } = require('../../lib/funding');
 
 /**
@@ -36,240 +25,22 @@ router.get('/:asset1/:asset2', async (req, res) => {
     let { asset1, asset2 } = req.params;
     asset1 = asset1.toUpperCase();
     asset2 = asset2.toUpperCase();
+    const direction = req.query.direction || 'long';
     
-    // Initialize Hyperliquid SDK
-    const sdk = new Hyperliquid();
-    
-    // Suppress console output from SDK
-    const origLog = console.log;
-    const origErr = console.error;
-    console.log = () => {};
-    console.error = () => {};
-    
-    try {
-      await sdk.connect();
-    } finally {
-      console.log = origLog;
-      console.error = origErr;
+    if (!['long', 'short'].includes(direction.toLowerCase())) {
+      return res.status(400).json({ error: 'Direction must be "long" or "short"' });
     }
 
-    // Fetch 200 days of data for multi-timeframe analysis
-    const endTime = Date.now();
-    const fetchStart = endTime - (200 * 24 * 60 * 60 * 1000);
-    
-    const [candles1, candles2] = await Promise.all([
-      sdk.info.getCandleSnapshot(`${asset1}-PERP`, '1d', fetchStart, endTime),
-      sdk.info.getCandleSnapshot(`${asset2}-PERP`, '1d', fetchStart, endTime)
-    ]);
-
-    // Disconnect SDK
-    console.log = () => {};
-    console.error = () => {};
-    try {
-      await sdk.disconnect();
-    } finally {
-      console.log = origLog;
-      console.error = origErr;
-    }
-
-    if (!candles1?.length || !candles2?.length) {
-      return res.status(404).json({ error: 'Could not fetch price data' });
-    }
-
-    // Sort and align candles
-    const map1 = new Map();
-    const map2 = new Map();
-    candles1.forEach(c => map1.set(new Date(c.t).toISOString().split('T')[0], {
-      close: parseFloat(c.c),
-      high: parseFloat(c.h),
-      low: parseFloat(c.l),
-      open: parseFloat(c.o),
-      volume: parseFloat(c.v)
-    }));
-    candles2.forEach(c => map2.set(new Date(c.t).toISOString().split('T')[0], {
-      close: parseFloat(c.c),
-      high: parseFloat(c.h),
-      low: parseFloat(c.l),
-      open: parseFloat(c.o),
-      volume: parseFloat(c.v)
-    }));
-
-    // Find common dates
-    const commonDates = [...map1.keys()].filter(d => map2.has(d)).sort();
-    
-    if (commonDates.length < 30) {
-      return res.status(400).json({ error: 'Insufficient overlapping data (need 30+ days)' });
-    }
-
-    // Helper to get price arrays for a window
-    const getPrices = (days) => {
-      const dates = commonDates.slice(-days);
-      return {
-        dates,
-        prices1: dates.map(d => map1.get(d).close),
-        prices2: dates.map(d => map2.get(d).close),
-        data1: dates.map(d => map1.get(d)),
-        data2: dates.map(d => map2.get(d))
-      };
-    };
-
-    // Calculate multi-timeframe metrics
-    const timeframes = {};
-    for (const days of [7, 30, 90, 180]) {
-      if (commonDates.length >= days) {
-        const { dates, prices1, prices2 } = getPrices(days);
-        try {
-          const fitness = checkPairFitness(prices1, prices2);
-          const coint = days >= 30 ? testCointegration(prices1, prices2, fitness.beta) : { isCointegrated: false };
-          
-          timeframes[days] = {
-            days,
-            correlation: fitness.correlation,
-            beta: fitness.beta,
-            zScore: fitness.zScore,
-            halfLife: fitness.halfLife === Infinity ? null : fitness.halfLife,
-            isCointegrated: coint.isCointegrated,
-            gamma: fitness.gamma || null,
-            theta: fitness.theta || null,
-            price1Start: prices1[0],
-            price1End: prices1[prices1.length - 1],
-            price2Start: prices2[0],
-            price2End: prices2[prices2.length - 1]
-          };
-        } catch (e) {
-          timeframes[days] = { days, error: e.message };
-        }
-      }
-    }
-
-    // Get 30-day and 90-day data for core calculations
-    const data30 = getPrices(30);
-    const data60 = commonDates.length >= 60 ? getPrices(60) : null;
-    const data90 = commonDates.length >= 90 ? getPrices(90) : null;
-
-    // Core 30-day fitness
-    const fitness30 = checkPairFitness(data30.prices1, data30.prices2);
-    
-    // Auto-detect direction based on z-score
-    const direction = req.query.direction || (fitness30.zScore < 0 ? 'long' : 'short');
-
-    // === ADVANCED METRICS ===
-    
-    // 1. Hurst Exponent (60-day)
-    let hurstResult = { hurst: null, classification: 'UNKNOWN' };
-    if (data60) {
-      const spread60 = data60.prices1.map((p, i) => p - fitness30.beta * data60.prices2[i]);
-      const hurstData = calculateHurst(spread60);
-      // calculateHurst returns { hurst: number, isValid: boolean, classification: string }
-      hurstResult = {
-        hurst: hurstData.hurst !== null && !isNaN(hurstData.hurst) 
-          ? parseFloat(hurstData.hurst.toFixed(3)) 
-          : null,
-        classification: hurstData.classification || 'UNKNOWN'
-      };
-    }
-
-    // 2. Dual Beta Analysis
-    let dualBeta = null;
-    if (data90) {
-      const halfLife = fitness30.halfLife || 7;
-      dualBeta = calculateDualBeta(data90.prices1, data90.prices2, halfLife);
-    }
-
-    // 3. Regime Detection
-    const recentZScores = [];
-    for (let i = Math.max(0, commonDates.length - 10); i < commonDates.length; i++) {
-      const windowDates = commonDates.slice(Math.max(0, i - 29), i + 1);
-      if (windowDates.length >= 15) {
-        const p1 = windowDates.map(d => map1.get(d).close);
-        const p2 = windowDates.map(d => map2.get(d).close);
-        try {
-          const f = checkPairFitness(p1, p2);
-          recentZScores.push(f.zScore);
-        } catch (e) {}
-      }
-    }
-    
-    const regime = detectRegime(
-      fitness30.zScore,
-      1.5, // entry threshold
-      recentZScores,
-      hurstResult.hurst
-    );
-
-    // 4. Cointegration (90-day)
-    let coint90 = { isCointegrated: false, pValue: null };
-    if (data90) {
-      const beta90 = checkPairFitness(data90.prices1, data90.prices2).beta;
-      coint90 = testCointegration(data90.prices1, data90.prices2, beta90);
-    }
-
-    // 5. Conviction Score
-    const conviction = calculateConvictionScore({
-      correlation: fitness30.correlation,
-      rSquared: dualBeta?.structural?.r2 || fitness30.correlation ** 2,
-      halfLife: fitness30.halfLife,
-      hurst: hurstResult.hurst,
-      isCointegrated: coint90.isCointegrated,
-      betaDrift: dualBeta?.drift || 0
+    // Use analyzePair() - same logic as CLI script
+    const result = await analyzePair({
+      symbol1: asset1,
+      symbol2: asset2,
+      direction: direction.toLowerCase(),
+      timeframes: [7, 30, 90, 180],
+      obvTimeframes: [7, 30]
     });
 
-    // 6. Divergence Analysis (30-day)
-    const divergenceProfile = analyzeHistoricalDivergences(
-      data30.prices1, 
-      data30.prices2, 
-      fitness30.beta
-    );
-
-    // 6b. Calculate percentage-based reversion (exit at 50% of entry threshold)
-    const percentageReversion = {};
-    if (divergenceProfile?.thresholds) {
-      for (const [threshold, stats] of Object.entries(divergenceProfile.thresholds)) {
-        const threshNum = parseFloat(threshold);
-        const exitZ = threshNum * 0.5; // 50% reversion target
-        percentageReversion[threshold] = {
-          exitZ,
-          ...stats
-        };
-      }
-    }
-
-    // 6c. Expected ROI from current position
-    let expectedROI = null;
-    const currentZ = Math.abs(fitness30.zScore);
-    const hl = fitness30.halfLife;
-    if (currentZ > 0.5 && hl && hl !== Infinity && hl < 100) {
-      // Fixed reversion (to Z = 0.5)
-      const fixedExitZ = 0.5;
-      const roiFixed = ((currentZ - fixedExitZ) / currentZ) * 100 * fitness30.beta;
-      const timeToFixed = hl * Math.log2(currentZ / fixedExitZ);
-      
-      // Percentage-based (to 50% of current Z)
-      const percentExitZ = currentZ * 0.5;
-      const roiPercent = ((currentZ - percentExitZ) / currentZ) * 100 * fitness30.beta;
-      const timeToPercent = hl;
-      
-      expectedROI = {
-        currentZ: parseFloat(currentZ.toFixed(2)),
-        fixedExitZ,
-        roiFixed: parseFloat(roiFixed.toFixed(2)) + '%',
-        timeToFixed: parseFloat(timeToFixed.toFixed(1)),
-        percentExitZ: parseFloat(percentExitZ.toFixed(2)),
-        roiPercent: parseFloat(roiPercent.toFixed(2)) + '%',
-        timeToPercent: parseFloat(timeToPercent.toFixed(1))
-      };
-    }
-
-    // 7. Position Sizing
-    const beta = fitness30.beta;
-    const w1 = 1 / (1 + beta);
-    const w2 = beta / (1 + beta);
-    const positionSizing = {
-      weight1: parseFloat((w1 * 100).toFixed(1)),
-      weight2: parseFloat((w2 * 100).toFixed(1))
-    };
-
-    // 8. Funding rates
+    // Fetch funding rates
     let funding = null;
     try {
       const fundingMap = await fetchCurrentFunding();
@@ -293,90 +64,129 @@ router.get('/:asset1/:asset2', async (req, res) => {
       // Funding optional
     }
 
-    // 9. OBV (On-Balance Volume) - 7d and 30d
-    const obv = {};
-    for (const days of [7, 30]) {
-      if (commonDates.length >= days) {
-        const { data1, data2 } = getPrices(days);
-        
-        let obv1 = 0, obv2 = 0;
-        for (let i = 1; i < data1.length; i++) {
-          if (data1[i].close > data1[i-1].close) obv1 += data1[i].volume;
-          else if (data1[i].close < data1[i-1].close) obv1 -= data1[i].volume;
-          
-          if (data2[i].close > data2[i-1].close) obv2 += data2[i].volume;
-          else if (data2[i].close < data2[i-1].close) obv2 -= data2[i].volume;
-        }
-        
-        obv[days] = {
-          [asset1]: Math.round(obv1),
-          [asset2]: Math.round(obv2)
-        };
-      }
-    }
-
-    // 10. Current prices
-    const currentPrice1 = data30.prices1[data30.prices1.length - 1];
-    const currentPrice2 = data30.prices2[data30.prices2.length - 1];
-
-    // === BUILD RESPONSE ===
+    // Transform analyzePair result to API response format
     const response = {
-      pair: `${asset1}/${asset2}`,
-      asset1,
-      asset2,
-      direction,
+      pair: result.pair,
+      asset1: result.symbol1,
+      asset2: result.symbol2,
+      direction: result.direction,
       generatedAt: new Date().toISOString(),
       processingTimeMs: Date.now() - startTime,
 
       // Current state
       currentPrices: {
-        [asset1]: currentPrice1,
-        [asset2]: currentPrice2
+        [asset1]: result.currentPrice1,
+        [asset2]: result.currentPrice2
       },
 
       // Signal
       signal: {
-        zScore30d: fitness30.zScore,
-        isReady: Math.abs(fitness30.zScore) >= (divergenceProfile?.optimalEntry || 1.5),
-        direction: fitness30.zScore < 0 ? 'long' : 'short',
-        strength: Math.abs(fitness30.zScore)
+        zScore30d: result.standardized?.zScore30d || result.timeframes[30]?.zScore || 0,
+        isReady: result.standardized?.zScore30d 
+          ? Math.abs(result.standardized.zScore30d) >= (result.standardized?.optimalEntryThreshold || 1.5)
+          : false,
+        direction: result.direction,
+        strength: Math.abs(result.standardized?.zScore30d || result.timeframes[30]?.zScore || 0)
       },
 
       // Advanced Analytics
-      advanced: {
-        regime,
-        hurst: hurstResult,
-        dualBeta,
-        conviction
-      },
+      advanced: result.advancedMetrics ? {
+        regime: result.advancedMetrics.regime,
+        hurst: result.advancedMetrics.hurst,
+        dualBeta: result.advancedMetrics.dualBeta,
+        conviction: result.advancedMetrics.conviction
+      } : null,
 
-      // Standardized Metrics (30d/90d)
-      standardized: {
-        beta: fitness30.beta,
-        correlation: fitness30.correlation,
-        zScore: fitness30.zScore,
-        halfLife: fitness30.halfLife === Infinity ? null : fitness30.halfLife,
-        isCointegrated: coint90.isCointegrated,
-        positionSizing
-      },
+      // Standardized Metrics
+      standardized: result.standardized ? {
+        beta: result.standardized.beta30d,
+        correlation: result.standardized.correlation30d,
+        zScore: result.standardized.zScore30d,
+        halfLife: result.standardized.halfLife30d,
+        isCointegrated: result.standardized.isCointegrated90d,
+        positionSizing: result.positionSizing ? {
+          weight1: result.positionSizing.weight1 * 100,
+          weight2: result.positionSizing.weight2 * 100
+        } : null
+      } : null,
 
-      // Multi-timeframe
-      timeframes,
+      // Multi-timeframe - transform from analyzePair format
+      timeframes: Object.values(result.timeframes || {})
+        .filter(tf => !tf.error && [7, 30, 90, 180].includes(tf.days))
+        .reduce((acc, tf) => {
+          acc[tf.days] = {
+            days: tf.days,
+            correlation: tf.correlation,
+            beta: tf.beta,
+            zScore: tf.zScore,
+            halfLife: tf.halfLife === Infinity ? null : tf.halfLife,
+            isCointegrated: tf.isCointegrated,
+            gamma: tf.gamma || null,
+            theta: tf.theta || null,
+            price1Start: tf.price1Start,
+            price1End: tf.price1End,
+            price2Start: tf.price2Start,
+            price2End: tf.price2End
+          };
+          return acc;
+        }, {}),
 
       // Divergence analysis
-      divergence: divergenceProfile,
-      
+      divergence: result.standardized?.divergenceProfile ? {
+        optimalEntry: result.standardized.optimalEntryThreshold || 1.5,
+        maxHistoricalZ: result.standardized.divergenceProfile.maxHistoricalZ || 0,
+        currentZ: result.standardized.zScore30d || 0,
+        thresholds: Object.entries(result.standardized.divergenceProfile)
+          .filter(([key]) => key !== 'maxHistoricalZ' && key !== 'currentZ')
+          .reduce((acc, [threshold, stats]) => {
+            acc[threshold] = {
+              totalEvents: stats.events || 0,
+              revertedEvents: stats.reverted || 0,
+              reversionRate: stats.rate !== null && stats.rate !== undefined ? stats.rate : null,
+              avgDuration: stats.avgTimeToRevert !== null && stats.avgTimeToRevert !== undefined ? stats.avgTimeToRevert : null,
+              avgPeakZ: stats.avgPeakZ || null
+            };
+            return acc;
+          }, {})
+      } : null,
+
       // Expected ROI
-      expectedROI,
-      
+      expectedROI: result.standardized?.currentZROI ? {
+        currentZ: result.standardized.currentZROI.currentZ,
+        fixedExitZ: result.standardized.currentZROI.fixedExitZ,
+        roiFixed: result.standardized.currentZROI.roiFixed,
+        timeToFixed: result.standardized.currentZROI.timeToFixed,
+        percentExitZ: result.standardized.currentZROI.percentExitZ,
+        roiPercent: result.standardized.currentZROI.roiPercent,
+        timeToPercent: result.standardized.currentZROI.timeToPercent
+      } : null,
+
       // Percentage-based reversion
-      percentageReversion,
+      percentageReversion: result.standardized?.divergenceProfilePercent ? 
+        Object.entries(result.standardized.divergenceProfilePercent).reduce((acc, [threshold, stats]) => {
+          acc[threshold] = {
+            exitZ: parseFloat(threshold) * 0.5,
+            totalEvents: stats.events || 0,
+            revertedEvents: stats.reverted || 0,
+            reversionRate: stats.rate !== null && stats.rate !== undefined ? stats.rate : null,
+            avgDuration: stats.avgTimeToRevert !== null && stats.avgTimeToRevert !== undefined ? stats.avgTimeToRevert : null
+          };
+          return acc;
+        }, {}) : null,
 
       // Funding
       funding,
 
       // OBV
-      obv
+      obv: Object.values(result.timeframes || {})
+        .filter(tf => !tf.error && tf.obv1Change !== null && [7, 30].includes(tf.days))
+        .reduce((acc, tf) => {
+          acc[tf.days] = {
+            [asset1]: tf.obv1Change,
+            [asset2]: tf.obv2Change
+          };
+          return acc;
+        }, {})
     };
 
     res.json(response);
@@ -388,4 +198,3 @@ router.get('/:asset1/:asset2', async (req, res) => {
 });
 
 module.exports = router;
-
