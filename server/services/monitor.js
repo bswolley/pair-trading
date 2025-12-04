@@ -538,7 +538,6 @@ async function main() {
     }
 
     // Check watchlist for entries
-    const atMaxTrades = activeTrades.trades.length >= MAX_CONCURRENT_TRADES;
     const watchlistUpdates = [];
 
     for (const pair of watchlist.pairs) {
@@ -641,7 +640,10 @@ async function main() {
         // Hurst validation: only enter mean-reverting pairs (H < 0.5)
         const hurstValid = hurst === null || hurst < 0.5;
         
-        if (signal && validation.valid && hurstValid && !hasOverlap && !atMaxTrades) {
+        // Check max trades dynamically (not just once before loop)
+        const currentlyAtMax = activeTrades.trades.length >= MAX_CONCURRENT_TRADES;
+        
+        if (signal && validation.valid && hurstValid && !hasOverlap && !currentlyAtMax) {
             const trade = await enterTrade(pair, fit, prices, activeTrades, hurst);
             trade.entryThreshold = entryThreshold;
             entries.push(trade);
