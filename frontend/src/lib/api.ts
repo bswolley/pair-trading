@@ -41,6 +41,7 @@ export interface Trade {
     partialExitTime?: string;
     healthScore?: number;
     healthStatus?: string;
+    healthSignals?: string[];
     source?: string;
 }
 
@@ -71,6 +72,7 @@ export interface WatchlistPair {
 export interface HistoryTrade extends Trade {
     exitTime?: string;
     exitZScore?: number;
+    exitHurst?: number;
     exitReason?: string;
     totalPnL?: number;
     daysInTrade?: number;

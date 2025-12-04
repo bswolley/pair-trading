@@ -9,6 +9,12 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { TrendingUp, TrendingDown, ArrowRight, Clock, Target } from "lucide-react";
 
@@ -38,6 +44,7 @@ interface Trade {
   entryThreshold?: number;
   healthScore?: number;
   healthStatus?: string;
+  healthSignals?: string[];
 }
 
 interface TradesTableProps {
@@ -118,20 +125,48 @@ export function TradesTable({ trades, showActions, onClose }: TradesTableProps) 
                       </Badge>
                     )}
                     {trade.healthScore !== undefined && trade.healthStatus && (
-                      <Badge 
-                        variant="outline"
-                        className={cn(
-                          "text-xs",
-                          trade.healthStatus === 'STRONG' ? "border-emerald-500 text-emerald-400 bg-emerald-500/10" :
-                          trade.healthStatus === 'OK' ? "border-yellow-500 text-yellow-400 bg-yellow-500/10" :
-                          trade.healthStatus === 'WEAK' ? "border-orange-500 text-orange-400 bg-orange-500/10" :
-                          "border-red-500 text-red-400 bg-red-500/10"
-                        )}
-                      >
-                        {trade.healthStatus === 'STRONG' ? '🟢' :
-                         trade.healthStatus === 'OK' ? '🟡' :
-                         trade.healthStatus === 'WEAK' ? '🟠' : '🔴'} {trade.healthScore}
-                      </Badge>
+                      <TooltipProvider>
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <Badge 
+                              variant="outline"
+                              className={cn(
+                                "text-xs cursor-help",
+                                trade.healthStatus === 'STRONG' ? "border-emerald-500 text-emerald-400 bg-emerald-500/10" :
+                                trade.healthStatus === 'OK' ? "border-yellow-500 text-yellow-400 bg-yellow-500/10" :
+                                trade.healthStatus === 'WEAK' ? "border-orange-500 text-orange-400 bg-orange-500/10" :
+                                "border-red-500 text-red-400 bg-red-500/10"
+                              )}
+                            >
+                              {trade.healthStatus === 'STRONG' ? '🟢' :
+                               trade.healthStatus === 'OK' ? '🟡' :
+                               trade.healthStatus === 'WEAK' ? '🟠' : '🔴'} {trade.healthScore}
+                            </Badge>
+                          </TooltipTrigger>
+                          <TooltipContent 
+                            side="bottom" 
+                            className="bg-popover border border-border text-popover-foreground max-w-xs"
+                          >
+                            <div className="space-y-1">
+                              <div className="font-semibold text-xs border-b border-border pb-1 mb-1">
+                                Health Signals
+                              </div>
+                              {trade.healthSignals && trade.healthSignals.length > 0 ? (
+                                <ul className="text-xs space-y-0.5">
+                                  {trade.healthSignals.map((signal, idx) => (
+                                    <li key={idx} className="flex items-start gap-1">
+                                      <span className="text-muted-foreground">•</span>
+                                      <span>{signal}</span>
+                                    </li>
+                                  ))}
+                                </ul>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">No signals available</span>
+                              )}
+                            </div>
+                          </TooltipContent>
+                        </Tooltip>
+                      </TooltipProvider>
                     )}
                   </div>
                   <div className="text-sm text-muted-foreground">
