@@ -143,7 +143,9 @@ router.get('/:asset1/:asset2', async (req, res) => {
               totalEvents: stats.events || 0,
               revertedEvents: stats.reverted || 0,
               reversionRate: stats.rate !== null && stats.rate !== undefined ? stats.rate : null,
-              avgDuration: stats.avgTimeToRevert !== null && stats.avgTimeToRevert !== undefined ? stats.avgTimeToRevert : null,
+              avgDuration: (stats.avgTimeToRevert !== null && stats.avgTimeToRevert !== undefined && typeof stats.avgTimeToRevert === 'number') 
+                ? stats.avgTimeToRevert 
+                : null,
               avgPeakZ: stats.avgPeakZ || null
             };
             return acc;

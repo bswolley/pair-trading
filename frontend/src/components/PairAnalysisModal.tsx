@@ -26,7 +26,10 @@ export function PairAnalysisModal({ pair, open, onOpenChange }: PairAnalysisModa
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-5xl max-h-[90vh] w-[95vw] overflow-hidden flex flex-col">
+      <DialogContent 
+        className="max-w-5xl max-h-[90vh] w-[95vw] overflow-hidden flex flex-col"
+        aria-describedby={undefined}
+      >
         <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center gap-3">
             <span className="text-xl font-bold">{pair.pair}</span>

@@ -374,7 +374,9 @@ export function PairAnalysisReport({ asset1, asset2, direction }: PairAnalysisRe
                         {stats.reversionRate !== null ? (stats.reversionRate * 100).toFixed(0) + "%" : "—"}
                       </td>
                       <td className="text-right px-2">
-                        {stats.avgDuration !== null ? stats.avgDuration.toFixed(1) + "d" : "—"}
+                        {stats.avgDuration !== null && typeof stats.avgDuration === 'number' 
+                          ? stats.avgDuration.toFixed(1) + "d" 
+                          : "—"}
                       </td>
                     </tr>
                   ))}
