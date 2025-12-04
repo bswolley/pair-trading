@@ -644,6 +644,9 @@ function transformHistoryFromDB(row) {
     daysInTrade: row.days_in_trade,
     partialExitTaken: row.partial_exit_taken,
     partialExitPnL: row.partial_exit_pnl,
+    healthScore: row.health_score,
+    healthStatus: row.health_status,
+    healthSignals: row.health_signals,
     source: row.source
   };
 }
@@ -679,6 +682,9 @@ function transformHistoryToDB(trade) {
     days_in_trade: trade.daysInTrade,
     partial_exit_taken: trade.partialExitTaken,
     partial_exit_pnl: trade.partialExitPnL,
+    health_score: trade.healthScore,
+    health_status: trade.healthStatus,
+    health_signals: trade.healthSignals,
     source: trade.source
   };
 }

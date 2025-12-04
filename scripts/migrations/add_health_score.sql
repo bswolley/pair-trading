@@ -11,9 +11,14 @@ COMMENT ON COLUMN trades.health_score IS 'Trade health score (-5 to +8): >=5 STR
 COMMENT ON COLUMN trades.health_status IS 'Health status: STRONG, OK, WEAK, BROKEN';
 COMMENT ON COLUMN trades.health_signals IS 'Array of health signals explaining the score, e.g. ["Z reverting 28%", "PnL +0.7%"]';
 
--- Also add to history table for analysis
-ALTER TABLE history
+-- Also add to trade_history table for analysis
+ALTER TABLE trade_history
 ADD COLUMN IF NOT EXISTS health_score INTEGER,
 ADD COLUMN IF NOT EXISTS health_status VARCHAR(20),
 ADD COLUMN IF NOT EXISTS health_signals JSONB;
+
+-- Add comments for trade_history columns
+COMMENT ON COLUMN trade_history.health_score IS 'Final health score at trade exit';
+COMMENT ON COLUMN trade_history.health_status IS 'Final health status at trade exit';
+COMMENT ON COLUMN trade_history.health_signals IS 'Final health signals array at trade exit';
 

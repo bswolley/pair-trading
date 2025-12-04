@@ -97,6 +97,11 @@ CREATE TABLE IF NOT EXISTS trades (
   partial_exit_pnl DECIMAL(10,4),
   partial_exit_time TIMESTAMP WITH TIME ZONE,
   
+  -- Health tracking (updated by monitor)
+  health_score INTEGER,           -- -5 to +8: >=5 STRONG, 2-4 OK, 0-1 WEAK, <0 BROKEN
+  health_status VARCHAR(20),      -- STRONG, OK, WEAK, BROKEN
+  health_signals JSONB,           -- Array of signals, e.g. ["Z reverting 28%", "PnL +0.7%"]
+  
   -- Source and notes
   source VARCHAR(20) DEFAULT 'bot', -- 'bot', 'manual', 'telegram'
   notes TEXT,
@@ -150,6 +155,11 @@ CREATE TABLE IF NOT EXISTS trade_history (
   -- Partial exit info
   partial_exit_taken BOOLEAN DEFAULT FALSE,
   partial_exit_pnl DECIMAL(10,4),
+  
+  -- Health tracking at exit
+  health_score INTEGER,
+  health_status VARCHAR(20),
+  health_signals JSONB,
   
   -- Source
   source VARCHAR(20),
