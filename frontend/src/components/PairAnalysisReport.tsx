@@ -124,10 +124,11 @@ export function PairAnalysisReport({
       </div>
 
       {/* Advanced Analytics */}
-      <Section title="Advanced Analytics">
-        <div className="grid grid-cols-2 gap-4">
-          {/* Regime */}
-          {advanced.regime && (
+      {advanced && (
+        <Section title="Advanced Analytics">
+          <div className="grid grid-cols-2 gap-4">
+            {/* Regime */}
+            {advanced.regime && (
             <Card title="Regime Detection">
               <div className="space-y-2">
                 <div className="flex justify-between">
@@ -268,7 +269,8 @@ export function PairAnalysisReport({
             </Card>
           )}
         </div>
-      </Section>
+        </Section>
+      )}
 
       {/* Standardized Metrics */}
       <Section title="Standardized Metrics (30d/90d)">
