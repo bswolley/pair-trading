@@ -245,17 +245,31 @@ function validateEntry(prices, entryThreshold = DEFAULT_ENTRY_THRESHOLD) {
         fit30d.halfLife <= 30 &&
         (!fit7d || (signal7d && sameDirection));
 
+    // Determine rejection reason (for debugging)
+    let reason = 'ok';
+    if (!signal30d) {
+        reason = 'no_signal';
+    } else if (fit30d.correlation < MIN_CORRELATION_30D) {
+        reason = 'low_corr';
+    } else if (!isCointegrated90d) {
+        reason = 'not_coint_90d';
+    } else if (fit30d.halfLife > 30) {
+        reason = 'slow_reversion';
+    } else if (fit7d && !signal7d) {
+        reason = '7d_weak_signal';
+    } else if (fit7d && !sameDirection) {
+        reason = '7d_conflict';
+    }
+
     return {
         valid,
         fit30d,
         fit7d,
         isCointegrated90d,
         adfStat90d,
-        reason: !signal30d ? 'no_signal' :
-            fit30d.correlation < MIN_CORRELATION_30D ? 'low_corr' :
-                !isCointegrated90d ? 'not_coint' :
-                    fit30d.halfLife > 30 ? 'slow_reversion' :
-                        (fit7d && !sameDirection) ? 'conflicting_tf' : 'ok'
+        signal7d,
+        sameDirection,
+        reason
     };
 }
 
@@ -551,14 +565,32 @@ function formatStatusReport(activeTrades, entries, exits, history, approaching =
 
     if (approaching.length > 0) {
         msg += `\n🎯 APPROACHING ENTRY\n\n`;
-        for (const p of approaching.slice(0, 3)) {
+        for (const p of approaching.slice(0, 5)) {
             const pct = (p.proximity * 100).toFixed(0);
-            const status = p.hurstBlocked ? '📈 TRENDING' : 
-                          p.hasOverlap ? '🚫 SKIP' : 
-                          p.proximity >= 1 ? '🟡 READY' : '⏳';
-            const blockNote = p.hurstBlocked ? ` [H=${p.hurst?.toFixed(2)}]` :
-                             p.overlappingAsset ? ` [${p.overlappingAsset} in use]` : '';
-            msg += `${status} ${p.pair} (${p.sector})${blockNote}\n`;
+            const atThreshold = p.proximity >= 1;
+            
+            // Determine status emoji and block reason
+            let status, blockNote;
+            if (p.hurstBlocked) {
+                status = '📈';
+                blockNote = `H=${p.hurst?.toFixed(2)}`;
+            } else if (p.hasOverlap) {
+                status = '🚫';
+                blockNote = `${p.overlappingAsset} in use`;
+            } else if (atThreshold && p.blockReason && p.blockReason !== 'below_threshold') {
+                status = '⚠️';
+                blockNote = p.blockReason.replace(/_/g, ' ');
+            } else if (atThreshold) {
+                status = '🟡';
+                blockNote = 'READY';
+            } else {
+                status = '⏳';
+                blockNote = null;
+            }
+            
+            msg += `${status} ${p.pair} (${p.sector})`;
+            if (blockNote) msg += ` [${blockNote}]`;
+            msg += `\n`;
             msg += `   Z: ${p.zScore.toFixed(2)} → entry@${p.entryThreshold} [${pct}%]\n\n`;
         }
     }
@@ -761,6 +793,7 @@ async function main() {
         }
 
         // Always update watchlist with fresh metrics (including active trades)
+        // Preserve scanner-set fields that monitor doesn't recalculate
         const watchlistUpdate = {
             pair: pair.pair,
             asset1: pair.asset1,
@@ -779,6 +812,11 @@ async function main() {
             direction,
             isReady,
             entryThreshold,
+            // Preserve scanner-calculated fields
+            exitThreshold: pair.exitThreshold,
+            maxHistoricalZ: pair.maxHistoricalZ,
+            fundingSpread: pair.fundingSpread,
+            addedManually: pair.addedManually,
             lastScan: new Date().toISOString()
         };
 
@@ -810,6 +848,21 @@ async function main() {
             const absBeta = Math.abs(fit.beta);
             const w1 = (1 / (1 + absBeta)) * 100;
             const w2 = (absBeta / (1 + absBeta)) * 100;
+            
+            // Determine why entry was blocked (for debugging)
+            let blockReason = null;
+            if (!signal) {
+                blockReason = 'below_threshold';
+            } else if (!validation.valid) {
+                blockReason = validation.reason;
+            } else if (!hurstValid) {
+                blockReason = 'hurst_trending';
+            } else if (hasOverlap) {
+                blockReason = 'asset_overlap';
+            } else if (currentlyAtMax) {
+                blockReason = 'max_positions';
+            }
+            
             approaching.push({
                 pair: pair.pair,
                 asset1: pair.asset1,
@@ -827,7 +880,9 @@ async function main() {
                 longWeight: z < 0 ? w1 : w2,
                 shortWeight: z < 0 ? w2 : w1,
                 hasOverlap,
-                overlappingAsset
+                overlappingAsset,
+                validationPassed: validation.valid,
+                blockReason
             });
         }
 
