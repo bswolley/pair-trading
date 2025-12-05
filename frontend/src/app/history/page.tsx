@@ -106,16 +106,16 @@ export default function HistoryPage() {
             <p className="text-muted-foreground">No trade history yet</p>
           </div>
         ) : (
-          <div className="border border-border rounded-lg overflow-hidden">
-            <table className="w-full text-sm">
+          <div className="border border-border rounded-lg overflow-x-auto">
+            <table className="w-full text-sm min-w-[600px]">
               <thead className="bg-muted/50">
                 <tr>
-                  <th className="text-left px-4 py-3 font-medium">Pair</th>
-                  <th className="text-left px-4 py-3 font-medium">Exit</th>
-                  <th className="text-right px-4 py-3 font-medium">P&L</th>
-                  <th className="text-right px-4 py-3 font-medium">Days</th>
-                  <th className="text-right px-4 py-3 font-medium">Exit Z</th>
-                  <th className="text-right px-4 py-3 font-medium">Date</th>
+                  <th className="text-left px-4 py-3 font-medium whitespace-nowrap">Pair</th>
+                  <th className="text-left px-4 py-3 font-medium whitespace-nowrap">Exit</th>
+                  <th className="text-right px-4 py-3 font-medium whitespace-nowrap">P&L</th>
+                  <th className="text-right px-4 py-3 font-medium whitespace-nowrap">Days</th>
+                  <th className="text-right px-4 py-3 font-medium whitespace-nowrap">Exit Z</th>
+                  <th className="text-right px-4 py-3 font-medium whitespace-nowrap">Date</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -125,7 +125,7 @@ export default function HistoryPage() {
                   
                   return (
                     <tr key={`${trade.pair}-${idx}`}>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3 whitespace-nowrap">
                         <div className="flex items-center gap-2">
                           {isWin ? (
                             <TrendingUp className="w-4 h-4 text-emerald-400" />
@@ -136,7 +136,7 @@ export default function HistoryPage() {
                           <Badge variant="outline" className="text-xs">{trade.sector}</Badge>
                         </div>
                       </td>
-                      <td className="px-4 py-3">
+                      <td className="px-4 py-3 whitespace-nowrap">
                         <Badge
                           variant={
                             trade.exitReason === "TARGET" || trade.exitReason === "FINAL_TP"
@@ -151,18 +151,18 @@ export default function HistoryPage() {
                         </Badge>
                       </td>
                       <td className={cn(
-                        "px-4 py-3 text-right font-bold tabular-nums",
+                        "px-4 py-3 text-right font-bold tabular-nums whitespace-nowrap",
                         isWin ? "text-emerald-400" : "text-red-400"
                       )}>
                         {isWin ? "+" : ""}{pnl.toFixed(2)}%
                       </td>
-                      <td className="px-4 py-3 text-right text-muted-foreground">
+                      <td className="px-4 py-3 text-right text-muted-foreground whitespace-nowrap">
                         {trade.daysInTrade?.toFixed(1)}d
                       </td>
-                      <td className="px-4 py-3 text-right font-mono text-muted-foreground">
+                      <td className="px-4 py-3 text-right font-mono text-muted-foreground whitespace-nowrap">
                         {trade.exitZScore?.toFixed(2) || "—"}
                       </td>
-                      <td className="px-4 py-3 text-right text-muted-foreground">
+                      <td className="px-4 py-3 text-right text-muted-foreground whitespace-nowrap">
                         {trade.exitTime ? new Date(trade.exitTime).toLocaleDateString() : "—"}
                       </td>
                     </tr>
