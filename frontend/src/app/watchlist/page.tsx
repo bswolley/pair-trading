@@ -191,8 +191,8 @@ export default function WatchlistPage() {
       <div>
         <h2 className="font-semibold mb-3">All Pairs</h2>
         <p className="text-xs text-muted-foreground mb-3">Click on a pair to view Z-Score chart</p>
-        <div className="border border-border rounded-lg overflow-hidden">
-          <table className="w-full text-sm">
+        <div className="border border-border rounded-lg overflow-x-auto">
+          <table className="w-full text-sm min-w-[900px]">
             <thead className="bg-muted/50">
               <tr>
                 <th className="text-left px-4 py-3 font-medium">Pair</th>

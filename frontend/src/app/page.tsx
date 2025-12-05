@@ -109,7 +109,7 @@ export default function BotDashboard() {
       )}
 
       {/* Stats Row - Simple, no cards */}
-      <div className="flex flex-wrap items-baseline gap-8 pb-6 border-b border-border">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:flex lg:flex-wrap items-baseline gap-4 sm:gap-6 lg:gap-8 pb-6 border-b border-border">
         {/* Open P&L */}
         <div>
           <p className="text-sm text-muted-foreground mb-1">Open P&L</p>
@@ -171,7 +171,7 @@ export default function BotDashboard() {
       </div>
 
       {/* Main Content */}
-      <div className="grid lg:grid-cols-3 gap-6">
+      <div className="grid gap-6 lg:grid-cols-3">
         {/* Trades */}
         <div className="lg:col-span-2">
           <div className="flex items-center gap-2 mb-4">

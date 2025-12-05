@@ -101,7 +101,7 @@ export function PairAnalysisModal({ pair, open, onOpenChange }: PairAnalysisModa
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent 
-        className="!max-w-[90vw] max-h-[95vh] w-[90vw] h-[95vh] overflow-hidden flex flex-col sm:!max-w-[90vw]"
+        className="!max-w-[98vw] sm:!max-w-[90vw] max-h-[95vh] w-[98vw] sm:w-[90vw] h-[95vh] overflow-hidden flex flex-col p-3 sm:p-6"
         aria-describedby={undefined}
       >
         <DialogHeader className="flex-shrink-0">
@@ -121,30 +121,30 @@ export function PairAnalysisModal({ pair, open, onOpenChange }: PairAnalysisModa
         </DialogHeader>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 overflow-hidden flex flex-col">
-          <div className="flex items-center justify-between gap-3 flex-shrink-0 pb-2 border-b border-border">
-            <div className="flex items-center gap-2">
+          <div className="flex items-center justify-between gap-2 flex-shrink-0 pb-2 border-b border-border overflow-x-auto">
+            <div className="flex items-center gap-1 sm:gap-2">
               <Button
                 variant={activeTab === "chart" ? "default" : "outline"}
                 size="sm"
                 onClick={() => setActiveTab("chart")}
-                className="flex items-center gap-2"
+                className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm px-2 sm:px-3"
               >
-                <LineChart className="w-4 h-4" />
-                Z-Score Chart
+                <LineChart className="w-3 h-3 sm:w-4 sm:h-4" />
+                <span className="hidden sm:inline">Z-Score</span> Chart
                 {hasCachedChart && (
-                  <span className="ml-1 text-[10px] opacity-70">(cached)</span>
+                  <span className="ml-1 text-[10px] opacity-70 hidden sm:inline">(cached)</span>
                 )}
               </Button>
               <Button
                 variant={activeTab === "analysis" ? "default" : "outline"}
                 size="sm"
                 onClick={() => setActiveTab("analysis")}
-                className="flex items-center gap-2"
+                className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm px-2 sm:px-3"
               >
-                <FileText className="w-4 h-4" />
-                Full Analysis
+                <FileText className="w-3 h-3 sm:w-4 sm:h-4" />
+                <span className="hidden sm:inline">Full</span> Analysis
                 {hasCachedAnalysis && (
-                  <span className="ml-1 text-[10px] opacity-70">(cached)</span>
+                  <span className="ml-1 text-[10px] opacity-70 hidden sm:inline">(cached)</span>
                 )}
               </Button>
             </div>
@@ -153,16 +153,16 @@ export function PairAnalysisModal({ pair, open, onOpenChange }: PairAnalysisModa
                 variant="ghost" 
                 size="sm" 
                 onClick={handleRefresh}
-                className="flex-shrink-0"
+                className="flex-shrink-0 p-1 sm:p-2"
                 title="Refresh data"
               >
-                <RefreshCw className="w-4 h-4" />
+                <RefreshCw className="w-3 h-3 sm:w-4 sm:h-4" />
               </Button>
             )}
           </div>
 
-          <div className="flex-1 overflow-auto mt-4 px-6 pb-6">
-            <TabsContent value="chart" className="m-0 h-full px-4">
+          <div className="flex-1 overflow-auto mt-2 sm:mt-4 px-1 sm:px-6 pb-4 sm:pb-6">
+            <TabsContent value="chart" className="m-0 h-full px-1 sm:px-4">
               <ZScoreChart
                 key={`chart-${refreshKey}`}
                 pair={pair.pair}
@@ -173,7 +173,7 @@ export function PairAnalysisModal({ pair, open, onOpenChange }: PairAnalysisModa
               />
             </TabsContent>
 
-            <TabsContent value="analysis" className="m-0 h-full px-4">
+            <TabsContent value="analysis" className="m-0 h-full px-0 sm:px-4">
               <PairAnalysisReport
                 key={`analysis-${refreshKey}`}
                 asset1={pair.asset1}

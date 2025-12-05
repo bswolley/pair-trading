@@ -72,44 +72,42 @@ export function PairAnalysisReport({
   const { advanced, standardized, timeframes, divergence, expectedROI, percentageReversion, funding, obv, signal, currentPrices } = data;
 
   return (
-    <div className="space-y-6 text-sm max-w-full">
+    <div className="space-y-4 sm:space-y-6 text-sm max-w-full overflow-x-hidden">
       {/* Current Prices */}
-      <div className="flex items-center justify-between p-3 bg-muted/30 rounded-lg">
-        <div className="flex items-center gap-6">
-          <div>
-            <span className="text-muted-foreground text-xs">Current Prices</span>
-            <div className="flex items-center gap-4 mt-1">
-              <span className="font-mono font-medium">
-                {asset1}: ${currentPrices[asset1]?.toFixed(4) ?? "—"}
-              </span>
-              <span className="font-mono font-medium">
-                {asset2}: ${currentPrices[asset2]?.toFixed(4) ?? "—"}
-              </span>
-            </div>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between p-2 sm:p-3 bg-muted/30 rounded-lg gap-2">
+        <div>
+          <span className="text-muted-foreground text-xs">Current Prices</span>
+          <div className="flex flex-wrap items-center gap-2 sm:gap-4 mt-1">
+            <span className="font-mono font-medium text-xs sm:text-sm">
+              {asset1}: ${currentPrices[asset1]?.toFixed(4) ?? "—"}
+            </span>
+            <span className="font-mono font-medium text-xs sm:text-sm">
+              {asset2}: ${currentPrices[asset2]?.toFixed(4) ?? "—"}
+            </span>
           </div>
         </div>
       </div>
 
       {/* Signal Status */}
       <div className={cn(
-        "p-4 rounded-lg border",
+        "p-3 sm:p-4 rounded-lg border",
         signal.isReady ? "bg-emerald-500/10 border-emerald-500/30" : "bg-muted/50 border-border"
       )}>
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             {signal.isReady ? (
-              <CheckCircle className="w-5 h-5 text-emerald-400" />
+              <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 text-emerald-400" />
             ) : (
-              <XCircle className="w-5 h-5 text-muted-foreground" />
+              <XCircle className="w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground" />
             )}
-            <span className="font-semibold text-lg">
+            <span className="font-semibold text-base sm:text-lg">
               {signal.isReady ? "TRADE READY" : "WAITING FOR SIGNAL"}
             </span>
           </div>
-          <div className="text-right">
+          <div className="text-left sm:text-right">
             <div className="text-xs text-muted-foreground">30d Z-Score</div>
             <div className={cn(
-              "font-bold text-lg",
+              "font-bold text-base sm:text-lg",
               signal.zScore30d < 0 ? "text-emerald-400" : "text-red-400"
             )}>
               {signal.zScore30d.toFixed(2)}
@@ -126,7 +124,7 @@ export function PairAnalysisReport({
       {/* Advanced Analytics */}
       {advanced && (
         <Section title="Advanced Analytics">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
             {/* Regime */}
             {advanced.regime && (
             <Card title="Regime Detection">
@@ -199,7 +197,8 @@ export function PairAnalysisReport({
           {/* Dual Beta */}
           {advanced.dualBeta && advanced.dualBeta.structural && advanced.dualBeta.dynamic && (
             <Card title="Dual Beta Analysis">
-              <table className="w-full text-xs">
+              <div className="overflow-x-auto -mx-1 px-1">
+              <table className="w-full text-xs min-w-[280px]">
                 <thead>
                   <tr className="text-muted-foreground">
                     <th className="text-left py-1">Type</th>
@@ -223,6 +222,7 @@ export function PairAnalysisReport({
                   </tr>
                 </tbody>
               </table>
+              </div>
               <div className="flex justify-between mt-2 pt-2 border-t border-border">
                 <span className="text-muted-foreground">Beta Drift</span>
                 <span className={cn(
@@ -274,7 +274,7 @@ export function PairAnalysisReport({
 
       {/* Standardized Metrics */}
       <Section title="Standardized Metrics (30d/90d)">
-        <div className="grid grid-cols-3 sm:grid-cols-6 gap-4">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-4">
           <MetricBox label="Beta" value={standardized.beta.toFixed(3)} />
           <MetricBox label="Correlation" value={(standardized.correlation * 100).toFixed(1) + "%"} />
           <MetricBox 
@@ -300,8 +300,8 @@ export function PairAnalysisReport({
 
       {/* Multi-Timeframe Table */}
       <Section title="Multi-Timeframe Analysis">
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs">
+        <div className="overflow-x-auto -mx-2 px-2">
+          <table className="w-full text-xs min-w-[600px]">
             <thead>
               <tr className="text-muted-foreground border-b border-border">
                 <th className="text-left py-2 px-2">Period</th>
@@ -352,7 +352,7 @@ export function PairAnalysisReport({
       {/* Divergence Analysis */}
       {divergence && (
         <Section title="Historical Divergence Analysis">
-          <div className="grid grid-cols-3 gap-4 mb-4">
+          <div className="grid grid-cols-3 gap-2 sm:gap-4 mb-4">
             <MetricBox 
               label="Optimal Entry" 
               value={`|Z| ≥ ${divergence.optimalEntry.toFixed(1)}`}
@@ -367,8 +367,8 @@ export function PairAnalysisReport({
               color={Math.abs(divergence.currentZ) >= divergence.optimalEntry ? "text-emerald-400" : "text-yellow-400"}
             />
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
+          <div className="overflow-x-auto -mx-2 px-2">
+            <table className="w-full text-xs min-w-[400px]">
               <thead>
                 <tr className="text-muted-foreground border-b border-border">
                   <th className="text-left py-2 px-2">Threshold</th>
@@ -417,14 +417,14 @@ export function PairAnalysisReport({
           <p className="text-xs text-muted-foreground mb-3">
             Based on current |Z| = {expectedROI.currentZ}
           </p>
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
+          <div className="overflow-x-auto -mx-2 px-2">
+            <table className="w-full text-xs min-w-[350px]">
               <thead>
                 <tr className="text-muted-foreground border-b border-border">
                   <th className="text-left py-2 px-2">Exit Strategy</th>
-                  <th className="text-right px-2">Exit Z-Score</th>
-                  <th className="text-right px-2">Expected ROI</th>
-                  <th className="text-right px-2">Time to Reversion</th>
+                  <th className="text-right px-2">Exit Z</th>
+                  <th className="text-right px-2">ROI</th>
+                  <th className="text-right px-2">Time</th>
                 </tr>
               </thead>
               <tbody>
@@ -452,15 +452,15 @@ export function PairAnalysisReport({
           <p className="text-xs text-muted-foreground mb-3">
             Example: Threshold 2.0 reverts to &lt; 1.0, Threshold 3.0 reverts to &lt; 1.5
           </p>
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
+          <div className="overflow-x-auto -mx-2 px-2">
+            <table className="w-full text-xs min-w-[350px]">
               <thead>
                 <tr className="text-muted-foreground border-b border-border">
                   <th className="text-left py-2 px-2">Threshold</th>
-                  <th className="text-right px-2">Reversion To</th>
+                  <th className="text-right px-2">Rev. To</th>
                   <th className="text-right px-2">Events</th>
-                  <th className="text-right px-2">Reverted</th>
-                  <th className="text-right px-2">Success Rate</th>
+                  <th className="text-right px-2">Rev.</th>
+                  <th className="text-right px-2">Rate</th>
                 </tr>
               </thead>
               <tbody>
@@ -489,8 +489,8 @@ export function PairAnalysisReport({
 
       {/* Price Movement */}
       <Section title="Price Movement">
-        <div className="overflow-x-auto">
-          <table className="w-full text-xs">
+        <div className="overflow-x-auto -mx-2 px-2">
+          <table className="w-full text-xs min-w-[400px]">
             <thead>
               <tr className="text-muted-foreground border-b border-border">
                 <th className="text-left py-2 px-2">Period</th>
@@ -584,8 +584,8 @@ export function PairAnalysisReport({
       {/* OBV */}
       {Object.keys(obv).length > 0 && (
         <Section title="On-Balance Volume (OBV)">
-          <div className="overflow-x-auto">
-            <table className="w-full text-xs">
+          <div className="overflow-x-auto -mx-2 px-2">
+            <table className="w-full text-xs min-w-[300px]">
               <thead>
                 <tr className="text-muted-foreground border-b border-border">
                   <th className="text-left py-2 px-2">Period</th>
