@@ -311,8 +311,11 @@ async function getStats() {
       .from('stats')
       .select('*')
       .eq('id', 1)
-      .single();
+      .maybeSingle();
     if (error) throw error;
+    if (!data) {
+      return { totalTrades: 0, wins: 0, losses: 0, totalPnL: 0, winRate: 0 };
+    }
     return {
       totalTrades: data.total_trades,
       wins: data.wins,
@@ -334,7 +337,7 @@ async function updateStats(isWin, pnl = 0) {
     .from('stats')
     .select('*')
     .eq('id', 1)
-    .single();
+    .maybeSingle();
   
   const newTotal = (current?.total_trades || 0) + 1;
   const newWins = (current?.wins || 0) + (isWin ? 1 : 0);
@@ -366,9 +369,9 @@ async function getSchedulerState() {
     .from('stats')
     .select('last_scan_time, last_monitor_time, cross_sector_enabled')
     .eq('id', 1)
-    .single();
+    .maybeSingle();
   
-  if (error) return null;
+  if (error || !data) return null;
   
   return {
     lastScanTime: data.last_scan_time,
