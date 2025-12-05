@@ -594,23 +594,27 @@ export function PairAnalysisReport({
                 </tr>
               </thead>
               <tbody>
-                {Object.entries(obv).map(([days, values]) => (
-                  <tr key={days} className="border-b border-border/50">
-                    <td className="py-2 px-2 font-medium">{days}d</td>
-                    <td className={cn(
-                      "text-right px-2 font-mono",
-                      values[asset1] >= 0 ? "text-emerald-400" : "text-red-400"
-                    )}>
-                      {values[asset1] >= 0 ? "+" : ""}{values[asset1].toLocaleString()}
-                    </td>
-                    <td className={cn(
-                      "text-right px-2 font-mono",
-                      values[asset2] >= 0 ? "text-emerald-400" : "text-red-400"
-                    )}>
-                      {values[asset2] >= 0 ? "+" : ""}{values[asset2].toLocaleString()}
-                    </td>
-                  </tr>
-                ))}
+                {Object.entries(obv).map(([days, values]) => {
+                  const val1 = values[asset1] ?? 0;
+                  const val2 = values[asset2] ?? 0;
+                  return (
+                    <tr key={days} className="border-b border-border/50">
+                      <td className="py-2 px-2 font-medium">{days}d</td>
+                      <td className={cn(
+                        "text-right px-2 font-mono",
+                        val1 >= 0 ? "text-emerald-400" : "text-red-400"
+                      )}>
+                        {val1 >= 0 ? "+" : ""}{val1.toLocaleString()}
+                      </td>
+                      <td className={cn(
+                        "text-right px-2 font-mono",
+                        val2 >= 0 ? "text-emerald-400" : "text-red-400"
+                      )}>
+                        {val2 >= 0 ? "+" : ""}{val2.toLocaleString()}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
