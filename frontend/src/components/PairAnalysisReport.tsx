@@ -127,69 +127,73 @@ export function PairAnalysisReport({
       <Section title="Advanced Analytics">
         <div className="grid grid-cols-2 gap-4">
           {/* Regime */}
-          <Card title="Regime Detection">
-            <div className="space-y-2">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Current</span>
-                <span className={cn("font-semibold", getRegimeColor(advanced.regime.regime))}>
-                  {advanced.regime.regime.replace(/_/g, ' ')}
-                </span>
+          {advanced.regime && (
+            <Card title="Regime Detection">
+              <div className="space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Current</span>
+                  <span className={cn("font-semibold", getRegimeColor(advanced.regime.regime))}>
+                    {advanced.regime.regime?.replace(/_/g, ' ') ?? '—'}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Confidence</span>
+                  <span>{advanced.regime.confidence != null ? `${(advanced.regime.confidence * 100).toFixed(0)}%` : '—'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Action</span>
+                  <span className={cn(
+                    "font-medium",
+                    advanced.regime.action === "ENTER" && "text-emerald-400",
+                    advanced.regime.action === "WAIT" && "text-yellow-400",
+                    advanced.regime.action === "CAUTION" && "text-red-400"
+                  )}>
+                    {advanced.regime.action ?? '—'}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Risk Level</span>
+                  <span>{advanced.regime.riskLevel ?? '—'}</span>
+                </div>
               </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Confidence</span>
-                <span>{(advanced.regime.confidence * 100).toFixed(0)}%</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Action</span>
-                <span className={cn(
-                  "font-medium",
-                  advanced.regime.action === "ENTER" && "text-emerald-400",
-                  advanced.regime.action === "WAIT" && "text-yellow-400",
-                  advanced.regime.action === "CAUTION" && "text-red-400"
-                )}>
-                  {advanced.regime.action}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Risk Level</span>
-                <span>{advanced.regime.riskLevel}</span>
-              </div>
-            </div>
-          </Card>
+            </Card>
+          )}
 
           {/* Hurst */}
-          <Card title="Hurst Exponent">
-            <div className="space-y-2">
-              <div className="flex justify-between items-center">
-                <span className="text-muted-foreground">H Value</span>
-                <span className={cn(
-                  "font-bold text-lg",
-                  getHurstColor(advanced.hurst.hurst)
-                )}>
-                  {advanced.hurst.hurst?.toFixed(3) ?? "N/A"}
-                </span>
+          {advanced.hurst && (
+            <Card title="Hurst Exponent">
+              <div className="space-y-2">
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">H Value</span>
+                  <span className={cn(
+                    "font-bold text-lg",
+                    getHurstColor(advanced.hurst.hurst)
+                  )}>
+                    {advanced.hurst.hurst?.toFixed(3) ?? "N/A"}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Classification</span>
+                  <span className={cn("font-medium", getHurstColor(advanced.hurst.hurst))}>
+                    {advanced.hurst.classification?.replace(/_/g, ' ') ?? '—'}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Mean-Reverting?</span>
+                  <span>
+                    {advanced.hurst.hurst !== null && advanced.hurst.hurst < 0.5 ? (
+                      <CheckCircle className="w-4 h-4 text-emerald-400 inline" />
+                    ) : (
+                      <XCircle className="w-4 h-4 text-red-400 inline" />
+                    )}
+                  </span>
+                </div>
               </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Classification</span>
-                <span className={cn("font-medium", getHurstColor(advanced.hurst.hurst))}>
-                  {advanced.hurst.classification.replace(/_/g, ' ')}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Mean-Reverting?</span>
-                <span>
-                  {advanced.hurst.hurst !== null && advanced.hurst.hurst < 0.5 ? (
-                    <CheckCircle className="w-4 h-4 text-emerald-400 inline" />
-                  ) : (
-                    <XCircle className="w-4 h-4 text-red-400 inline" />
-                  )}
-                </span>
-              </div>
-            </div>
-            <p className="text-xs text-muted-foreground mt-2">
-              H &lt; 0.5 = mean-reverting, H = 0.5 = random walk, H &gt; 0.5 = trending
-            </p>
-          </Card>
+              <p className="text-xs text-muted-foreground mt-2">
+                H &lt; 0.5 = mean-reverting, H = 0.5 = random walk, H &gt; 0.5 = trending
+              </p>
+            </Card>
+          )}
 
           {/* Dual Beta */}
           {advanced.dualBeta && advanced.dualBeta.structural && advanced.dualBeta.dynamic && (
@@ -232,35 +236,37 @@ export function PairAnalysisReport({
           )}
 
           {/* Conviction */}
-          <Card title={`Conviction Score: ${advanced.conviction.score}/100`}>
-            <div className="space-y-1">
-              {Object.entries(advanced.conviction.breakdown).map(([factor, value]) => (
-                <div key={factor} className="flex justify-between text-xs">
-                  <span className="text-muted-foreground capitalize">
-                    {factor.replace(/([A-Z])/g, ' $1').trim()}
-                  </span>
-                  <span className={cn(
-                    "font-mono",
-                    value >= 0 ? "text-emerald-400" : "text-red-400"
-                  )}>
-                    {value >= 0 ? "+" : ""}{value.toFixed(1)}
-                  </span>
-                </div>
-              ))}
-            </div>
-            <div className="mt-2 pt-2 border-t border-border">
-              <div className="w-full bg-muted rounded-full h-2">
-                <div
-                  className={cn(
-                    "h-2 rounded-full",
-                    advanced.conviction.score >= 70 ? "bg-emerald-500" :
-                    advanced.conviction.score >= 50 ? "bg-yellow-500" : "bg-red-500"
-                  )}
-                  style={{ width: `${advanced.conviction.score}%` }}
-                />
+          {advanced.conviction && (
+            <Card title={`Conviction Score: ${advanced.conviction.score ?? 0}/100`}>
+              <div className="space-y-1">
+                {advanced.conviction.breakdown && Object.entries(advanced.conviction.breakdown).map(([factor, value]) => (
+                  <div key={factor} className="flex justify-between text-xs">
+                    <span className="text-muted-foreground capitalize">
+                      {factor.replace(/([A-Z])/g, ' $1').trim()}
+                    </span>
+                    <span className={cn(
+                      "font-mono",
+                      (value as number) >= 0 ? "text-emerald-400" : "text-red-400"
+                    )}>
+                      {(value as number) >= 0 ? "+" : ""}{(value as number).toFixed(1)}
+                    </span>
+                  </div>
+                ))}
               </div>
-            </div>
-          </Card>
+              <div className="mt-2 pt-2 border-t border-border">
+                <div className="w-full bg-muted rounded-full h-2">
+                  <div
+                    className={cn(
+                      "h-2 rounded-full",
+                      (advanced.conviction.score ?? 0) >= 70 ? "bg-emerald-500" :
+                      (advanced.conviction.score ?? 0) >= 50 ? "bg-yellow-500" : "bg-red-500"
+                    )}
+                    style={{ width: `${advanced.conviction.score ?? 0}%` }}
+                  />
+                </div>
+              </div>
+            </Card>
+          )}
         </div>
       </Section>
 
