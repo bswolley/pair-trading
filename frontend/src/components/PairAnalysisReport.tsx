@@ -192,7 +192,7 @@ export function PairAnalysisReport({
           </Card>
 
           {/* Dual Beta */}
-          {advanced.dualBeta && (
+          {advanced.dualBeta && advanced.dualBeta.structural && advanced.dualBeta.dynamic && (
             <Card title="Dual Beta Analysis">
               <table className="w-full text-xs">
                 <thead>
@@ -206,15 +206,15 @@ export function PairAnalysisReport({
                 <tbody>
                   <tr>
                     <td className="py-1">Structural (90d)</td>
-                    <td className="text-right font-mono">{advanced.dualBeta.structural.beta.toFixed(3)}</td>
-                    <td className="text-right font-mono">{advanced.dualBeta.structural.r2.toFixed(3)}</td>
-                    <td className="text-right font-mono">{advanced.dualBeta.structural.stdErr.toFixed(3)}</td>
+                    <td className="text-right font-mono">{advanced.dualBeta.structural.beta?.toFixed(3) ?? '—'}</td>
+                    <td className="text-right font-mono">{advanced.dualBeta.structural.r2?.toFixed(3) ?? '—'}</td>
+                    <td className="text-right font-mono">{advanced.dualBeta.structural.stdErr?.toFixed(3) ?? '—'}</td>
                   </tr>
                   <tr>
                     <td className="py-1">Dynamic</td>
-                    <td className="text-right font-mono">{advanced.dualBeta.dynamic.beta.toFixed(3)}</td>
-                    <td className="text-right font-mono">{advanced.dualBeta.dynamic.r2.toFixed(3)}</td>
-                    <td className="text-right font-mono">{advanced.dualBeta.dynamic.stdErr.toFixed(3)}</td>
+                    <td className="text-right font-mono">{advanced.dualBeta.dynamic.beta?.toFixed(3) ?? '—'}</td>
+                    <td className="text-right font-mono">{advanced.dualBeta.dynamic.r2?.toFixed(3) ?? '—'}</td>
+                    <td className="text-right font-mono">{advanced.dualBeta.dynamic.stdErr?.toFixed(3) ?? '—'}</td>
                   </tr>
                 </tbody>
               </table>
@@ -222,10 +222,10 @@ export function PairAnalysisReport({
                 <span className="text-muted-foreground">Beta Drift</span>
                 <span className={cn(
                   "font-medium",
-                  Math.abs(advanced.dualBeta.drift) < 0.1 ? "text-emerald-400" :
-                  Math.abs(advanced.dualBeta.drift) < 0.15 ? "text-yellow-400" : "text-red-400"
+                  advanced.dualBeta.drift != null && Math.abs(advanced.dualBeta.drift) < 0.1 ? "text-emerald-400" :
+                  advanced.dualBeta.drift != null && Math.abs(advanced.dualBeta.drift) < 0.15 ? "text-yellow-400" : "text-red-400"
                 )}>
-                  {(advanced.dualBeta.drift * 100).toFixed(1)}%
+                  {advanced.dualBeta.drift != null ? `${(advanced.dualBeta.drift * 100).toFixed(1)}%` : '—'}
                 </span>
               </div>
             </Card>
