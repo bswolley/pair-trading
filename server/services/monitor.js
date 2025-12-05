@@ -228,16 +228,38 @@ function validateEntry(prices, entryThreshold = DEFAULT_ENTRY_THRESHOLD) {
         // Keep default -2.5 since checkPairFitness doesn't return adfStat
     }
 
+    // Calculate 7d Z-score using 30d mean/std as baseline (same as analyzePair)
+    // This ensures 7d check validates "is divergence still active?" not "is 7d internally diverged?"
+    let zScore7d = null;
     let fit7d = null;
     try {
         if (prices.prices1_7d.length >= 7 && prices.prices2_7d.length >= 7) {
             fit7d = checkPairFitness(prices.prices1_7d, prices.prices2_7d);
+            
+            // Calculate 7d Z-score using 30d baseline (consistent with analyzePair)
+            // Use the 30d spreads for mean/std, but current (7d endpoint) price for current spread
+            const beta30d = fit30d.beta;
+            const spreads30d = prices.prices1_30d.map((p1, i) => 
+                Math.log(p1) - beta30d * Math.log(prices.prices2_30d[i])
+            );
+            const mean30d = spreads30d.reduce((a, b) => a + b, 0) / spreads30d.length;
+            const std30d = Math.sqrt(
+                spreads30d.reduce((sum, s) => sum + Math.pow(s - mean30d, 2), 0) / spreads30d.length
+            );
+            
+            // Current spread from most recent price (end of 7d window)
+            const currentPrice1 = prices.prices1_7d[prices.prices1_7d.length - 1];
+            const currentPrice2 = prices.prices2_7d[prices.prices2_7d.length - 1];
+            const currentSpread = Math.log(currentPrice1) - beta30d * Math.log(currentPrice2);
+            
+            zScore7d = std30d > 0 ? (currentSpread - mean30d) / std30d : null;
         }
     } catch (e) { }
 
     const signal30d = Math.abs(fit30d.zScore) >= entryThreshold;
-    const signal7d = fit7d && Math.abs(fit7d.zScore) >= entryThreshold * 0.8;
-    const sameDirection = fit7d && (fit30d.zScore * fit7d.zScore > 0);
+    // Use 30d-baseline Z-score for 7d validation (consistent with analyzePair)
+    const signal7d = zScore7d !== null && Math.abs(zScore7d) >= entryThreshold * 0.8;
+    const sameDirection = zScore7d !== null && (fit30d.zScore * zScore7d > 0);
 
     const valid = signal30d &&
         fit30d.correlation >= MIN_CORRELATION_30D &&
@@ -265,6 +287,7 @@ function validateEntry(prices, entryThreshold = DEFAULT_ENTRY_THRESHOLD) {
         valid,
         fit30d,
         fit7d,
+        zScore7d,  // 7d Z-score calculated using 30d baseline
         isCointegrated90d,
         adfStat90d,
         signal7d,
