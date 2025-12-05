@@ -75,7 +75,7 @@ async function getWatchlistPair(pair) {
       .from('watchlist')
       .select('*')
       .or(`pair.eq.${pair},pair.eq.${pair.replace('_', '/')}`)
-      .single();
+      .maybeSingle();
     
     if (error && error.code !== 'PGRST116') throw error;
     return data ? transformWatchlistFromDB(data) : null;
@@ -155,7 +155,7 @@ async function getTrade(pair) {
       .from('trades')
       .select('*')
       .or(`pair.eq.${pair},pair.eq.${pair.replace('_', '/')}`)
-      .single();
+      .maybeSingle();
     if (error && error.code !== 'PGRST116') throw error;
     return data ? transformTradeFromDB(data) : null;
   }
@@ -196,9 +196,9 @@ async function updateTrade(pair, updates) {
       .update(dbUpdates)
       .or(`pair.eq.${pair},pair.eq.${pair.replace('_', '/')}`)
       .select()
-      .single();
+      .maybeSingle();
     if (error) throw error;
-    return transformTradeFromDB(data);
+    return data ? transformTradeFromDB(data) : null;
   }
   
   const data = loadJSON('active_trades_sim.json') || { trades: [] };
@@ -220,7 +220,7 @@ async function deleteTrade(pair) {
       .delete()
       .or(`pair.eq.${pair},pair.eq.${pair.replace('_', '/')}`)
       .select()
-      .single();
+      .maybeSingle();
     if (error && error.code !== 'PGRST116') throw error;
     return data ? transformTradeFromDB(data) : null;
   }
