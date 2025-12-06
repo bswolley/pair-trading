@@ -439,16 +439,25 @@ function formatStatusReport(activeTrades, entries, exits, history, approaching =
       // Time to mean reversion: halfLife * log(|z_current| / |z_target|) / log(2)
       const zTarget = EXIT_THRESHOLD; // 0.5
       const currentHL = t.currentHalfLife || t.halfLife || 15;
+      const entryHL = t.halfLife || 15;
       // Use currentZ if available, otherwise fall back to entryZScore for new trades
       const absZ = Math.abs(t.currentZ ?? t.entryZScore ?? 0);
       let etaStr = '?';
+      let etaValue = null;
       if (absZ > zTarget && currentHL > 0) {
         const halfLivesToExit = Math.log(absZ / zTarget) / Math.log(2);
-        const eta = currentHL * halfLivesToExit;
-        etaStr = eta.toFixed(1);
+        etaValue = currentHL * halfLivesToExit;
+        etaStr = etaValue.toFixed(1);
       } else if (absZ <= zTarget) {
         etaStr = '0'; // Already at target
+        etaValue = 0;
       }
+      
+      // Time stop calculation: (entryHalfLife × 2) - daysInTrade
+      const timeStopMax = entryHL * HALFLIFE_MULTIPLIER;
+      const timeStopRemaining = timeStopMax - parseFloat(days);
+      const showTimeStop = timeStopRemaining < (etaValue ?? Infinity) || timeStopRemaining < 3;
+      const timeStopUrgent = timeStopRemaining < 1;
       
       // Correlation delta (↓ = bad, relationship weakening)
       const corrEntry = t.correlation?.toFixed(2) || '?';
@@ -472,6 +481,10 @@ function formatStatusReport(activeTrades, entries, exits, history, approaching =
       msg += `   L ${t.longAsset} ${t.longWeight?.toFixed(0)}% / S ${t.shortAsset} ${t.shortWeight?.toFixed(0)}%\n`;
       msg += `   Z: ${zEntry}→${zNow} (${zArrow}${Math.abs(parseFloat(zDelta)).toFixed(2)})\n`;
       msg += `   HL: ${hlEntry}→${hlNow}d | ETA: ${etaStr}d\n`;
+      if (showTimeStop) {
+        const urgentEmoji = timeStopUrgent ? '⚠️ ' : '';
+        msg += `   ⏰ ${urgentEmoji}Time limit: ${timeStopRemaining.toFixed(1)}d\n`;
+      }
       if (fundingStr) {
         msg += `   ${fundingStr}\n`;
       }

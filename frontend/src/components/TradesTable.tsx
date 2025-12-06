@@ -16,7 +16,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
-import { TrendingUp, TrendingDown, ArrowRight, Clock, Target } from "lucide-react";
+import { TrendingUp, TrendingDown, ArrowRight, Clock, Target, Timer } from "lucide-react";
 
 interface Trade {
   pair: string;
@@ -89,6 +89,12 @@ export function TradesTable({ trades, showActions, onClose }: TradesTableProps) 
           const halfLivesToExit = Math.log(Math.abs(currentZ) / zTarget) / Math.log(2);
           eta = currentHL * halfLivesToExit;
         }
+        
+        // Time stop calculation: (entryHalfLife × 2) - daysInTrade
+        const timeStopMax = (entryHL || 15) * 2;
+        const timeStopRemaining = timeStopMax - daysInTrade;
+        const showTimeStop = timeStopRemaining < (eta ?? Infinity) || timeStopRemaining < 3;
+        const timeStopUrgent = timeStopRemaining < 1;
 
         return (
           <div
@@ -275,20 +281,46 @@ export function TradesTable({ trades, showActions, onClose }: TradesTableProps) 
                   <Target className="w-3 h-3" />
                   ETA to Exit
                 </div>
-                <div className="font-mono font-semibold">
-                  {currentHL === 0 || currentHL === null || !isFinite(currentHL) ? (
-                    <span className="text-yellow-400">∞</span>
-                  ) : eta !== null ? (
-                    <span className={eta <= currentHL ? "text-emerald-400" : ""}>
-                      {eta.toFixed(1)}d
+                {/* Z Target ETA */}
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs text-muted-foreground">🎯</span>
+                  <span className="font-mono text-sm">
+                    {currentHL === 0 || currentHL === null || !isFinite(currentHL) ? (
+                      <span className="text-yellow-400">∞</span>
+                    ) : eta !== null ? (
+                      <span className={eta <= currentHL ? "text-emerald-400" : ""}>
+                        {eta.toFixed(1)}d
+                      </span>
+                    ) : (
+                      <span className="text-emerald-400">At target</span>
+                    )}
+                  </span>
+                  <span className="text-xs text-muted-foreground">Z target</span>
+                </div>
+                {/* Time Stop */}
+                {showTimeStop && (
+                  <div className={cn(
+                    "flex items-center gap-1.5",
+                    timeStopUrgent ? "animate-pulse" : ""
+                  )}>
+                    <Timer className={cn(
+                      "w-3 h-3",
+                      timeStopUrgent ? "text-red-400" : "text-yellow-400"
+                    )} />
+                    <span className={cn(
+                      "font-mono text-sm font-semibold",
+                      timeStopUrgent ? "text-red-400" : "text-yellow-400"
+                    )}>
+                      {timeStopRemaining.toFixed(1)}d
                     </span>
-                  ) : (
-                    <span className="text-emerald-400">At target</span>
-                  )}
-                </div>
-                <div className="text-xs text-muted-foreground">
-                  Target: |Z| &lt; 0.5
-                </div>
+                    <span className={cn(
+                      "text-xs",
+                      timeStopUrgent ? "text-red-400" : "text-yellow-400"
+                    )}>
+                      time limit {timeStopUrgent ? "⚠️" : ""}
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
 
