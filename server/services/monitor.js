@@ -550,6 +550,25 @@ function formatStatusReport(activeTrades, entries, exits, history, approaching =
 
             const partialTag = t.partialExitTaken ? ' [50% closed]' : '';
             
+            // ETA calculation: halfLife * log(|z_current| / |z_target|) / log(2)
+            const zTarget = EXIT_THRESHOLD; // 0.5
+            const currentHLValue = t.currentHalfLife || t.halfLife || 15;
+            const entryHLValue = t.halfLife || 15;
+            const absZ = Math.abs(t.currentZ ?? t.entryZScore ?? 0);
+            let etaValue = null;
+            if (absZ > zTarget && currentHLValue > 0 && isFinite(currentHLValue)) {
+                const halfLivesToExit = Math.log(absZ / zTarget) / Math.log(2);
+                etaValue = currentHLValue * halfLivesToExit;
+            } else if (absZ <= zTarget) {
+                etaValue = 0;
+            }
+            
+            // Time stop calculation: (entryHalfLife × 2) - daysInTrade
+            const timeStopMax = entryHLValue * HALFLIFE_MULTIPLIER;
+            const timeStopRemaining = timeStopMax - parseFloat(days);
+            const showTimeStop = timeStopRemaining < (etaValue ?? Infinity) || timeStopRemaining < 3;
+            const timeStopUrgent = timeStopRemaining < 1;
+            
             // Hurst warning if drifting toward trending
             let hurstStr = '';
             if (t.currentHurst !== undefined && t.currentHurst !== null) {
@@ -574,6 +593,10 @@ function formatStatusReport(activeTrades, entries, exits, history, approaching =
             const hlEntryStr = hlEntry === '∞' ? '∞' : `${hlEntry}d`;
             const hlNowStr = hlNow === '∞' ? '∞' : `${hlNow}d`;
             msg += `   Z: ${zEntry}→${zNow} | HL: ${hlEntryStr}→${hlNowStr}\n`;
+            if (showTimeStop) {
+                const urgentEmoji = timeStopUrgent ? '⚠️ ' : '';
+                msg += `   ⏰ ${urgentEmoji}Time limit: ${timeStopRemaining.toFixed(1)}d\n`;
+            }
             if (hurstStr) msg += `   ${hurstStr}\n`;
             if (fundingStr) msg += `   ${fundingStr}\n`;
             if (betaDriftStr) msg += `   ${betaDriftStr}\n`;
