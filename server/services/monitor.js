@@ -91,13 +91,14 @@ function calculateHealthScore(trade, currentFitness) {
     }
     
     // 4. Half-life stability (+1/-2)
+    // Note: HL change is already shown in main status line, so don't duplicate in signals
     if (currentHL !== null && currentHL !== undefined && isFinite(currentHL) && entryHL > 0) {
         const hlRatio = currentHL / entryHL;
         if (hlRatio <= 1.5) {
             score += 1;
         } else if (hlRatio > 3) {
             score -= 2;
-            signals.push('HL ' + entryHL.toFixed(0) + '→' + currentHL.toFixed(0) + 'd');
+            // Don't push to signals - HL is already in main status line
         } else {
             score -= 1;
         }
