@@ -704,9 +704,17 @@ async function main() {
         // Entry half-life (trade.halfLife) is preserved from trade creation
         trade.currentHalfLife = fit.halfLife === Infinity ? null : fit.halfLife;
 
-        // Calculate current Hurst (60d)
-        if (prices.prices1_60d && prices.prices1_60d.length >= 40) {
-            const hurstResult = calculateHurst(prices.prices1_60d);
+        // Calculate current Hurst (60d) - on SPREAD, not individual asset
+        if (prices.prices1_60d && prices.prices2_60d &&
+            prices.prices1_60d.length >= 40 && prices.prices2_60d.length >= 40) {
+            // Use current beta from fit (30d)
+            const currentBeta = fit.beta;
+            const hurstLen = Math.min(prices.prices1_60d.length, prices.prices2_60d.length);
+            const spreads60d = [];
+            for (let i = 0; i < hurstLen; i++) {
+                spreads60d.push(Math.log(prices.prices1_60d[i]) - currentBeta * Math.log(prices.prices2_60d[i]));
+            }
+            const hurstResult = calculateHurst(spreads60d);
             if (hurstResult.isValid) {
                 trade.currentHurst = hurstResult.hurst;
             }
@@ -777,11 +785,18 @@ async function main() {
         const direction = z < 0 ? 'long' : 'short';
         const isReady = signal;
 
-        // Calculate Hurst exponent (requires 60d data)
+        // Calculate Hurst exponent (requires 60d data) - on SPREAD, not individual asset
         let hurst = null;
         let hurstClassification = null;
-        if (prices.prices1_60d && prices.prices1_60d.length >= 40) {
-            const hurstResult = calculateHurst(prices.prices1_60d);
+        if (prices.prices1_60d && prices.prices2_60d &&
+            prices.prices1_60d.length >= 40 && prices.prices2_60d.length >= 40) {
+            // Use current beta from fit (30d)
+            const hurstLen = Math.min(prices.prices1_60d.length, prices.prices2_60d.length);
+            const spreads60d = [];
+            for (let i = 0; i < hurstLen; i++) {
+                spreads60d.push(Math.log(prices.prices1_60d[i]) - fit.beta * Math.log(prices.prices2_60d[i]));
+            }
+            const hurstResult = calculateHurst(spreads60d);
             if (hurstResult.isValid) {
                 hurst = hurstResult.hurst;
                 hurstClassification = hurstResult.classification;

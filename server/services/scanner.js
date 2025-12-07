@@ -354,10 +354,17 @@ function evaluatePairs(candidatePairs, priceMap, minCorrelation, crossSectorMinC
 
             // Must pass correlation AND 90-day cointegration test
             if (correlation >= requiredCorr && coint.isCointegrated && reactive.halfLife <= 45) {
-                
-                // HURST (60-day window) - needs 40+ data points
-                const hurstLen = Math.min(prices1_60d.length, 60);
-                const hurst = calculateHurst(prices1_60d.slice(-hurstLen));
+
+                // HURST (60-day window) - calculated on SPREAD, not individual asset
+                // Use 30-day beta (same as reactive metrics) for consistency
+                const hurstLen = Math.min(prices1_60d.length, prices2_60d.length, 60);
+                const spreads60d = [];
+                for (let i = 0; i < hurstLen; i++) {
+                    const p1 = prices1_60d[prices1_60d.length - hurstLen + i];
+                    const p2 = prices2_60d[prices2_60d.length - hurstLen + i];
+                    spreads60d.push(Math.log(p1) - beta * Math.log(p2));
+                }
+                const hurst = calculateHurst(spreads60d);
                 
                 // Skip pairs that are not mean-reverting (H >= 0.5)
                 if (hurst.isValid && hurst.hurst >= MAX_HURST_THRESHOLD) {
