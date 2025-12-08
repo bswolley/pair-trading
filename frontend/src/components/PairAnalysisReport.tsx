@@ -110,7 +110,7 @@ export function PairAnalysisReport({
               "font-bold text-base sm:text-lg",
               signal.zScore30d < 0 ? "text-emerald-400" : "text-red-400"
             )}>
-              {signal.zScore30d.toFixed(2)}
+              {signal.zScore30d != null ? signal.zScore30d.toFixed(2) : "—"}
             </div>
           </div>
         </div>
@@ -240,19 +240,27 @@ export function PairAnalysisReport({
           {advanced.conviction && (
             <Card title={`Conviction Score: ${advanced.conviction.score ?? 0}/100`}>
               <div className="space-y-1">
-                {advanced.conviction.breakdown && Object.entries(advanced.conviction.breakdown).map(([factor, value]) => (
-                  <div key={factor} className="flex justify-between text-xs">
-                    <span className="text-muted-foreground capitalize">
-                      {factor.replace(/([A-Z])/g, ' $1').trim()}
-                    </span>
-                    <span className={cn(
-                      "font-mono",
-                      (value as number) >= 0 ? "text-emerald-400" : "text-red-400"
-                    )}>
-                      {(value as number) >= 0 ? "+" : ""}{(value as number).toFixed(1)}
-                    </span>
-                  </div>
-                ))}
+                {advanced.conviction.breakdown && Object.entries(advanced.conviction.breakdown).map(([factor, value]) => {
+                  const numValue = value as number;
+                  const isValidNumber = numValue !== null && numValue !== undefined && isFinite(numValue);
+                  return (
+                    <div key={factor} className="flex justify-between text-xs">
+                      <span className="text-muted-foreground capitalize">
+                        {factor.replace(/([A-Z])/g, ' $1').trim()}
+                      </span>
+                      <span className={cn(
+                        "font-mono",
+                        numValue >= 0 ? "text-emerald-400" : "text-red-400"
+                      )}>
+                        {isValidNumber ? (
+                          <>{numValue >= 0 ? "+" : ""}{numValue.toFixed(1)}</>
+                        ) : (
+                          <span className="text-muted-foreground">N/A</span>
+                        )}
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
               <div className="mt-2 pt-2 border-t border-border">
                 <div className="w-full bg-muted rounded-full h-2">
@@ -275,11 +283,11 @@ export function PairAnalysisReport({
       {/* Standardized Metrics */}
       <Section title="Standardized Metrics (30d/90d)">
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-4">
-          <MetricBox label="Beta" value={standardized.beta.toFixed(3)} />
-          <MetricBox label="Correlation" value={(standardized.correlation * 100).toFixed(1) + "%"} />
-          <MetricBox 
-            label="Z-Score" 
-            value={standardized.zScore.toFixed(2)}
+          <MetricBox label="Beta" value={standardized.beta != null ? standardized.beta.toFixed(3) : "—"} />
+          <MetricBox label="Correlation" value={standardized.correlation != null ? (standardized.correlation * 100).toFixed(1) + "%" : "—"} />
+          <MetricBox
+            label="Z-Score"
+            value={standardized.zScore != null ? standardized.zScore.toFixed(2) : "—"}
             color={standardized.zScore < 0 ? "text-emerald-400" : "text-red-400"}
           />
           <MetricBox 
