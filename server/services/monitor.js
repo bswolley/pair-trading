@@ -20,6 +20,15 @@ const {
 const { fetchCurrentFunding, calculateNetFunding } = require('../../lib/funding');
 const db = require('../db/queries');
 
+// Lazy import to avoid circular dependency (scheduler imports monitor)
+let _triggerScanOnCapacity = null;
+function getTriggerScanOnCapacity() {
+    if (!_triggerScanOnCapacity) {
+        _triggerScanOnCapacity = require('./scheduler').triggerScanOnCapacity;
+    }
+    return _triggerScanOnCapacity;
+}
+
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 const MAX_CONCURRENT_TRADES = parseInt(process.env.MAX_CONCURRENT_TRADES) || 5;
@@ -689,6 +698,8 @@ async function main() {
     }
 
     // Check active trades for exits
+    let fullExitCount = 0;  // Track full (not partial) exits
+    
     for (const trade of [...activeTrades.trades]) {
         const prices = await fetchPrices(sdk, trade.asset1, trade.asset2);
         if (!prices) continue;
@@ -751,11 +762,37 @@ async function main() {
                 if (result) {
                     result.exitEmoji = exitCheck.emoji;
                     exits.push(result);
+                    fullExitCount++;  // Track full exits
                 }
             }
         }
 
         await new Promise(r => setTimeout(r, 200));
+    }
+
+    // If we closed any trades and have capacity, trigger fresh scan to find new opportunities
+    if (fullExitCount > 0 && activeTrades.trades.length < MAX_CONCURRENT_TRADES) {
+        console.log(`[MONITOR] ${fullExitCount} trades closed, ${MAX_CONCURRENT_TRADES - activeTrades.trades.length} slots available - checking if scan needed`);
+        
+        try {
+            const triggerScanOnCapacity = getTriggerScanOnCapacity();
+            const scanResult = await triggerScanOnCapacity(activeTrades.trades.length, MAX_CONCURRENT_TRADES);
+            
+            if (scanResult.triggered) {
+                console.log(`[MONITOR] Fresh scan completed - found ${scanResult.result?.watchlistPairs || 0} pairs`);
+                
+                // Reload watchlist with fresh pairs
+                const freshWatchlistPairs = await db.getWatchlist();
+                if (freshWatchlistPairs && freshWatchlistPairs.length > 0) {
+                    watchlist.pairs = freshWatchlistPairs;
+                    console.log(`[MONITOR] Reloaded watchlist with ${freshWatchlistPairs.length} pairs`);
+                }
+            } else {
+                console.log(`[MONITOR] Scan not triggered: ${scanResult.reason}${scanResult.detail ? ` (${scanResult.detail})` : ''}`);
+            }
+        } catch (err) {
+            console.error(`[MONITOR] Error triggering scan: ${err.message}`);
+        }
     }
 
     // Check watchlist for entries

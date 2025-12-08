@@ -23,6 +23,9 @@ let crossSectorEnabled = false; // Toggle for cross-sector scanning
 // How long before we consider a scan "stale" and need to re-run (6 hours)
 const SCAN_STALE_HOURS = 6;
 
+// Minimum time between on-demand scans (prevents excessive scanning after multiple exits)
+const MIN_SCAN_INTERVAL_MINUTES = 30;
+
 /**
  * Load scheduler state from database on startup
  */
@@ -52,6 +55,59 @@ function isScanStale() {
     const lastScanTime = new Date(lastScanRun).getTime();
     const hoursSinceLastScan = (Date.now() - lastScanTime) / (1000 * 60 * 60);
     return hoursSinceLastScan > SCAN_STALE_HOURS;
+}
+
+/**
+ * Check if enough time has passed since last scan (for on-demand scans)
+ */
+function canRunOnDemandScan() {
+    if (!lastScanRun) return true;
+    
+    const lastScanTime = new Date(lastScanRun).getTime();
+    const minutesSinceLastScan = (Date.now() - lastScanTime) / (1000 * 60);
+    return minutesSinceLastScan >= MIN_SCAN_INTERVAL_MINUTES;
+}
+
+/**
+ * Trigger a scan if there's capacity for new trades
+ * Called by monitor after closing trades
+ * 
+ * @param {number} activeTradeCount - Current number of active trades
+ * @param {number} maxTrades - Maximum concurrent trades allowed
+ * @returns {Promise<{triggered: boolean, reason: string, result?: object}>}
+ */
+async function triggerScanOnCapacity(activeTradeCount, maxTrades) {
+    // Check if there's capacity
+    if (activeTradeCount >= maxTrades) {
+        return { triggered: false, reason: 'at_max_capacity' };
+    }
+    
+    // Check cooldown
+    if (!canRunOnDemandScan()) {
+        const minutesSinceLastScan = lastScanRun 
+            ? ((Date.now() - new Date(lastScanRun).getTime()) / (1000 * 60)).toFixed(0)
+            : 0;
+        return { 
+            triggered: false, 
+            reason: 'cooldown', 
+            detail: `Last scan ${minutesSinceLastScan}m ago (min interval: ${MIN_SCAN_INTERVAL_MINUTES}m)` 
+        };
+    }
+    
+    // Check if scan already running
+    if (isScanRunning) {
+        return { triggered: false, reason: 'already_running' };
+    }
+    
+    console.log(`[SCHEDULER] On-demand scan triggered (${activeTradeCount}/${maxTrades} trades, capacity available)`);
+    
+    try {
+        const result = await runScanNow();
+        return { triggered: true, reason: 'capacity_available', result };
+    } catch (err) {
+        console.error('[SCHEDULER] On-demand scan failed:', err.message);
+        return { triggered: false, reason: 'error', error: err.message };
+    }
 }
 
 /**
@@ -208,6 +264,7 @@ module.exports = {
     runScanNow,
     getSchedulerStatus,
     setCrossSectorEnabled,
-    getCrossSectorEnabled
+    getCrossSectorEnabled,
+    triggerScanOnCapacity
 };
 
