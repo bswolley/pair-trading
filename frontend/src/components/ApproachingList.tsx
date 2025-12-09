@@ -10,6 +10,8 @@ interface ApproachingPair {
   halfLife?: number;
   signalStrength: number;
   direction?: string;
+  reversionWarning?: string | null;
+  reversionRate?: number | null;
 }
 
 interface ApproachingListProps {
@@ -18,7 +20,7 @@ interface ApproachingListProps {
 
 export function ApproachingList({ pairs }: ApproachingListProps) {
   const sortedPairs = [...pairs]
-    .filter((p) => p.signalStrength >= 0.5)
+    .filter((p) => p.signalStrength >= 0.5 && !p.reversionWarning)
     .sort((a, b) => b.signalStrength - a.signalStrength)
     .slice(0, 6);
 

@@ -95,8 +95,9 @@ export default function WatchlistPage() {
     // Already in a trade
     if (activePairs.has(pair.pair)) reasons.push('active_trade');
 
-    // Check 1: Z-Score signal
-    if (!pair.isReady) reasons.push('no_signal');
+    // Check 1: Z-Score signal - use signalStrength instead of isReady 
+    // (scanner may set isReady=false for safety reasons even when at threshold)
+    if (pair.signalStrength < 1) reasons.push('no_signal');
 
     // Check 2: Hurst < 0.5 (NEW: Critical spread mean-reversion check)
     if (pair.hurst !== null && pair.hurst !== undefined && pair.hurst >= 0.5) {
@@ -111,6 +112,11 @@ export default function WatchlistPage() {
     // Check 4: Half-life <= 30 days
     if (pair.halfLife !== null && pair.halfLife !== undefined && pair.halfLife > 30) {
       reasons.push('slow_reversion');
+    }
+
+    // Check 5: Reversion safety (from scanner hourly analysis)
+    if (pair.reversionWarning) {
+      reasons.push('low_reversion');
     }
 
     // Return all reasons
@@ -130,27 +136,31 @@ export default function WatchlistPage() {
   // Actually ready to enter (all checks pass)
   const readyPairs = validatedPairs.filter((p) => p.validation.valid);
 
-  // Blocked by validation (strong signal but failed checks OTHER than just being in active trade)
+  // Blocked by validation (at threshold but failed any check including active trade)
+  // Use signalStrength >= 1 instead of isReady because scanner may set isReady=false for safety reasons
   const blockedPairs = validatedPairs.filter((p) => {
-    if (!p.isReady) return false; // Must have strong signal
-    const nonActiveTradeReasons = p.validation.reasons?.filter(r => r !== 'active_trade' && r !== 'no_signal') || [];
-    return nonActiveTradeReasons.length > 0; // Has validation failures other than active trade
+    const atThreshold = p.signalStrength >= 1;
+    if (!atThreshold) return false; // Must be at threshold
+    // Include all validation failures (including active_trade)
+    const blockingReasons = p.validation.reasons?.filter(r => r !== 'no_signal') || [];
+    return blockingReasons.length > 0; // Has any validation failure
   });
 
-  // Approaching entry threshold
+  // Approaching entry threshold (below threshold, not blocked)
   const approachingPairs = validatedPairs.filter((p) =>
-    !p.isReady && p.signalStrength >= 0.5 && !activePairs.has(p.pair)
+    p.signalStrength >= 0.5 && p.signalStrength < 1 && !activePairs.has(p.pair)
   );
 
   // Apply filter mode to table
   const filteredPairs = validatedPairs.filter((pair) => {
     if (filterMode === 'ready') return pair.validation.valid;
     if (filterMode === 'blocked') {
-      if (!pair.isReady) return false;
-      const nonActiveTradeReasons = pair.validation.reasons?.filter(r => r !== 'active_trade' && r !== 'no_signal') || [];
-      return nonActiveTradeReasons.length > 0;
+      const atThreshold = pair.signalStrength >= 1;
+      if (!atThreshold) return false;
+      const blockingReasons = pair.validation.reasons?.filter(r => r !== 'no_signal') || [];
+      return blockingReasons.length > 0;
     }
-    if (filterMode === 'approaching') return !pair.isReady && pair.signalStrength >= 0.5;
+    if (filterMode === 'approaching') return pair.signalStrength >= 0.5 && pair.signalStrength < 1;
     return true; // 'all'
   });
 
@@ -279,7 +289,9 @@ export default function WatchlistPage() {
                 'hurst_trending': `Trending spread (H=${pair.hurst?.toFixed(2) ?? '?'})`,
                 'low_correlation': `Low correlation (${((pair.correlation ?? 0) * 100).toFixed(0)}%)`,
                 'slow_reversion': `Slow reversion (HL=${pair.halfLife?.toFixed(1) ?? '?'}d)`,
+                'low_reversion': `Low reversion rate (${pair.reversionRate !== null && pair.reversionRate !== undefined ? pair.reversionRate.toFixed(0) + '%' : '?'})`,
                 'active_trade': 'Already in trade',
+                'no_signal': `Below threshold (${Math.round(pair.signalStrength * 100)}%)`,
               };
               return (
                 <div
@@ -398,7 +410,10 @@ export default function WatchlistPage() {
                 const signalPct = Math.round(pair.signalStrength * 100);
                 const isApproaching = pair.signalStrength >= 0.5;
                 const nonActiveTradeReasons = pair.validation.reasons?.filter(r => r !== 'active_trade' && r !== 'no_signal') || [];
-                const isBlocked = pair.isReady && nonActiveTradeReasons.length > 0;
+                // A pair is blocked if signal is at threshold (100%) but has validation failures
+                // Use signalStrength >= 1 instead of isReady because scanner may set isReady=false for safety reasons
+                const atThreshold = pair.signalStrength >= 1;
+                const isBlocked = atThreshold && nonActiveTradeReasons.length > 0;
 
                 return (
                   <tr
@@ -465,6 +480,12 @@ export default function WatchlistPage() {
                                   <>
                                     <p className="text-red-400">• Half-life {pair.halfLife?.toFixed(1) ?? '?'}d &gt; 30d</p>
                                     <p className="text-gray-400 text-[10px] ml-2">Mean reversion too slow for trading</p>
+                                  </>
+                                )}
+                                {pair.validation.reasons?.includes('low_reversion') && (
+                                  <>
+                                    <p className="text-red-400">• Reversion rate {pair.reversionRate !== null && pair.reversionRate !== undefined ? pair.reversionRate.toFixed(0) + '%' : '?'} &lt; 50%</p>
+                                    <p className="text-gray-400 text-[10px] ml-2">Historically poor reversion at current Z level</p>
                                   </>
                                 )}
                                 {(!pair.validation.reasons || pair.validation.reasons.length === 0) && (

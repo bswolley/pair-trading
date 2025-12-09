@@ -67,6 +67,8 @@ export interface WatchlistPair {
     entryThreshold: number;
     exitThreshold?: number;
     maxHistoricalZ?: number;
+    reversionWarning?: string | null;
+    reversionRate?: number | null;
 }
 
 export interface HistoryTrade extends Trade {
@@ -213,6 +215,13 @@ export async function getWatchlist(filters?: { sector?: string; ready?: boolean 
 
 export async function getWatchlistSectors() {
     return fetchAPI<{ timestamp: string; sectors: Array<{ name: string; count: number }> }>('/api/watchlist/sectors');
+}
+
+export async function refreshWatchlistPair(pair: string) {
+    const encodedPair = encodeURIComponent(pair.replace('/', '_'));
+    return fetchAPI<{ success: boolean; pair: WatchlistPair; message: string }>(`/api/watchlist/${encodedPair}/refresh`, {
+        method: 'POST',
+    });
 }
 
 // History
