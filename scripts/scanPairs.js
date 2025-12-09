@@ -17,7 +17,79 @@
 const fs = require('fs');
 const path = require('path');
 const { Hyperliquid } = require('hyperliquid');
-const { checkPairFitness, analyzeHistoricalDivergences } = require('../lib/pairAnalysis');
+const { checkPairFitness } = require('../lib/pairAnalysis');
+
+/**
+ * Simplified divergence analysis using daily prices (no extra API calls)
+ * Used by scanner for quick pair filtering
+ * Matches logic in lib/pairAnalysis.js analyzeHistoricalDivergences()
+ */
+function analyzeLocalDivergences(prices1, prices2, beta) {
+  if (prices1.length < 15 || prices2.length < 15) {
+    return { optimalEntry: 1.5, maxHistoricalZ: 2.0, thresholds: {} };
+  }
+
+  // Calculate spreads and z-scores from daily data
+  const spreads = prices1.map((p1, i) => Math.log(p1) - beta * Math.log(prices2[i]));
+  const meanSpread = spreads.reduce((a, b) => a + b, 0) / spreads.length;
+  const stdDevSpread = Math.sqrt(
+    spreads.reduce((sum, s) => sum + Math.pow(s - meanSpread, 2), 0) / spreads.length
+  );
+
+  if (stdDevSpread === 0) {
+    return { optimalEntry: 1.5, maxHistoricalZ: 2.0, thresholds: {} };
+  }
+
+  const zScores = spreads.map(s => (s - meanSpread) / stdDevSpread);
+
+  // Find max historical z-score
+  const maxHistoricalZ = Math.max(...zScores.map(z => Math.abs(z)));
+
+  // Analyze threshold crossings
+  const thresholds = [1.0, 1.5, 2.0, 2.5, 3.0];
+  const profile = {};
+
+  for (const threshold of thresholds) {
+    let events = 0;
+    let reverted = 0;
+
+    for (let i = 1; i < zScores.length; i++) {
+      const absZ = Math.abs(zScores[i]);
+      const prevAbsZ = Math.abs(zScores[i - 1]);
+
+      // Crossed above threshold
+      if (prevAbsZ < threshold && absZ >= threshold) {
+        events++;
+        // Check if it reverted in remaining data
+        for (let j = i + 1; j < zScores.length; j++) {
+          if (Math.abs(zScores[j]) < 0.5) {
+            reverted++;
+            break;
+          }
+        }
+      }
+    }
+
+    profile[threshold] = {
+      events,
+      reverted,
+      rate: events > 0 ? (reverted / events * 100).toFixed(1) + '%' : '0%'
+    };
+  }
+
+  // Find optimal entry (highest threshold with 100% reversion rate, min 1.5)
+  let optimalEntry = 1.5;
+  for (let i = thresholds.length - 1; i >= 0; i--) {
+    const t = thresholds[i];
+    const stats = profile[t];
+    if (stats.events >= 1 && parseFloat(stats.rate) === 100) {
+      optimalEntry = t;
+      break;
+    }
+  }
+
+  return { optimalEntry, maxHistoricalZ, thresholds: profile };
+}
 
 // Default thresholds
 const DEFAULT_MIN_VOLUME = 500_000;   // $500k 24h volume
@@ -321,7 +393,7 @@ function evaluatePairs(candidatePairs, priceMap, minCorrelation) {
 
       if (passesCorrelation && passesCointegration && passesHalfLife) {
         // Analyze historical divergences to find optimal entry threshold
-        const divergenceProfile = analyzeHistoricalDivergences(aligned1, aligned2, fitness.beta);
+        const divergenceProfile = analyzeLocalDivergences(aligned1, aligned2, fitness.beta);
         
         fittingPairs.push({
           sector: pair.sector,

@@ -78,12 +78,13 @@ function analyzeLocalDivergences(prices1, prices2, beta) {
         };
     }
 
-    // Find optimal entry (highest threshold with good reversion rate)
+    // Find optimal entry (highest threshold with 100% reversion rate, min 1.5)
+    // Matches logic in lib/pairAnalysis.js analyzeHistoricalDivergences()
     let optimalEntry = 1.5;
     for (let i = thresholds.length - 1; i >= 0; i--) {
         const t = thresholds[i];
         const stats = profile[t];
-        if (stats.events >= 1 && parseFloat(stats.rate) >= 50) {
+        if (stats.events >= 1 && parseFloat(stats.rate) === 100) {
             optimalEntry = t;
             break;
         }
