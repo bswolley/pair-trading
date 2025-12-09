@@ -23,8 +23,8 @@ let crossSectorEnabled = false; // Toggle for cross-sector scanning
 // How long before we consider a scan "stale" and need to re-run (6 hours)
 const SCAN_STALE_HOURS = 6;
 
-// Minimum time between on-demand scans (matches monitor interval for responsive scanning)
-const MIN_SCAN_INTERVAL_MINUTES = 15;
+// Minimum time between on-demand scans (10min allows scanning every 15min monitor cycle, accounting for scan duration)
+const MIN_SCAN_INTERVAL_MINUTES = 10;
 
 /**
  * Load scheduler state from database on startup
