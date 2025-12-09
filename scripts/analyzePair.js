@@ -15,7 +15,7 @@ const { exec } = require('child_process');
 const { promisify } = require('util');
 const execAsync = promisify(exec);
 const { analyzePair } = require('../lib/pairAnalysis');
-// const { generateZScoreChart } = require('../lib/generateZScoreChart'); // Not currently used
+const { generateZScoreChart } = require('../lib/generateZScoreChart');
 
 // Parse arguments
 const args = process.argv.slice(2);
@@ -179,6 +179,19 @@ ${pair.standardized ? `## Standardized Metrics
 | **Cointegrated** | ${pair.standardized.isCointegrated90d ? 'Yes' : 'No'} | 90 days |
 | **Half-Life** | ${pair.standardized.halfLife30d !== null ? pair.standardized.halfLife30d.toFixed(1) + ' days' : 'N/A'} | 30 days |
 | **Time to Mean Reversion** | ${pair.standardized.timeToMeanReversion !== null ? pair.standardized.timeToMeanReversion.toFixed(1) + ' days' : 'N/A'} | To 0.5 z-score |
+${pair.standardized.hurst30d !== null ? `| **Hurst Exponent** | ${pair.standardized.hurst30d.toFixed(3)} | 30 days |` : ''}
+${pair.standardized.regime30d ? `| **Market Regime** | ${pair.standardized.regime30d.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())} | 30 days |` : ''}
+${pair.standardized.dualBeta30d ? `| **DualBeta (Up/Down)** | ${pair.standardized.dualBeta30d.upMarket !== null ? pair.standardized.dualBeta30d.upMarket.toFixed(3) : 'N/A'} / ${pair.standardized.dualBeta30d.downMarket !== null ? pair.standardized.dualBeta30d.downMarket.toFixed(3) : 'N/A'} | 30 days |` : ''}
+
+` : ''}${pair.standardized.pathDependencyRisks && Object.keys(pair.standardized.pathDependencyRisks).length > 0 ? `## Path Dependency Risk
+
+*Volatility asymmetry across short-term periods - higher ratio indicates higher path dependency risk*
+
+| Period | Volatility Ratio | Risk Level |
+|--------|------------------|------------|
+${Object.entries(pair.standardized.pathDependencyRisks).map(([period, risk]) => {
+  return `| **${period}** | ${risk.volatilityRatio.toFixed(2)}x | ${risk.pathDependencyRiskLevel} |`;
+}).join('\n')}
 
 ` : ''}## Statistical Metrics
 
@@ -215,6 +228,7 @@ ${pair.standardized.currentZROI ? `### Expected ROI from Current Position
 |---------------|--------------|--------------|-------------------|
 | **Fixed Reversion** | ${pair.standardized.currentZROI.fixedExitZ} | ${pair.standardized.currentZROI.roiFixed} | ${pair.standardized.currentZROI.timeToFixed || 'N/A'} days |
 | **Percentage-Based (50%)** | ${pair.standardized.currentZROI.percentExitZ} | ${pair.standardized.currentZROI.roiPercent} | ${pair.standardized.currentZROI.timeToPercent || 'N/A'} days |
+
 
 ` : ''}### Fixed Reversion (to |Z| < 0.5)
 
