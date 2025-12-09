@@ -496,6 +496,8 @@ function transformWatchlistFromDB(row) {
     exitThreshold: row.exit_threshold,
     maxHistoricalZ: row.max_historical_z,
     fundingSpread: row.funding_spread,
+    reversionWarning: row.reversion_warning,
+    reversionRate: row.reversion_rate,
     addedManually: row.added_manually,
     lastScan: row.last_scan,
     createdAt: row.created_at,
@@ -527,6 +529,8 @@ function transformWatchlistToDB(pair) {
     exit_threshold: pair.exitThreshold,
     max_historical_z: pair.maxHistoricalZ,
     funding_spread: pair.fundingSpread,
+    reversion_warning: pair.reversionWarning,
+    reversion_rate: pair.reversionRate,
     added_manually: pair.addedManually,
     last_scan: pair.lastScan || new Date().toISOString()
   };
