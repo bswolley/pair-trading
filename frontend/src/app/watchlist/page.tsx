@@ -57,6 +57,7 @@ export default function WatchlistPage() {
   const [pairs, setPairs] = useState<api.WatchlistPair[]>([]);
   const [sectors, setSectors] = useState<Array<{ name: string; count: number }>>([]);
   const [activePairs, setActivePairs] = useState<Set<string>>(new Set());
+  const [assetsInUse, setAssetsInUse] = useState<Set<string>>(new Set());
   const [selectedSector, setSelectedSector] = useState<string | null>(null);
   const [filterMode, setFilterMode] = useState<FilterMode>('all');
   const [loading, setLoading] = useState(true);
@@ -75,7 +76,15 @@ export default function WatchlistPage() {
 
       setPairs(watchlistRes.pairs || []);
       setSectors(sectorsRes.sectors || []);
-      setActivePairs(new Set((tradesRes.trades || []).map((t) => t.pair)));
+      const trades = tradesRes.trades || [];
+      setActivePairs(new Set(trades.map((t) => t.pair)));
+      // Track assets in use for overlap detection
+      const usedAssets = new Set<string>();
+      trades.forEach((t) => {
+        if (t.asset1) usedAssets.add(t.asset1);
+        if (t.asset2) usedAssets.add(t.asset2);
+      });
+      setAssetsInUse(usedAssets);
     } catch (err) {
       console.error("Error fetching watchlist:", err);
       setError(err instanceof Error ? err.message : "Failed to fetch watchlist");
@@ -92,8 +101,13 @@ export default function WatchlistPage() {
   const validateForEntry = (pair: api.WatchlistPair) => {
     const reasons: string[] = [];
 
-    // Already in a trade
+    // Already in a trade (exact pair match)
     if (activePairs.has(pair.pair)) reasons.push('active_trade');
+
+    // Asset overlap (one of the assets is in another active trade)
+    if (!activePairs.has(pair.pair) && (assetsInUse.has(pair.asset1) || assetsInUse.has(pair.asset2))) {
+      reasons.push('asset_overlap');
+    }
 
     // Check 1: Z-Score signal - use signalStrength instead of isReady 
     // (scanner may set isReady=false for safety reasons even when at threshold)
@@ -291,6 +305,7 @@ export default function WatchlistPage() {
                 'slow_reversion': `Slow reversion (HL=${pair.halfLife?.toFixed(1) ?? '?'}d)`,
                 'low_reversion': `Low reversion rate (${pair.reversionRate !== null && pair.reversionRate !== undefined ? pair.reversionRate.toFixed(0) + '%' : '?'})`,
                 'active_trade': 'Already in trade',
+                'asset_overlap': `Asset in use (${assetsInUse.has(pair.asset1) ? pair.asset1 : pair.asset2})`,
                 'no_signal': `Below threshold (${Math.round(pair.signalStrength * 100)}%)`,
               };
               return (
@@ -460,6 +475,9 @@ export default function WatchlistPage() {
                                 <p className="font-semibold text-red-400">Blocked by {pair.validation.reasons?.length || 1} issue{(pair.validation.reasons?.length || 1) > 1 ? 's' : ''}:</p>
                                 {pair.validation.reasons?.includes('active_trade') && (
                                   <p className="text-yellow-400">• Already in active trade</p>
+                                )}
+                                {pair.validation.reasons?.includes('asset_overlap') && (
+                                  <p className="text-yellow-400">• Asset already in use ({assetsInUse.has(pair.asset1) ? pair.asset1 : pair.asset2} in another trade)</p>
                                 )}
                                 {pair.validation.reasons?.includes('no_signal') && (
                                   <p className="text-red-400">• Z-Score {pair.zScore.toFixed(2)} &lt; {pair.entryThreshold.toFixed(1)} (weak signal)</p>

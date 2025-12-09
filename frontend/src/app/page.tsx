@@ -59,12 +59,22 @@ export default function BotDashboard() {
 
   const totalPnL = trades.reduce((sum, t) => sum + (t.currentPnL || 0), 0);
   
-  // Exclude pairs that already have active trades
+  // Exclude pairs that already have active trades or asset overlap
   const activePairs = new Set(trades.map((t) => t.pair));
+  const assetsInUse = new Set<string>();
+  trades.forEach((t) => {
+    if (t.asset1) assetsInUse.add(t.asset1);
+    if (t.asset2) assetsInUse.add(t.asset2);
+  });
+  
+  // Filter out pairs with exact match OR asset overlap
+  const isAvailable = (p: api.WatchlistPair) => 
+    !activePairs.has(p.pair) && !assetsInUse.has(p.asset1) && !assetsInUse.has(p.asset2);
+  
   const approachingPairs = watchlist.filter(
-    (p) => p.signalStrength >= 0.5 && !activePairs.has(p.pair)
+    (p) => p.signalStrength >= 0.5 && isAvailable(p)
   );
-  const readyPairs = watchlist.filter((p) => p.isReady && !activePairs.has(p.pair));
+  const readyPairs = watchlist.filter((p) => p.isReady && isAvailable(p));
 
   return (
     <div className="space-y-8">
@@ -192,7 +202,7 @@ export default function BotDashboard() {
 
         {/* Approaching List */}
         <div>
-          <ApproachingList pairs={watchlist.filter((p) => !activePairs.has(p.pair))} />
+          <ApproachingList pairs={watchlist.filter(isAvailable)} />
         </div>
       </div>
     </div>
