@@ -707,10 +707,42 @@ async function main() {
         console.log(`[MONITOR] Filtered out ${removed} pairs containing blacklisted assets`);
     }
     
-    const watchlist = { pairs: filteredPairs };
+    let watchlist = { pairs: filteredPairs };
 
     const tradesArray = await db.getTrades();
     let activeTrades = { trades: tradesArray || [] };
+
+    // Check if we should run scanner: capacity available AND no ready pairs
+    const hasCapacity = activeTrades.trades.length < MAX_CONCURRENT_TRADES;
+    const hasReadyPairs = watchlist.pairs.some(p => p.isReady && !activeTrades.trades.some(t => t.pair === p.pair));
+    
+    if (hasCapacity && !hasReadyPairs) {
+        console.log(`[MONITOR] Capacity available (${activeTrades.trades.length}/${MAX_CONCURRENT_TRADES}) but no ready pairs - triggering scan`);
+        
+        try {
+            const triggerScanOnCapacity = getTriggerScanOnCapacity();
+            const scanResult = await triggerScanOnCapacity(activeTrades.trades.length, MAX_CONCURRENT_TRADES);
+            
+            if (scanResult.triggered) {
+                console.log(`[MONITOR] Pre-scan completed - found ${scanResult.result?.watchlistPairs || 0} pairs`);
+                
+                // Reload watchlist with fresh pairs
+                const freshWatchlistPairs = await db.getWatchlist();
+                if (freshWatchlistPairs && freshWatchlistPairs.length > 0) {
+                    // Re-apply blacklist filter
+                    const freshFiltered = freshWatchlistPairs.filter(p => 
+                        !blacklist.has(p.asset1) && !blacklist.has(p.asset2)
+                    );
+                    watchlist = { pairs: freshFiltered };
+                    console.log(`[MONITOR] Reloaded watchlist with ${freshFiltered.length} pairs`);
+                }
+            } else {
+                console.log(`[MONITOR] Scan not triggered: ${scanResult.reason}${scanResult.detail ? ` (${scanResult.detail})` : ''}`);
+            }
+        } catch (err) {
+            console.error(`[MONITOR] Pre-scan error: ${err.message}`);
+        }
+    }
 
     const stats = await db.getStats();
     let history = {
