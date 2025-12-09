@@ -35,19 +35,19 @@ const MAX_CONCURRENT_TRADES = parseInt(process.env.MAX_CONCURRENT_TRADES) || 5;
 
 // Thresholds
 const DEFAULT_ENTRY_THRESHOLD = 2.0;
-const EXIT_THRESHOLD = 0.5;
-const STOP_LOSS_MULTIPLIER = 1.2;  // Exit if Z exceeds maxHistoricalZ by 20%
+const FINAL_EXIT_ZSCORE = 0.5;         // Final exit when |Z| < 0.5 (full mean reversion)
+const STOP_LOSS_MULTIPLIER = 1.2;      // Exit if Z exceeds maxHistoricalZ by 20%
 const STOP_LOSS_ENTRY_MULTIPLIER = 1.5;  // Or if Z exceeds entry by 50%
-const STOP_LOSS_FLOOR = 3.0;  // Minimum stop-loss threshold
+const STOP_LOSS_FLOOR = 3.0;           // Minimum stop-loss threshold
 const MIN_CORRELATION_30D = 0.6;
 const CORRELATION_BREAKDOWN = 0.4;
 const HALFLIFE_MULTIPLIER = 2;
 
-// Partial exit strategy
-const PARTIAL_EXIT_1_PNL = 3.0;
-const PARTIAL_EXIT_1_SIZE = 0.5;
-const FINAL_EXIT_PNL = 5.0;
-const FINAL_EXIT_ZSCORE = 0.5;
+// Exit strategy - aligned with percentage-based reversion analysis
+// Partial exit: when |Z| < 50% of entry threshold (e.g., entry@2.5 → partial@1.25)
+// Final exit: when |Z| < 0.5 (full mean reversion) or PnL target hit
+const PARTIAL_EXIT_SIZE = 0.5;         // Exit 50% of position at partial reversion
+const FINAL_EXIT_PNL = 5.0;            // Exit remaining at +5% PnL (alternative to Z target)
 
 /**
  * Calculate trade health score
@@ -314,20 +314,31 @@ function calcPnL(trade, prices) {
     return longPnL + shortPnL;
 }
 
+/**
+ * Check exit conditions - aligned with percentage-based reversion
+ * Partial exit (50%): when |Z| < 50% of entry threshold
+ * Final exit (remaining): when |Z| < 0.5 or +5% PnL
+ */
 function checkExitConditions(trade, fitness, currentPnL) {
     const currentZ = Math.abs(fitness.zScore);
     const daysInTrade = (Date.now() - new Date(trade.entryTime)) / (1000 * 60 * 60 * 24);
     const maxDuration = (trade.halfLife || 15) * HALFLIFE_MULTIPLIER;
     const partialTaken = trade.partialExitTaken || false;
 
-    if (!partialTaken && currentPnL >= PARTIAL_EXIT_1_PNL) {
+    // Dynamic partial exit threshold = 50% of entry threshold
+    const entryThreshold = trade.entryThreshold || DEFAULT_ENTRY_THRESHOLD;
+    const partialExitZ = entryThreshold * 0.5;
+
+    // 1. PARTIAL EXIT - Exit 50% when Z reverts to 50% of entry threshold
+    if (!partialTaken && currentZ <= partialExitZ) {
         return {
-            shouldExit: true, isPartial: true, exitSize: PARTIAL_EXIT_1_SIZE,
-            reason: 'PARTIAL_TP', emoji: '💰',
-            message: `Partial TP: +${currentPnL.toFixed(1)}% (closing 50%)`
+            shouldExit: true, isPartial: true, exitSize: PARTIAL_EXIT_SIZE,
+            reason: 'PARTIAL_REVERSION', emoji: '💰',
+            message: `50% reversion (Z=${fitness.zScore.toFixed(2)} < ${partialExitZ.toFixed(1)}, closing 50%)`
         };
     }
 
+    // 2. FINAL EXIT - After partial taken, exit remaining at full reversion or +5% PnL
     if (partialTaken) {
         if (currentPnL >= FINAL_EXIT_PNL) {
             return {
@@ -340,16 +351,17 @@ function checkExitConditions(trade, fitness, currentPnL) {
             return {
                 shouldExit: true, isPartial: false, exitSize: 1.0,
                 reason: 'TARGET', emoji: '🎯',
-                message: `Mean reversion (Z=${fitness.zScore.toFixed(2)})`
+                message: `Full mean reversion (Z=${fitness.zScore.toFixed(2)} < 0.5)`
             };
         }
     }
 
-    if (!partialTaken && currentZ <= EXIT_THRESHOLD) {
+    // 3. FULL EXIT if no partial taken yet and Z reaches full mean reversion
+    if (!partialTaken && currentZ <= FINAL_EXIT_ZSCORE) {
         return {
             shouldExit: true, isPartial: false, exitSize: 1.0,
             reason: 'TARGET', emoji: '🎯',
-            message: `Mean reversion (Z=${fitness.zScore.toFixed(2)})`
+            message: `Full mean reversion (Z=${fitness.zScore.toFixed(2)} < 0.5)`
         };
     }
 
@@ -561,7 +573,7 @@ function formatStatusReport(activeTrades, entries, exits, history, approaching =
             const partialTag = t.partialExitTaken ? ' [50% closed]' : '';
             
             // ETA calculation: halfLife * log(|z_current| / |z_target|) / log(2)
-            const zTarget = EXIT_THRESHOLD; // 0.5
+            const zTarget = FINAL_EXIT_ZSCORE; // 0.5
             const currentHLValue = t.currentHalfLife || t.halfLife || 15;
             const entryHLValue = t.halfLife || 15;
             const absZ = Math.abs(t.currentZ ?? t.entryZScore ?? 0);

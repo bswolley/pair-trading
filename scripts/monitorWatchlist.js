@@ -31,18 +31,18 @@ const MANUAL_MODE = args.includes('--manual');
 
 // Thresholds
 const DEFAULT_ENTRY_THRESHOLD = 2.0;  // Fallback if pair doesn't have dynamic threshold
-const EXIT_THRESHOLD = 0.5;
-const STOP_LOSS_THRESHOLD = 3.0;  // Exit if Z diverges too much
-const MIN_CORRELATION_7D = 0.5;   // Looser for 7d
+const FINAL_EXIT_ZSCORE = 0.5;        // Final exit when |Z| < 0.5 (full mean reversion)
+const STOP_LOSS_THRESHOLD = 3.0;      // Exit if Z diverges too much
+const MIN_CORRELATION_7D = 0.5;       // Looser for 7d
 const MIN_CORRELATION_30D = 0.6;
-const CORRELATION_BREAKDOWN = 0.4; // Exit if correlation collapses
-const HALFLIFE_MULTIPLIER = 2;     // Exit if duration > 2x half-life
+const CORRELATION_BREAKDOWN = 0.4;    // Exit if correlation collapses
+const HALFLIFE_MULTIPLIER = 2;        // Exit if duration > 2x half-life
 
-// Partial exit strategy
-const PARTIAL_EXIT_1_PNL = 3.0;    // Exit 50% at +3%
-const PARTIAL_EXIT_1_SIZE = 0.5;   // 50% of position
-const FINAL_EXIT_PNL = 5.0;        // Exit remaining at +5%
-const FINAL_EXIT_ZSCORE = 0.5;     // Or when |Z| < 0.5
+// Exit strategy - aligned with percentage-based reversion analysis
+// Partial exit: when |Z| < 50% of entry threshold (e.g., entry@2.5 → partial@1.25)
+// Final exit: when |Z| < 0.5 (full mean reversion) or PnL target hit
+const PARTIAL_EXIT_SIZE = 0.5;        // Exit 50% of position at partial reversion
+const FINAL_EXIT_PNL = 5.0;           // Exit remaining at +5% PnL (alternative to Z target)
 
 /**
  * Helpers
@@ -276,6 +276,10 @@ function calcPnL(trade, prices) {
 /**
  * Check all exit conditions for a trade
  * Returns: { shouldExit: boolean, isPartial: boolean, exitSize: number, reason: string, emoji: string }
+ * 
+ * Exit strategy aligned with percentage-based reversion:
+ * - Partial exit (50%): when |Z| < 50% of entry threshold
+ * - Final exit (remaining): when |Z| < 0.5 or +5% PnL
  */
 function checkExitConditions(trade, fitness, currentPnL) {
   const currentZ = Math.abs(fitness.zScore);
@@ -283,19 +287,24 @@ function checkExitConditions(trade, fitness, currentPnL) {
   const maxDuration = (trade.halfLife || 15) * HALFLIFE_MULTIPLIER;
   const partialTaken = trade.partialExitTaken || false;
   
-  // 1. PARTIAL PROFIT - Exit 50% at +3%
-  if (!partialTaken && currentPnL >= PARTIAL_EXIT_1_PNL) {
+  // Dynamic partial exit threshold = 50% of entry threshold
+  // e.g., entry@2.5 → partial exit when |Z| < 1.25
+  const entryThreshold = trade.entryThreshold || DEFAULT_ENTRY_THRESHOLD;
+  const partialExitZ = entryThreshold * 0.5;
+  
+  // 1. PARTIAL EXIT - Exit 50% when Z reverts to 50% of entry threshold
+  if (!partialTaken && currentZ <= partialExitZ) {
     return { 
       shouldExit: true,
       isPartial: true,
-      exitSize: PARTIAL_EXIT_1_SIZE,
-      reason: 'PARTIAL_TP', 
+      exitSize: PARTIAL_EXIT_SIZE,
+      reason: 'PARTIAL_REVERSION', 
       emoji: '💰',
-      message: `Partial TP: +${currentPnL.toFixed(1)}% (closing 50%)`
+      message: `50% reversion (Z=${fitness.zScore.toFixed(2)} < ${partialExitZ.toFixed(1)}, closing 50%)`
     };
   }
   
-  // 2. FINAL PROFIT - Exit remaining at +5% or |Z| < 0.5
+  // 2. FINAL EXIT - After partial taken, exit remaining at full reversion or +5% PnL
   if (partialTaken) {
     if (currentPnL >= FINAL_EXIT_PNL) {
       return { 
@@ -314,20 +323,21 @@ function checkExitConditions(trade, fitness, currentPnL) {
         exitSize: 1.0,
         reason: 'TARGET', 
         emoji: '🎯',
-        message: `Mean reversion complete (Z=${fitness.zScore.toFixed(2)})`
+        message: `Full mean reversion (Z=${fitness.zScore.toFixed(2)} < 0.5)`
       };
     }
   }
   
-  // 3. FULL EXIT if no partial taken yet and Z reaches target
-  if (!partialTaken && currentZ <= EXIT_THRESHOLD) {
+  // 3. FULL EXIT if no partial taken yet and Z reaches full mean reversion
+  // (This handles cases where Z drops quickly past both thresholds)
+  if (!partialTaken && currentZ <= FINAL_EXIT_ZSCORE) {
     return { 
       shouldExit: true,
       isPartial: false,
       exitSize: 1.0,
       reason: 'TARGET', 
       emoji: '🎯',
-      message: `Mean reversion complete (Z=${fitness.zScore.toFixed(2)})`
+      message: `Full mean reversion (Z=${fitness.zScore.toFixed(2)} < 0.5)`
     };
   }
   
@@ -437,7 +447,7 @@ function formatStatusReport(activeTrades, entries, exits, history, approaching =
       const hlArrow = parseFloat(hlDelta) < 0 ? '↓' : parseFloat(hlDelta) > 0 ? '↑' : '→';
       
       // Time to mean reversion: halfLife * log(|z_current| / |z_target|) / log(2)
-      const zTarget = EXIT_THRESHOLD; // 0.5
+      const zTarget = FINAL_EXIT_ZSCORE; // 0.5
       const currentHL = t.currentHalfLife || t.halfLife || 15;
       const entryHL = t.halfLife || 15;
       // Use currentZ if available, otherwise fall back to entryZScore for new trades
