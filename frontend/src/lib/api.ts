@@ -294,6 +294,7 @@ export interface ZScoreResponse {
     asset1: string;
     asset2: string;
     days: number;
+    resolution: '1d' | '1h';
     dataPoints: number;
     data: ZScoreDataPoint[];
     stats: {
@@ -304,9 +305,9 @@ export interface ZScoreResponse {
     };
 }
 
-export async function getZScoreHistory(pair: string, days: number = 30) {
+export async function getZScoreHistory(pair: string, days: number = 30, resolution: '1d' | '1h' = '1d') {
     const encodedPair = encodeURIComponent(pair.replace('/', '_'));
-    return fetchAPI<ZScoreResponse>(`/api/zscore/${encodedPair}?days=${days}`);
+    return fetchAPI<ZScoreResponse>(`/api/zscore/${encodedPair}?days=${days}&resolution=${resolution}`);
 }
 
 // Pair Analysis

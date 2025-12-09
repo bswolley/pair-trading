@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
   LineChart,
   Line,
@@ -11,7 +11,7 @@ import {
   ReferenceLine,
   ResponsiveContainer,
 } from "recharts";
-import { Loader2 } from "lucide-react";
+import { Loader2, Calendar, Clock } from "lucide-react";
 import * as api from "@/lib/api";
 
 interface ZScoreChartProps {
@@ -22,6 +22,8 @@ interface ZScoreChartProps {
   onDataLoaded?: (data: api.ZScoreResponse) => void;
 }
 
+type Resolution = '1d' | '1h';
+
 export function ZScoreChart({ 
   pair, 
   entryThreshold = 2.0, 
@@ -29,28 +31,35 @@ export function ZScoreChart({
   cachedData,
   onDataLoaded 
 }: ZScoreChartProps) {
+  const [resolution, setResolution] = useState<Resolution>('1d');
   const [loading, setLoading] = useState(!cachedData);
   const [error, setError] = useState<string | null>(null);
-  const [data, setData] = useState<api.ZScoreDataPoint[]>(cachedData?.data || []);
-  const [stats, setStats] = useState<api.ZScoreResponse["stats"] | null>(cachedData?.stats || null);
+  const [dailyData, setDailyData] = useState<api.ZScoreDataPoint[]>(cachedData?.data || []);
+  const [hourlyData, setHourlyData] = useState<api.ZScoreDataPoint[]>([]);
+  const [dailyStats, setDailyStats] = useState<api.ZScoreResponse["stats"] | null>(cachedData?.stats || null);
+  const [hourlyStats, setHourlyStats] = useState<api.ZScoreResponse["stats"] | null>(null);
+  const [hourlyLoaded, setHourlyLoaded] = useState(false);
 
+  // Get current data based on resolution
+  const data = resolution === '1d' ? dailyData : hourlyData;
+  const stats = resolution === '1d' ? dailyStats : hourlyStats;
+
+  // Fetch daily data
   useEffect(() => {
-    // If we have cached data, use it
     if (cachedData) {
-      setData(cachedData.data);
-      setStats(cachedData.stats);
+      setDailyData(cachedData.data);
+      setDailyStats(cachedData.stats);
       setLoading(false);
       return;
     }
     
-    async function fetchData() {
+    async function fetchDailyData() {
       setLoading(true);
       setError(null);
       try {
-        const response = await api.getZScoreHistory(pair, days);
-        setData(response.data);
-        setStats(response.stats);
-        // Store in cache via callback
+        const response = await api.getZScoreHistory(pair, days, '1d');
+        setDailyData(response.data);
+        setDailyStats(response.stats);
         onDataLoaded?.(response);
       } catch (err) {
         setError(err instanceof Error ? err.message : "Failed to fetch data");
@@ -58,10 +67,37 @@ export function ZScoreChart({
         setLoading(false);
       }
     }
-    fetchData();
+    fetchDailyData();
   }, [pair, days, cachedData, onDataLoaded]);
 
-  if (loading) {
+  // Fetch hourly data when tab is selected
+  const fetchHourlyData = useCallback(async () => {
+    if (hourlyLoaded) return;
+    
+    setLoading(true);
+    setError(null);
+    try {
+      // Fetch 60 days of hourly data (matches divergence analysis)
+      const response = await api.getZScoreHistory(pair, 60, '1h');
+      setHourlyData(response.data);
+      setHourlyStats(response.stats);
+      setHourlyLoaded(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to fetch hourly data");
+    } finally {
+      setLoading(false);
+    }
+  }, [pair, hourlyLoaded]);
+
+  // Handle tab change
+  const handleResolutionChange = (newResolution: Resolution) => {
+    setResolution(newResolution);
+    if (newResolution === '1h' && !hourlyLoaded) {
+      fetchHourlyData();
+    }
+  };
+
+  if (loading && data.length === 0) {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="w-8 h-8 animate-spin text-primary" />
@@ -70,7 +106,7 @@ export function ZScoreChart({
     );
   }
 
-  if (error) {
+  if (error && data.length === 0) {
     return (
       <div className="flex items-center justify-center h-64 text-red-400">
         {error}
@@ -92,7 +128,7 @@ export function ZScoreChart({
   const maxZ = Math.max(...zScores, entryThreshold + 0.5);
 
   // Custom tooltip
-  const CustomTooltip = ({ active, payload, label }: any) => {
+  const CustomTooltip = ({ active, payload }: any) => {
     if (active && payload && payload.length) {
       const d = payload[0].payload;
       const z = d.zScore ?? 0;
@@ -113,6 +149,38 @@ export function ZScoreChart({
 
   return (
     <div className="space-y-4">
+      {/* Resolution Tabs */}
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => handleResolutionChange('1d')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            resolution === '1d'
+              ? 'bg-primary text-primary-foreground'
+              : 'bg-muted text-muted-foreground hover:bg-muted/80'
+          }`}
+        >
+          <Calendar className="w-4 h-4" />
+          Daily (30d)
+        </button>
+        <button
+          onClick={() => handleResolutionChange('1h')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            resolution === '1h'
+              ? 'bg-primary text-primary-foreground'
+              : 'bg-muted text-muted-foreground hover:bg-muted/80'
+          }`}
+        >
+          <Clock className="w-4 h-4" />
+          Hourly (60d)
+          {loading && resolution === '1h' && (
+            <Loader2 className="w-3 h-3 animate-spin" />
+          )}
+        </button>
+        <span className="text-xs text-muted-foreground ml-2">
+          {resolution === '1h' ? '30-day rolling window (matches entry thresholds)' : '20-day rolling window'}
+        </span>
+      </div>
+
       {/* Stats row */}
       {stats && (
         <div className="grid grid-cols-4 gap-4 text-sm">
@@ -150,6 +218,14 @@ export function ZScoreChart({
               dataKey="date"
               tick={{ fontSize: 11, fill: "#9ca3af" }}
               tickFormatter={(value) => {
+                if (resolution === '1h') {
+                  // For hourly, show date and time
+                  const parts = value.split(' ');
+                  if (parts.length === 2) {
+                    const datePart = parts[0].split('-');
+                    return `${datePart[1]}/${datePart[2]}`;
+                  }
+                }
                 const d = new Date(value);
                 return `${d.getMonth() + 1}/${d.getDate()}`;
               }}
@@ -218,8 +294,12 @@ export function ZScoreChart({
           <div className="w-4 h-0.5 border-t-2 border-dashed" style={{ borderColor: '#10b981' }} />
           <span>Long (-{entryThreshold})</span>
         </div>
+        {resolution === '1h' && (
+          <div className="text-yellow-500">
+            • Hourly data matches divergence analysis
+          </div>
+        )}
       </div>
     </div>
   );
 }
-

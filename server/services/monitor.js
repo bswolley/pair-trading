@@ -389,7 +389,7 @@ function checkExitConditions(trade, fitness, currentPnL) {
     return { shouldExit: false, isPartial: false, exitSize: 0, reason: null, emoji: null, message: null };
 }
 
-async function enterTrade(pair, fitness, prices, activeTrades, hurst = null) {
+async function enterTrade(pair, fitness, prices, activeTrades, hurst = null, entryThreshold = DEFAULT_ENTRY_THRESHOLD) {
     const absBeta = Math.abs(fitness.beta);
     const w1 = 1 / (1 + absBeta), w2 = absBeta / (1 + absBeta);
     const dir = fitness.zScore < 0 ? 'long' : 'short';
@@ -403,6 +403,7 @@ async function enterTrade(pair, fitness, prices, activeTrades, hurst = null) {
         entryZScore: fitness.zScore,
         entryPrice1: prices.currentPrice1,
         entryPrice2: prices.currentPrice2,
+        entryThreshold: entryThreshold,  // Now saved to DB
         correlation: fitness.correlation,
         beta: fitness.beta,
         halfLife: fitness.halfLife,
@@ -937,8 +938,7 @@ async function main() {
         const currentlyAtMax = activeTrades.trades.length >= MAX_CONCURRENT_TRADES;
         
         if (signal && validation.valid && hurstValid && !hasOverlap && !currentlyAtMax) {
-            const trade = await enterTrade(pair, fit, prices, activeTrades, hurst);
-            trade.entryThreshold = entryThreshold;
+            const trade = await enterTrade(pair, fit, prices, activeTrades, hurst, entryThreshold);
             entries.push(trade);
             activePairs.add(pair.pair);
             assetsInPositions.add(pair.asset1);

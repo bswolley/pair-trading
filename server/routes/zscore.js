@@ -2,6 +2,7 @@
  * Z-Score History API
  * 
  * Fetches historical prices and calculates rolling z-scores for charting.
+ * Supports both daily (1d) and hourly (1h) resolutions.
  */
 
 const express = require('express');
@@ -14,12 +15,15 @@ const { checkPairFitness } = require('../../lib/pairAnalysis');
  * Returns rolling z-score history for a pair
  * 
  * @param pair - Pair in format "LDO_UMA" or "LDO/UMA"
- * @query days - Number of days (default: 30, max: 90)
+ * @query days - Number of days (default: 30, max: 90 for daily, 60 for hourly)
+ * @query resolution - '1d' for daily (default) or '1h' for hourly
  */
 router.get('/:pair', async (req, res) => {
   try {
     const pairParam = req.params.pair;
-    const days = Math.min(parseInt(req.query.days) || 30, 90);
+    const resolution = req.query.resolution === '1h' ? '1h' : '1d';
+    const maxDays = resolution === '1h' ? 60 : 90;
+    const days = Math.min(parseInt(req.query.days) || 30, maxDays);
     
     // Parse pair
     const [asset1, asset2] = pairParam.replace('_', '/').split('/');
@@ -43,11 +47,13 @@ router.get('/:pair', async (req, res) => {
 
     // Fetch historical candles
     const endTime = Date.now();
-    const startTime = endTime - ((days + 10) * 24 * 60 * 60 * 1000);
+    // For hourly, we need extra buffer for the lookback window
+    const bufferDays = resolution === '1h' ? 35 : 10;
+    const startTime = endTime - ((days + bufferDays) * 24 * 60 * 60 * 1000);
     
     const [candles1, candles2] = await Promise.all([
-      sdk.info.getCandleSnapshot(`${asset1}-PERP`, '1d', startTime, endTime),
-      sdk.info.getCandleSnapshot(`${asset2}-PERP`, '1d', startTime, endTime)
+      sdk.info.getCandleSnapshot(`${asset1}-PERP`, resolution, startTime, endTime),
+      sdk.info.getCandleSnapshot(`${asset2}-PERP`, resolution, startTime, endTime)
     ]);
 
     // Disconnect SDK
@@ -72,26 +78,43 @@ router.get('/:pair', async (req, res) => {
     // Find common timestamps
     const commonTimes = [...map1.keys()].filter(t => map2.has(t)).sort((a, b) => a - b);
     
-    if (commonTimes.length < 15) {
-      return res.status(400).json({ error: 'Insufficient overlapping data' });
+    // For hourly, we need 30 days of data (720 hours) for lookback
+    // For daily, we need 20 days
+    const minDataPoints = resolution === '1h' ? 30 * 24 : 15;
+    if (commonTimes.length < minDataPoints) {
+      return res.status(400).json({ 
+        error: `Insufficient data: ${commonTimes.length} points (need ${minDataPoints})` 
+      });
     }
 
-    // Calculate rolling z-scores with a 20-day lookback
-    const lookback = 20;
+    // Calculate rolling z-scores
+    // For hourly: 30-day lookback (720 hours) - matches divergence analysis
+    // For daily: 20-day lookback
+    const lookback = resolution === '1h' ? 30 * 24 : 20;
     const zScoreData = [];
 
-    for (let i = lookback; i < commonTimes.length; i++) {
-      const windowTimes = commonTimes.slice(i - lookback, i + 1);
+    // For hourly data, we may want to sample every N hours to reduce data points
+    // Let's sample every 4 hours for hourly view (6 points per day instead of 24)
+    const sampleRate = resolution === '1h' ? 4 : 1;
+
+    for (let i = lookback; i < commonTimes.length; i += sampleRate) {
+      const windowTimes = commonTimes.slice(Math.max(0, i - lookback), i + 1);
       const prices1 = windowTimes.map(t => map1.get(t));
       const prices2 = windowTimes.map(t => map2.get(t));
 
+      // For hourly, convert prices to daily-equivalent for fitness calculation
+      // by taking the lookback window and calculating beta/correlation properly
       try {
         const fitness = checkPairFitness(prices1, prices2);
         const timestamp = commonTimes[i];
         
+        const dateStr = resolution === '1h' 
+          ? new Date(timestamp).toISOString().slice(0, 16).replace('T', ' ')  // "2025-12-09 14:00"
+          : new Date(timestamp).toISOString().split('T')[0];  // "2025-12-09"
+        
         zScoreData.push({
           timestamp,
-          date: new Date(timestamp).toISOString().split('T')[0],
+          date: dateStr,
           zScore: parseFloat(fitness.zScore.toFixed(4)),
           price1: prices1[prices1.length - 1],
           price2: prices2[prices2.length - 1]
@@ -102,8 +125,9 @@ router.get('/:pair', async (req, res) => {
     }
 
     // Get current stats from latest calculation
-    const latestPrices1 = commonTimes.slice(-30).map(t => map1.get(t));
-    const latestPrices2 = commonTimes.slice(-30).map(t => map2.get(t));
+    const latestWindow = resolution === '1h' ? 30 * 24 : 30;
+    const latestPrices1 = commonTimes.slice(-latestWindow).map(t => map1.get(t));
+    const latestPrices2 = commonTimes.slice(-latestWindow).map(t => map2.get(t));
     let currentStats = {};
     
     try {
@@ -115,16 +139,18 @@ router.get('/:pair', async (req, res) => {
         currentZ: parseFloat(fitness.zScore.toFixed(4))
       };
       
-      // Add current Z as final data point (today, even if candle is open)
+      // Add current Z as final data point
       const now = Date.now();
-      const today = new Date().toISOString().split('T')[0];
+      const nowStr = resolution === '1h'
+        ? new Date(now).toISOString().slice(0, 16).replace('T', ' ')
+        : new Date().toISOString().split('T')[0];
       const lastDataPoint = zScoreData[zScoreData.length - 1];
       
-      // Only add if it's a different date or significantly different Z
-      if (!lastDataPoint || lastDataPoint.date !== today) {
+      // Only add if it's significantly different time
+      if (!lastDataPoint || (now - lastDataPoint.timestamp) > (resolution === '1h' ? 3600000 : 86400000)) {
         zScoreData.push({
           timestamp: now,
-          date: today,
+          date: nowStr,
           zScore: currentStats.currentZ,
           price1: latestPrices1[latestPrices1.length - 1],
           price2: latestPrices2[latestPrices2.length - 1]
@@ -140,6 +166,7 @@ router.get('/:pair', async (req, res) => {
       asset1,
       asset2,
       days,
+      resolution,
       dataPoints: zScoreData.length,
       data: zScoreData,
       stats: currentStats
@@ -152,4 +179,3 @@ router.get('/:pair', async (req, res) => {
 });
 
 module.exports = router;
-
