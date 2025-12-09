@@ -628,11 +628,9 @@ async function main() {
         Object.entries(p.divergenceProfile).map(([thresh, data]) => [
           thresh,
           {
-            events: data.totalEvents,
-            reverted: data.revertedEvents,
-            rate: data.reversionRate !== null ? parseFloat(data.reversionRate.toFixed(2)) : null,
-            avgDuration: data.avgDuration !== null ? parseFloat(data.avgDuration.toFixed(1)) : null,
-            avgPeakZ: data.avgPeakZ !== null ? parseFloat(data.avgPeakZ.toFixed(2)) : null
+            events: data.events,
+            reverted: data.reverted,
+            rate: data.rate // Already formatted as string like "93.3%"
           }
         ])
       )
@@ -684,9 +682,9 @@ async function main() {
           Object.entries(p.divergenceProfile).map(([thresh, data]) => [
             thresh,
             {
-              events: data.totalEvents,
-              reverted: data.revertedEvents,
-              rate: data.reversionRate !== null ? parseFloat(data.reversionRate.toFixed(2)) : null
+              events: data.events,
+              reverted: data.reverted,
+              rate: data.rate // Already formatted as string like "93.3%"
             }
           ])
         )
