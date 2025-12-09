@@ -302,6 +302,7 @@ export interface ZScoreResponse {
         beta: number;
         halfLife: number;
         currentZ: number;
+        optimalEntry?: number;
     };
 }
 

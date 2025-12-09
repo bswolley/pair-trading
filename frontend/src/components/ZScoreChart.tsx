@@ -122,10 +122,13 @@ export function ZScoreChart({
     );
   }
 
+  // Use dynamic optimal entry threshold from stats if available
+  const effectiveThreshold = stats?.optimalEntry ?? entryThreshold;
+  
   // Calculate min/max for Y axis with some padding
   const zScores = data.map((d) => d.zScore);
-  const minZ = Math.min(...zScores, -entryThreshold - 0.5);
-  const maxZ = Math.max(...zScores, entryThreshold + 0.5);
+  const minZ = Math.min(...zScores, -effectiveThreshold - 0.5);
+  const maxZ = Math.max(...zScores, effectiveThreshold + 0.5);
 
   // Custom tooltip
   const CustomTooltip = ({ active, payload }: any) => {
@@ -240,24 +243,24 @@ export function ZScoreChart({
             
             {/* Entry threshold lines */}
             <ReferenceLine
-              y={entryThreshold}
+              y={effectiveThreshold}
               stroke="#ef4444"
               strokeDasharray="5 5"
               strokeOpacity={0.7}
               label={{
-                value: `+${entryThreshold}`,
+                value: `+${effectiveThreshold}`,
                 position: "right",
                 fill: "#ef4444",
                 fontSize: 10,
               }}
             />
             <ReferenceLine
-              y={-entryThreshold}
+              y={-effectiveThreshold}
               stroke="#10b981"
               strokeDasharray="5 5"
               strokeOpacity={0.7}
               label={{
-                value: `-${entryThreshold}`,
+                value: `-${effectiveThreshold}`,
                 position: "right",
                 fill: "#10b981",
                 fontSize: 10,
@@ -288,11 +291,11 @@ export function ZScoreChart({
         </div>
         <div className="flex items-center gap-1">
           <div className="w-4 h-0.5 border-t-2 border-dashed" style={{ borderColor: '#ef4444' }} />
-          <span>Short (+{entryThreshold})</span>
+          <span>Short (+{effectiveThreshold})</span>
         </div>
         <div className="flex items-center gap-1">
           <div className="w-4 h-0.5 border-t-2 border-dashed" style={{ borderColor: '#10b981' }} />
-          <span>Long (-{entryThreshold})</span>
+          <span>Long (-{effectiveThreshold})</span>
         </div>
         {resolution === '1h' && (
           <div className="text-yellow-500">

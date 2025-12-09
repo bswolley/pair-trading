@@ -46,13 +46,14 @@ function analyzeLocalDivergences(prices1, prices2, beta) {
     // Find max historical z-score
     const maxHistoricalZ = Math.max(...zScores.map(z => Math.abs(z)));
     
-    // Analyze threshold crossings
+    // Analyze threshold crossings with percentage-based reversion (to 50% of threshold)
     const thresholds = [1.0, 1.5, 2.0, 2.5, 3.0];
     const profile = {};
 
     for (const threshold of thresholds) {
         let events = 0;
         let reverted = 0;
+        const percentReversionTarget = threshold * 0.5; // 50% of threshold
         
         for (let i = 1; i < zScores.length; i++) {
             const absZ = Math.abs(zScores[i]);
@@ -61,9 +62,9 @@ function analyzeLocalDivergences(prices1, prices2, beta) {
             // Crossed above threshold
             if (prevAbsZ < threshold && absZ >= threshold) {
                 events++;
-                // Check if it reverted in remaining data
+                // Check if it reverted to < 50% of threshold (percentage-based)
                 for (let j = i + 1; j < zScores.length; j++) {
-                    if (Math.abs(zScores[j]) < 0.5) {
+                    if (Math.abs(zScores[j]) < percentReversionTarget) {
                         reverted++;
                         break;
                     }
@@ -78,15 +79,29 @@ function analyzeLocalDivergences(prices1, prices2, beta) {
         };
     }
 
-    // Find optimal entry (highest threshold with 100% reversion rate, min 1.5)
+    // Find optimal entry using percentage-based reversion
+    // Option B: Highest threshold with >= 90% reversion rate and min 3 events
     // Matches logic in lib/pairAnalysis.js analyzeHistoricalDivergences()
     let optimalEntry = 1.5;
     for (let i = thresholds.length - 1; i >= 0; i--) {
         const t = thresholds[i];
         const stats = profile[t];
-        if (stats.events >= 1 && parseFloat(stats.rate) === 100) {
+        const rate = parseFloat(stats.rate);
+        if (stats.events >= 3 && rate >= 90) {
             optimalEntry = t;
             break;
+        }
+    }
+    // Fallback: if no threshold meets criteria, find highest with >= 80% and min 2 events
+    if (optimalEntry === 1.5) {
+        for (let i = thresholds.length - 1; i >= 0; i--) {
+            const t = thresholds[i];
+            const stats = profile[t];
+            const rate = parseFloat(stats.rate);
+            if (stats.events >= 2 && rate >= 80) {
+                optimalEntry = t;
+                break;
+            }
         }
     }
 

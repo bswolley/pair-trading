@@ -162,6 +162,31 @@ async function main() {
   // Calculate fitness
   const fitness = checkPairFitness(priceData.prices1, priceData.prices2);
   
+  // Calculate optimal entry threshold using percentage-based reversion
+  const spreads = priceData.prices1.map((p1, i) => Math.log(p1) - fitness.beta * Math.log(priceData.prices2[i]));
+  const meanSpread = spreads.reduce((a, b) => a + b, 0) / spreads.length;
+  const stdDevSpread = Math.sqrt(spreads.reduce((sum, s) => sum + Math.pow(s - meanSpread, 2), 0) / spreads.length);
+  const zScores = spreads.map(s => (s - meanSpread) / stdDevSpread);
+  
+  const thresholds = [1.0, 1.5, 2.0, 2.5, 3.0];
+  let optimalEntry = 1.5;
+  for (let i = thresholds.length - 1; i >= 0; i--) {
+    const threshold = thresholds[i];
+    const percentTarget = threshold * 0.5;
+    let events = 0, reverted = 0;
+    for (let j = 1; j < zScores.length; j++) {
+      if (Math.abs(zScores[j - 1]) < threshold && Math.abs(zScores[j]) >= threshold) {
+        events++;
+        for (let k = j + 1; k < zScores.length; k++) {
+          if (Math.abs(zScores[k]) < percentTarget) { reverted++; break; }
+        }
+      }
+    }
+    const rate = events > 0 ? (reverted / events) * 100 : 0;
+    if (events >= 3 && rate >= 90) { optimalEntry = threshold; break; }
+    if (optimalEntry === 1.5 && events >= 2 && rate >= 80) { optimalEntry = threshold; }
+  }
+  
   // Disconnect
   console.log = () => {};
   await sdk.disconnect();
@@ -201,7 +226,7 @@ async function main() {
     shortWeight: shortWeight * 100,
     longEntryPrice: longPrice,
     shortEntryPrice: shortPrice,
-    entryThreshold: 1.5,
+    entryThreshold: optimalEntry,
     exitThreshold: 0.5
   };
   

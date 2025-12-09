@@ -132,11 +132,72 @@ router.get('/:pair', async (req, res) => {
     
     try {
       const fitness = checkPairFitness(latestPrices1, latestPrices2);
+      // Half-life is returned in data point units
+      // For hourly data, convert from hours to days (÷24)
+      const halfLifeDays = resolution === '1h' && fitness.halfLife !== null
+        ? fitness.halfLife / 24
+        : fitness.halfLife;
+      
+      // Calculate optimal entry threshold using percentage-based reversion (to 50% of threshold)
+      // Option B: Highest threshold with >= 90% reversion rate and min 3 events
+      const thresholds = [1.0, 1.5, 2.0, 2.5, 3.0];
+      const reversionProfile = {};
+      
+      for (const threshold of thresholds) {
+        let events = 0;
+        let reverted = 0;
+        let activeEpisode = null;
+        const percentReversionTarget = threshold * 0.5; // 50% of threshold
+        
+        for (let i = 0; i < zScoreData.length; i++) {
+          const absZ = Math.abs(zScoreData[i].zScore);
+          const currentTime = zScoreData[i].timestamp;
+          
+          // Start new episode only if no active episode
+          if (absZ >= threshold && activeEpisode === null) {
+            events++;
+            activeEpisode = { startTime: currentTime };
+          }
+          
+          // Exit divergence: reversion to < 50% of threshold (percentage-based)
+          if (activeEpisode !== null && absZ < percentReversionTarget) {
+            reverted++;
+            activeEpisode = null;
+          }
+        }
+        
+        const rate = events > 0 ? (reverted / events) * 100 : 0;
+        reversionProfile[threshold] = { events, reverted, rate };
+      }
+      
+      // Find optimal entry: highest threshold with >= 90% reversion and min 3 events
+      let optimalEntry = 1.5;
+      for (let i = thresholds.length - 1; i >= 0; i--) {
+        const threshold = thresholds[i];
+        const stats = reversionProfile[threshold];
+        if (stats.events >= 3 && stats.rate >= 90) {
+          optimalEntry = threshold;
+          break;
+        }
+      }
+      // Fallback: if no threshold meets criteria, find highest with >= 80% and min 2 events
+      if (optimalEntry === 1.5) {
+        for (let i = thresholds.length - 1; i >= 0; i--) {
+          const threshold = thresholds[i];
+          const stats = reversionProfile[threshold];
+          if (stats.events >= 2 && stats.rate >= 80) {
+            optimalEntry = threshold;
+            break;
+          }
+        }
+      }
+      
       currentStats = {
         correlation: parseFloat(fitness.correlation.toFixed(4)),
         beta: parseFloat(fitness.beta.toFixed(4)),
-        halfLife: parseFloat(fitness.halfLife.toFixed(2)),
-        currentZ: parseFloat(fitness.zScore.toFixed(4))
+        halfLife: halfLifeDays !== null ? parseFloat(halfLifeDays.toFixed(2)) : null,
+        currentZ: parseFloat(fitness.zScore.toFixed(4)),
+        optimalEntry: optimalEntry
       };
       
       // Add current Z as final data point
