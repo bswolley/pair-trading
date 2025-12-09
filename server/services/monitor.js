@@ -655,6 +655,10 @@ function formatStatusReport(activeTrades, entries, exits, history, approaching =
             } else if (p.hasOverlap) {
                 status = '🚫';
                 blockNote = `${p.overlappingAsset} in use`;
+            } else if (p.reversionWarning) {
+                // Safety check: poor reversion rate at current Z level
+                status = '⚠️';
+                blockNote = `LOW_REVERSION (${p.reversionRate !== null ? p.reversionRate.toFixed(0) + '%' : '?'})`;
             } else if (atThreshold && p.blockReason && p.blockReason !== 'below_threshold') {
                 status = '⚠️';
                 blockNote = p.blockReason.replace(/_/g, ' ');
@@ -829,38 +833,8 @@ async function main() {
         const prices = await fetchPrices(sdk, pair.asset1, pair.asset2);
         if (!prices) continue;
 
-        // First get basic fitness to have beta
-        const fitTemp = checkPairFitness(prices.prices1_30d, prices.prices2_30d);
-        
-        // Recalculate optimal entry threshold using percentage-based reversion
-        let entryThreshold = pair.entryThreshold || DEFAULT_ENTRY_THRESHOLD;
-        if (prices.prices1_30d.length >= 20) {
-            const spreads = prices.prices1_30d.map((p1, i) => 
-                Math.log(p1) - fitTemp.beta * Math.log(prices.prices2_30d[i]));
-            const meanSpread = spreads.reduce((a, b) => a + b, 0) / spreads.length;
-            const stdDev = Math.sqrt(spreads.reduce((sum, s) => sum + Math.pow(s - meanSpread, 2), 0) / spreads.length);
-            const zScores = spreads.map(s => (s - meanSpread) / stdDev);
-            
-            const thresholds = [1.0, 1.5, 2.0, 2.5, 3.0];
-            let optimalEntry = 1.5;
-            for (let i = thresholds.length - 1; i >= 0; i--) {
-                const threshold = thresholds[i];
-                const percentTarget = threshold * 0.5;
-                let events = 0, reverted = 0;
-                for (let j = 1; j < zScores.length; j++) {
-                    if (Math.abs(zScores[j - 1]) < threshold && Math.abs(zScores[j]) >= threshold) {
-                        events++;
-                        for (let k = j + 1; k < zScores.length; k++) {
-                            if (Math.abs(zScores[k]) < percentTarget) { reverted++; break; }
-                        }
-                    }
-                }
-                const rate = events > 0 ? (reverted / events) * 100 : 0;
-                if (events >= 3 && rate >= 90) { optimalEntry = threshold; break; }
-                if (optimalEntry === 1.5 && events >= 2 && rate >= 80) { optimalEntry = threshold; }
-            }
-            entryThreshold = optimalEntry;
-        }
+        // Use scanner-set threshold only - scanner has hourly data for meaningful calculation
+        const entryThreshold = pair.entryThreshold || DEFAULT_ENTRY_THRESHOLD;
 
         let validation;
         try {
@@ -990,7 +964,10 @@ async function main() {
         // Check max trades dynamically (not just once before loop)
         const currentlyAtMax = activeTrades.trades.length >= MAX_CONCURRENT_TRADES;
         
-        if (signal && validation.valid && hurstValid && !hasOverlap && !currentlyAtMax) {
+        // Safety check: don't enter if reversion rate at current Z is too low
+        const reversionSafe = !pair.reversionWarning;
+        
+        if (signal && validation.valid && hurstValid && reversionSafe && !hasOverlap && !currentlyAtMax) {
             const trade = await enterTrade(pair, fit, prices, activeTrades, hurst, entryThreshold);
             entries.push(trade);
             activePairs.add(pair.pair);
@@ -1009,6 +986,8 @@ async function main() {
                 blockReason = validation.reason;
             } else if (!hurstValid) {
                 blockReason = 'hurst_trending';
+            } else if (!reversionSafe) {
+                blockReason = 'low_reversion';
             } else if (hasOverlap) {
                 blockReason = 'asset_overlap';
             } else if (currentlyAtMax) {
@@ -1034,7 +1013,10 @@ async function main() {
                 hasOverlap,
                 overlappingAsset,
                 validationPassed: validation.valid,
-                blockReason
+                blockReason,
+                // Reversion safety from scanner
+                reversionWarning: pair.reversionWarning,
+                reversionRate: pair.reversionRate
             });
         }
 

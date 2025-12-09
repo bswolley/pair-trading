@@ -15,7 +15,8 @@ const {
     testCointegration,
     calculateHurst,
     calculateDualBeta,
-    calculateConvictionScore
+    calculateConvictionScore,
+    analyzeHistoricalDivergences
 } = require('../../lib/pairAnalysis');
 const db = require('../db/queries');
 
@@ -123,6 +124,57 @@ const WINDOWS = {
 const TOP_PER_SECTOR = 3;
 const TOP_CROSS_SECTOR = 5; // Top 5 cross-sector pairs total
 const EXIT_THRESHOLD = 0.5;
+const MIN_REVERSION_RATE = 50; // Don't mark READY if reversion rate < 50% at current Z level
+
+/**
+ * Check if current Z-score has acceptable historical reversion rate
+ * Returns { isSafe: boolean, reversionRate: number|null, nearestThreshold: number|null, warning: string|null }
+ */
+function checkReversionSafety(currentZ, divergenceProfile) {
+    if (!divergenceProfile || Object.keys(divergenceProfile).length === 0) {
+        return { isSafe: true, reversionRate: null, nearestThreshold: null, warning: null };
+    }
+
+    const absZ = Math.abs(currentZ);
+    const thresholds = [1.0, 1.5, 2.0, 2.5, 3.0];
+    
+    // Find the nearest threshold at or below current Z
+    let nearestThreshold = null;
+    for (let i = thresholds.length - 1; i >= 0; i--) {
+        if (absZ >= thresholds[i]) {
+            nearestThreshold = thresholds[i];
+            break;
+        }
+    }
+
+    if (nearestThreshold === null) {
+        return { isSafe: true, reversionRate: null, nearestThreshold: null, warning: null };
+    }
+
+    const stats = divergenceProfile[nearestThreshold.toString()];
+    if (!stats || stats.events === 0) {
+        // No events at this threshold - can't judge, but warn if Z is extreme
+        if (absZ >= 2.5) {
+            return { 
+                isSafe: false, 
+                reversionRate: null, 
+                nearestThreshold, 
+                warning: `Z=${absZ.toFixed(2)} but no historical events at ${nearestThreshold}` 
+            };
+        }
+        return { isSafe: true, reversionRate: null, nearestThreshold, warning: null };
+    }
+
+    const reversionRate = parseFloat(stats.rate);
+    const isSafe = reversionRate >= MIN_REVERSION_RATE;
+    
+    let warning = null;
+    if (!isSafe) {
+        warning = `Z=${absZ.toFixed(2)} but only ${stats.rate} reversion at ${nearestThreshold} (${stats.events} events)`;
+    }
+
+    return { isSafe, reversionRate, nearestThreshold, warning };
+}
 
 function loadSectorMap() {
     const configPath = path.join(CONFIG_DIR, 'sectors.json');
@@ -521,6 +573,39 @@ async function main(options = {}) {
     // Add top cross-sector pairs to watchlist
     watchlistPairs.push(...crossSectorPairs);
 
+    // Fetch hourly data for accurate threshold calculation (like Full Analysis)
+    // This replaces the daily-based analyzeLocalDivergences with proper hourly analysis
+    console.log(`[SCANNER] Fetching hourly data for ${watchlistPairs.length} watchlist pairs...`);
+    for (const pair of watchlistPairs) {
+        try {
+            const hourlyResult = await analyzeHistoricalDivergences(pair.asset1, pair.asset2, sdk);
+            
+            // Update with hourly-derived thresholds
+            if (hourlyResult && hourlyResult.optimalEntry) {
+                pair.optimalEntry = hourlyResult.optimalEntry;
+                
+                // Also update maxHistoricalZ if available from hourly data
+                // Find max Z from the threshold profiles
+                const maxZFromProfile = Math.max(...Object.keys(hourlyResult.profilePercent || {})
+                    .filter(k => hourlyResult.profilePercent[k].events > 0)
+                    .map(k => parseFloat(k)));
+                if (!isNaN(maxZFromProfile) && maxZFromProfile > 0) {
+                    pair.maxHistoricalZ = Math.max(pair.maxHistoricalZ || 0, maxZFromProfile);
+                }
+                
+                // Store profile for safety check later
+                pair.divergenceProfilePercent = hourlyResult.profilePercent;
+            }
+            
+            // Small delay to avoid rate limiting
+            await new Promise(r => setTimeout(r, 300));
+        } catch (err) {
+            console.log(`[SCANNER] Hourly analysis failed for ${pair.asset1}/${pair.asset2}: ${err.message}`);
+            // Keep daily-based defaults from analyzeLocalDivergences
+        }
+    }
+    console.log(`[SCANNER] Hourly threshold analysis complete`);
+
     // Disconnect SDK
     const saved = suppressConsole();
     await sdk.disconnect();
@@ -569,8 +654,12 @@ async function main(options = {}) {
         const entryThreshold = p.optimalEntry;
         const signalStrength = Math.min(Math.abs(p.zScore) / entryThreshold, 1.0);
         const direction = p.zScore < 0 ? 'long' : 'short';
-        const isReady = Math.abs(p.zScore) >= entryThreshold;
+        const atThreshold = Math.abs(p.zScore) >= entryThreshold;
         const betaValue = parseFloat(p.beta.toFixed(3));
+
+        // Safety check: don't mark READY if reversion rate at current Z is poor
+        const safety = checkReversionSafety(p.zScore, p.divergenceProfilePercent);
+        const isReady = atThreshold && safety.isSafe;
 
         return {
             pair: `${p.asset1}/${p.asset2}`,
@@ -595,6 +684,9 @@ async function main(options = {}) {
             exitThreshold: EXIT_THRESHOLD,
             maxHistoricalZ: parseFloat(p.maxHistoricalZ.toFixed(2)),
             fundingSpread: parseFloat(p.fundingSpread.toFixed(2)),
+            // Safety check fields
+            reversionWarning: safety.warning,
+            reversionRate: safety.reversionRate,
             lastScan: new Date().toISOString()
         };
     });
