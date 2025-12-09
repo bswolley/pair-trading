@@ -143,17 +143,34 @@ export function PairAnalysisReport({
                   <span className="text-muted-foreground">Action</span>
                   <span className={cn(
                     "font-medium",
-                    advanced.regime.action === "ENTER" && "text-emerald-400",
-                    advanced.regime.action === "WAIT" && "text-yellow-400",
-                    advanced.regime.action === "CAUTION" && "text-red-400"
+                    (advanced.regime.action === "ENTER" || advanced.regime.action === "STRONG_ENTRY") && "text-emerald-400",
+                    (advanced.regime.action === "MONITOR" || advanced.regime.action === "SMALL_POSITION") && "text-yellow-400",
+                    (advanced.regime.action === "AVOID" || advanced.regime.action === "NO_ACTION") && "text-red-400"
                   )}>
-                    {advanced.regime.action ?? '—'}
+                    {advanced.regime.action?.replace(/_/g, ' ') ?? '—'}
                   </span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Risk Level</span>
-                  <span>{advanced.regime.riskLevel ?? '—'}</span>
+                  <span className={cn(
+                    "font-medium",
+                    advanced.regime.riskLevel === "LOW" && "text-emerald-400",
+                    advanced.regime.riskLevel === "MEDIUM" && "text-yellow-400",
+                    advanced.regime.riskLevel === "HIGH" && "text-red-400"
+                  )}>
+                    {advanced.regime.riskLevel ?? '—'}
+                  </span>
                 </div>
+                {advanced.regime.riskFactors && advanced.regime.riskFactors.length > 0 && (
+                  <div className="pt-2 border-t border-border/50">
+                    <span className="text-xs text-muted-foreground">Risk Factors:</span>
+                    <ul className="mt-1 space-y-0.5">
+                      {advanced.regime.riskFactors.map((factor, i) => (
+                        <li key={i} className="text-xs text-yellow-400/80">• {factor}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
               </div>
             </Card>
           )}
@@ -668,12 +685,19 @@ function MetricBox({ label, value, color }: { label: string; value: string; colo
 // Helper functions
 function getRegimeColor(regime: string): string {
   switch (regime) {
-    case "STRONG_REVERSION": return "text-emerald-400";
-    case "MILD_REVERSION": return "text-emerald-300";
-    case "PEAK_DIVERGENCE": return "text-yellow-400";
-    case "TRENDING": return "text-red-400";
-    case "IDLE": return "text-muted-foreground";
-    default: return "";
+    case "STRONG_SIGNAL": 
+    case "EXTREME_OPPORTUNITY": 
+      return "text-emerald-400";
+    case "MODERATE_SIGNAL": 
+    case "APPROACHING": 
+      return "text-yellow-400";
+    case "RISKY_SIGNAL": 
+    case "EXTREME_CAUTION": 
+      return "text-red-400";
+    case "IDLE": 
+      return "text-muted-foreground";
+    default: 
+      return "";
   }
 }
 

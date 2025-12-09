@@ -315,8 +315,7 @@ export interface AnalysisRegime {
     confidence: number;
     action: string;
     riskLevel: string;
-    zTrend: string;
-    zVolatility: number;
+    riskFactors: string[];
 }
 
 export interface AnalysisHurst {

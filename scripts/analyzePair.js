@@ -186,9 +186,9 @@ ${pair.advancedMetrics ? `## Advanced Analytics
 |----------------|------------|--------|------------|
 | **${pair.advancedMetrics.regime.regime}** | ${(pair.advancedMetrics.regime.confidence * 100).toFixed(0)}% | ${pair.advancedMetrics.regime.action} | ${pair.advancedMetrics.regime.riskLevel} |
 
-- **Z-Score Trend:** ${pair.advancedMetrics.regime.zTrend}
-- **Z-Score Volatility:** ${pair.advancedMetrics.regime.zVolatility.toFixed(3)}
-
+${pair.advancedMetrics.regime.riskFactors && pair.advancedMetrics.regime.riskFactors.length > 0 ? `**Risk Factors:**
+${pair.advancedMetrics.regime.riskFactors.map(f => '- ' + f).join('\n')}
+` : ''}
 ### Hurst Exponent
 
 | Hurst (H) | Classification | Mean-Reverting? |
@@ -201,8 +201,8 @@ ${pair.advancedMetrics ? `## Advanced Analytics
 
 | Type | Beta | R-squared | Std Error |
 |------|------|-----------|-----------|
-| **Structural** (90d) | ${pair.advancedMetrics.dualBeta.structural.beta} | ${pair.advancedMetrics.dualBeta.structural.r2} | ${pair.advancedMetrics.dualBeta.structural.stdErr} |
-| **Dynamic** (${Math.round((pair.timeframes['30']?.halfLife || 7) * 2)}d) | ${pair.advancedMetrics.dualBeta.dynamic.beta} | ${pair.advancedMetrics.dualBeta.dynamic.r2} | ${pair.advancedMetrics.dualBeta.dynamic.stdErr} |
+| **Structural** (90d) | ${pair.advancedMetrics.dualBeta.structural.beta.toFixed(4)} | ${pair.advancedMetrics.dualBeta.structural.r2.toFixed(4)} | ${pair.advancedMetrics.dualBeta.structural.stdErr.toFixed(4)} |
+| **Dynamic** (${Math.max(7, Math.min(30, Math.round((pair.timeframes['30']?.halfLife || 7) * 2)))}d) | ${pair.advancedMetrics.dualBeta.dynamic.beta.toFixed(4)} | ${pair.advancedMetrics.dualBeta.dynamic.r2.toFixed(4)} | ${pair.advancedMetrics.dualBeta.dynamic.stdErr.toFixed(4)} |
 
 - **Beta Drift:** ${(pair.advancedMetrics.dualBeta.drift * 100).toFixed(1)}%
 - **Regression Valid:** ${pair.advancedMetrics.dualBeta.isValid ? 'Yes' : 'No'}
@@ -235,18 +235,18 @@ ${pair.advancedMetrics ? `## Advanced Analytics
 
 ` : ''}## Statistical Metrics
 
-| Timeframe | Correlation | Beta | Z-Score | CoInt? | Hedge Ratio | Gamma | Theta |
-|-----------|-------------|------|---------|--------------|-------------|-----------|-------|-------|
+| Timeframe | Correlation | Beta | Z-Score | Half-Life | CoInt? | Gamma | Theta |
+|-----------|-------------|------|---------|-----------|--------|-------|-------|
 ${allTimeframes.map(tf => {
   const corr = tf.correlation?.toFixed(3) || 'N/A';
   const beta = tf.beta?.toFixed(3) || 'N/A';
   const zScore = tf.zScore?.toFixed(2) || 'N/A';
-  const hedgeRatio = tf.hedgeRatio?.toFixed(3) || 'N/A';
+  const halfLife = tf.halfLife === Infinity || tf.halfLife === null ? '∞' : tf.halfLife.toFixed(1) + 'd';
   const gamma = tf.gamma?.toFixed(3) || 'N/A';
   const theta = tf.theta?.toFixed(3) || 'N/A';
   const coint = tf.isCointegrated ? 'Yes' : 'No';
   
-  return `| **${tf.days}d** | ${corr} | ${beta} | ${zScore} | ${coint} | ${hedgeRatio} | ${gamma} | ${theta} |`;
+  return `| **${tf.days}d** | ${corr} | ${beta} | ${zScore} | ${halfLife} | ${coint} | ${gamma} | ${theta} |`;
 }).join('\n')}
 
 ${pair.positionSizing ? `**Position Sizing (from 30-day beta):**
