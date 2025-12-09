@@ -658,7 +658,7 @@ function formatStatusReport(activeTrades, entries, exits, history, approaching =
             } else if (p.reversionWarning) {
                 // Safety check: poor reversion rate at current Z level
                 status = '⚠️';
-                blockNote = `LOW_REVERSION (${p.reversionRate !== null ? p.reversionRate.toFixed(0) + '%' : '?'})`;
+                blockNote = `LOW_REVERSION (${p.reversionRate != null ? p.reversionRate.toFixed(0) + '%' : '?'})`;
             } else if (atThreshold && p.blockReason && p.blockReason !== 'below_threshold') {
                 status = '⚠️';
                 blockNote = p.blockReason.replace(/_/g, ' ');
