@@ -39,9 +39,10 @@ const CORRELATION_BREAKDOWN = 0.4;    // Exit if correlation collapses
 const HALFLIFE_MULTIPLIER = 2;        // Exit if duration > 2x half-life
 
 // Exit strategy - aligned with percentage-based reversion analysis
-// Partial exit: when |Z| < 50% of entry threshold (e.g., entry@2.5 → partial@1.25)
-// Final exit: when |Z| < 0.5 (full mean reversion) or PnL target hit
+// Partial exit: when |Z| < 50% of entry threshold OR PnL >= 3% (whichever first)
+// Final exit: when |Z| < 0.5 (full mean reversion) or PnL >= 5%
 const PARTIAL_EXIT_SIZE = 0.5;        // Exit 50% of position at partial reversion
+const PARTIAL_EXIT_PNL = 3.0;         // OR exit 50% at +3% PnL (whichever comes first)
 const FINAL_EXIT_PNL = 5.0;           // Exit remaining at +5% PnL (alternative to Z target)
 
 /**
@@ -193,6 +194,7 @@ function enterTrade(pair, fitness, prices, activeTrades) {
 
 /**
  * Exit trade and record to history
+ * Accounts for partial exits - total PnL = 50% from partial + 50% from remaining
  */
 function exitTrade(trade, fitness, prices, activeTrades, history) {
   const idx = activeTrades.trades.findIndex(t => t.pair === trade.pair);
@@ -203,7 +205,17 @@ function exitTrade(trade, fitness, prices, activeTrades, history) {
   
   const longPnL = ((curLong - trade.longEntryPrice) / trade.longEntryPrice) * (trade.longWeight / 100) * 100;
   const shortPnL = ((trade.shortEntryPrice - curShort) / trade.shortEntryPrice) * (trade.shortWeight / 100) * 100;
-  const totalPnL = longPnL + shortPnL;
+  const fullPositionPnL = longPnL + shortPnL;
+  
+  // If partial exit was taken, total PnL = 50% from partial + 50% from remaining
+  // Otherwise, total PnL = full position PnL
+  let totalPnL;
+  if (trade.partialExitTaken && trade.partialExitPnL !== undefined) {
+    totalPnL = (trade.partialExitPnL * 0.5) + (fullPositionPnL * 0.5);
+  } else {
+    totalPnL = fullPositionPnL;
+  }
+  
   const days = ((Date.now() - new Date(trade.entryTime)) / (1000 * 60 * 60 * 24)).toFixed(1);
   
   const record = {
@@ -292,7 +304,7 @@ function checkExitConditions(trade, fitness, currentPnL) {
   const entryThreshold = trade.entryThreshold || DEFAULT_ENTRY_THRESHOLD;
   const partialExitZ = entryThreshold * 0.5;
   
-  // 1. PARTIAL EXIT - Exit 50% when Z reverts to 50% of entry threshold
+  // 1. PARTIAL EXIT - Exit 50% when Z reverts to 50% of entry threshold OR PnL >= 3%
   if (!partialTaken && currentZ <= partialExitZ) {
     return { 
       shouldExit: true,
@@ -301,6 +313,17 @@ function checkExitConditions(trade, fitness, currentPnL) {
       reason: 'PARTIAL_REVERSION', 
       emoji: '💰',
       message: `50% reversion (Z=${fitness.zScore.toFixed(2)} < ${partialExitZ.toFixed(1)}, closing 50%)`
+    };
+  }
+  
+  if (!partialTaken && currentPnL >= PARTIAL_EXIT_PNL) {
+    return { 
+      shouldExit: true,
+      isPartial: true,
+      exitSize: PARTIAL_EXIT_SIZE,
+      reason: 'PARTIAL_TP', 
+      emoji: '💰',
+      message: `Partial TP: +${currentPnL.toFixed(1)}% (closing 50%)`
     };
   }
   
