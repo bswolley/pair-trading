@@ -50,7 +50,7 @@ if (!fs.existsSync(outputDir)) {
 async function main() {
   console.log(`\nAnalyzing ${baseSymbol}/${underlyingSymbol}...`);
   console.log(`   Strategy: ${direction === 'long' ? `LONG ${baseSymbol} / SHORT ${underlyingSymbol}` : `SHORT ${baseSymbol} / LONG ${underlyingSymbol}`}\n`);
-  
+
   try {
     const result = await analyzePair({
       symbol1: baseSymbol,
@@ -59,25 +59,25 @@ async function main() {
       timeframes: [7, 30, 90, 180],
       obvTimeframes: [7, 30]
     });
-    
+
     // Advanced metrics are now calculated inside analyzePair
     const advancedMetrics = result.advancedMetrics;
-    
+
     // Generate report
     const report = generateReport(result);
-    
+
     // Save report
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, -5);
     const filename = `${baseSymbol}_${underlyingSymbol}_${timestamp}.md`;
     const filepath = path.join(outputDir, filename);
-    
+
     fs.writeFileSync(filepath, report);
-    
+
     // Generate PDF (optional - skip if pandoc not available or file too large)
     try {
       const stats = fs.statSync(filepath);
       const fileSizeMB = stats.size / (1024 * 1024);
-      
+
       if (fileSizeMB > 5) {
         console.log(`Skipping PDF generation - file too large (${fileSizeMB.toFixed(1)}MB)`);
       } else {
@@ -89,15 +89,15 @@ async function main() {
           console.log(`   (Install with: brew install pandoc basictex)`);
           return;
         }
-        
+
         const pdfDir = 'pair_reports_pdf';
         if (!fs.existsSync(pdfDir)) {
           fs.mkdirSync(pdfDir, { recursive: true });
         }
-        
+
         const pdfFilename = `${baseSymbol}_${underlyingSymbol}_${timestamp}.pdf`;
         const pdfPath = path.join(pdfDir, pdfFilename);
-        
+
         // Convert markdown to PDF using pandoc with timeout
         await Promise.race([
           execAsync(`pandoc "${filepath}" -o "${pdfPath}" --pdf-engine=pdflatex -V geometry:margin=1in --standalone`),
@@ -114,23 +114,23 @@ async function main() {
         // Silent fail - PDF is optional
       }
     }
-    
+
     console.log(`\nAnalysis complete!`);
     console.log(`Report saved: ${filepath}\n`);
-    
+
     // Print summary
     console.log('Summary:');
     Object.values(result.timeframes).forEach(tf => {
       if (tf.error) {
         console.log(`  ${tf.days}d: ERROR - ${tf.error}`);
       } else {
-        const signal = result.direction === 'short' 
+        const signal = result.direction === 'short'
           ? (tf.leftSideOvervalued ? 'READY' : 'WAIT')
           : (tf.leftSideUndervalued ? 'READY' : 'WAIT');
         console.log(`  ${tf.days}d: Z=${tf.zScore?.toFixed(2) || 'N/A'}, Corr=${tf.correlation?.toFixed(3) || 'N/A'}, Beta=${tf.beta?.toFixed(3) || 'N/A'} ${signal}`);
       }
     });
-    
+
     // Print advanced metrics
     if (advancedMetrics) {
       console.log('\nAdvanced Metrics:');
@@ -139,7 +139,7 @@ async function main() {
       console.log(`  Dual Beta: Structural=${advancedMetrics.dualBeta.structural.beta}, Dynamic=${advancedMetrics.dualBeta.dynamic.beta} (drift: ${(advancedMetrics.dualBeta.drift * 100).toFixed(1)}%)`);
       console.log(`  Conviction: ${advancedMetrics.conviction.score}/100`);
     }
-    
+
   } catch (error) {
     console.error(`\n❌ Error: ${error.message}`);
     process.exit(1);
@@ -149,23 +149,23 @@ async function main() {
 function generateReport(pair) {
   const now = new Date();
   const dateStr = now.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' });
-  
-  const directionText = pair.direction === 'long' 
-    ? `**LONG ${pair.leftSide} / SHORT ${pair.symbol2}**` 
+
+  const directionText = pair.direction === 'long'
+    ? `**LONG ${pair.leftSide} / SHORT ${pair.symbol2}**`
     : `**SHORT ${pair.leftSide} / LONG ${pair.symbol2}**`;
-  
+
   const allTimeframes = Object.values(pair.timeframes)
     .filter(tf => !tf.error && tf.correlation !== undefined && [7, 30, 90, 180].includes(tf.days))
     .sort((a, b) => a.days - b.days);
-  
-  const bestSignal = allTimeframes.find(tf => 
+
+  const bestSignal = allTimeframes.find(tf =>
     pair.direction === 'long' ? tf.zScore < -1 : tf.zScore > 1
   );
-  
-  const signalStatus = bestSignal 
+
+  const signalStatus = bestSignal
     ? `**TRADE READY** (${bestSignal.days}d Z-score: ${bestSignal.zScore.toFixed(2)})`
     : `**WAIT** (No strong signal across timeframes)`;
-  
+
   return `# Pair Trading Analysis: ${pair.pair}
 
 **Generated:** ${dateStr}
@@ -238,16 +238,16 @@ ${pair.advancedMetrics.regime.riskFactors.map(f => '- ' + f).join('\n')}
 | Timeframe | Correlation | Beta | Z-Score | Half-Life | CoInt? | Gamma | Theta |
 |-----------|-------------|------|---------|-----------|--------|-------|-------|
 ${allTimeframes.map(tf => {
-  const corr = tf.correlation?.toFixed(3) || 'N/A';
-  const beta = tf.beta?.toFixed(3) || 'N/A';
-  const zScore = tf.zScore?.toFixed(2) || 'N/A';
-  const halfLife = tf.halfLife === Infinity || tf.halfLife === null ? '∞' : tf.halfLife.toFixed(1) + 'd';
-  const gamma = tf.gamma?.toFixed(3) || 'N/A';
-  const theta = tf.theta?.toFixed(3) || 'N/A';
-  const coint = tf.isCointegrated ? 'Yes' : 'No';
-  
-  return `| **${tf.days}d** | ${corr} | ${beta} | ${zScore} | ${halfLife} | ${coint} | ${gamma} | ${theta} |`;
-}).join('\n')}
+    const corr = tf.correlation?.toFixed(3) || 'N/A';
+    const beta = tf.beta?.toFixed(3) || 'N/A';
+    const zScore = tf.zScore?.toFixed(2) || 'N/A';
+    const halfLife = tf.halfLife === Infinity || tf.halfLife === null ? '∞' : tf.halfLife.toFixed(1) + 'd';
+    const gamma = tf.gamma?.toFixed(3) || 'N/A';
+    const theta = tf.theta?.toFixed(3) || 'N/A';
+    const coint = tf.isCointegrated ? 'Yes' : 'No';
+
+    return `| **${tf.days}d** | ${corr} | ${beta} | ${zScore} | ${halfLife} | ${coint} | ${gamma} | ${theta} |`;
+  }).join('\n')}
 
 ${pair.positionSizing ? `**Position Sizing (from 30-day beta):**
 - **${pair.symbol1}:** ${(pair.positionSizing.weight1 * 100).toFixed(1)}%
@@ -271,15 +271,18 @@ ${pair.standardized.currentZROI ? `### Expected ROI from Current Position
 
 ` : ''}### Fixed Reversion (to |Z| < 0.5)
 
-| Threshold | Events | Reverted | Reversion Rate | Avg Time to Revert |
-|-----------|--------|----------|----------------|-------------------|
+*Episode-based counting: one event per divergence episode (not per threshold crossing)*
+
+| Threshold | Episodes | Crossings | Reverted | Rate | Avg Duration |
+|-----------|----------|-----------|----------|------|--------------|
 ${Object.entries(pair.standardized.divergenceProfile)
-  .filter(([threshold]) => threshold !== 'currentZROI') // Filter out ROI data
-  .sort((a, b) => parseFloat(a[0]) - parseFloat(b[0]))
-  .map(([threshold, stats]) => {
-    const avgTime = stats.avgTimeToRevert !== null ? `${stats.avgTimeToRevert} days` : 'N/A';
-    return `| **${threshold}** | ${stats.events} | ${stats.reverted} | ${stats.rate} | ${avgTime} |`;
-  }).join('\n')}
+        .filter(([threshold]) => threshold !== 'currentZROI') // Filter out ROI data
+        .sort((a, b) => parseFloat(a[0]) - parseFloat(b[0]))
+        .map(([threshold, stats]) => {
+          const avgTime = stats.avgTimeToRevert !== null ? `${stats.avgTimeToRevert} days` : 'N/A';
+          const crossings = stats.crossings !== undefined ? stats.crossings : stats.events;
+          return `| **${threshold}** | ${stats.events} | ${crossings} | ${stats.reverted} | ${stats.rate} | ${avgTime} |`;
+        }).join('\n')}
 
 ${pair.standardized?.divergenceProfilePercent ? `### Percentage-Based Reversion (to |Z| < 50% of threshold)
 
@@ -288,11 +291,11 @@ ${pair.standardized?.divergenceProfilePercent ? `### Percentage-Based Reversion 
 | Threshold | Reversion To | Events | Reverted | Reversion Rate | Avg Time to Revert |
 |-----------|--------------|--------|----------|----------------|-------------------|
 ${Object.entries(pair.standardized.divergenceProfilePercent)
-  .sort((a, b) => parseFloat(a[0]) - parseFloat(b[0]))
-  .map(([threshold, stats]) => {
-    const avgTime = stats.avgTimeToRevert !== null ? `${stats.avgTimeToRevert} days` : 'N/A';
-    return `| **${threshold}** | < ${stats.reversionThreshold} | ${stats.events} | ${stats.reverted} | ${stats.rate} | ${avgTime} |`;
-  }).join('\n')}
+          .sort((a, b) => parseFloat(a[0]) - parseFloat(b[0]))
+          .map(([threshold, stats]) => {
+            const avgTime = stats.avgTimeToRevert !== null ? `${stats.avgTimeToRevert} days` : 'N/A';
+            return `| **${threshold}** | < ${stats.reversionThreshold} | ${stats.events} | ${stats.reverted} | ${stats.rate} | ${avgTime} |`;
+          }).join('\n')}
 ` : ''}
 
 ` : ''}## Price Movement
@@ -300,34 +303,34 @@ ${Object.entries(pair.standardized.divergenceProfilePercent)
 | Timeframe | ${pair.symbol1} | ${pair.symbol2} |
 |-----------|----------------|-----------------|
 ${allTimeframes.map(tf => {
-  const price1Start = tf.price1Start?.toFixed(2) || 'N/A';
-  const price1End = tf.price1End?.toFixed(2) || 'N/A';
-  const price2Start = tf.price2Start?.toFixed(2) || 'N/A';
-  const price2End = tf.price2End?.toFixed(2) || 'N/A';
-  const change1 = tf.price1Start && tf.price1End ? (((tf.price1End - tf.price1Start) / tf.price1Start) * 100).toFixed(1) : 'N/A';
-  const change2 = tf.price2Start && tf.price2End ? (((tf.price2End - tf.price2Start) / tf.price2Start) * 100).toFixed(1) : 'N/A';
-  return `| **${tf.days}d** | $${price1Start} → $${price1End} (${change1}%) | $${price2Start} → $${price2End} (${change2}%) |`;
-}).join('\n')}
+            const price1Start = tf.price1Start?.toFixed(2) || 'N/A';
+            const price1End = tf.price1End?.toFixed(2) || 'N/A';
+            const price2Start = tf.price2Start?.toFixed(2) || 'N/A';
+            const price2End = tf.price2End?.toFixed(2) || 'N/A';
+            const change1 = tf.price1Start && tf.price1End ? (((tf.price1End - tf.price1Start) / tf.price1Start) * 100).toFixed(1) : 'N/A';
+            const change2 = tf.price2Start && tf.price2End ? (((tf.price2End - tf.price2Start) / tf.price2Start) * 100).toFixed(1) : 'N/A';
+            return `| **${tf.days}d** | $${price1Start} → $${price1End} (${change1}%) | $${price2Start} → $${price2End} (${change2}%) |`;
+          }).join('\n')}
 
 ## On-Balance Volume (OBV)
 
 | Timeframe | ${pair.symbol1} OBV | ${pair.symbol2} OBV |
 |-----------|-------------------|-------------------|
 ${Object.values(pair.timeframes)
-  .filter(tf => !tf.error && tf.obv1Change !== null && [7, 30].includes(tf.days))
-  .sort((a, b) => a.days - b.days)
-  .map(tf => {
-    // Format absolute value, then add sign prefix (avoid double negative)
-    const obv1Abs = tf.obv1Change !== null && tf.obv1Change !== undefined 
-      ? Math.abs(tf.obv1Change).toLocaleString('en-US', {maximumFractionDigits: 0}) 
-      : 'N/A';
-    const obv2Abs = tf.obv2Change !== null && tf.obv2Change !== undefined 
-      ? Math.abs(tf.obv2Change).toLocaleString('en-US', {maximumFractionDigits: 0}) 
-      : 'N/A';
-    const trend1 = tf.obv1Change > 0 ? '+' : tf.obv1Change < 0 ? '-' : '';
-    const trend2 = tf.obv2Change > 0 ? '+' : tf.obv2Change < 0 ? '-' : '';
-    return `| **${tf.days}d** | ${trend1}${obv1Abs} | ${trend2}${obv2Abs} |`;
-  }).join('\n') || '| N/A | No OBV data available |'}
+      .filter(tf => !tf.error && tf.obv1Change !== null && [7, 30].includes(tf.days))
+      .sort((a, b) => a.days - b.days)
+      .map(tf => {
+        // Format absolute value, then add sign prefix (avoid double negative)
+        const obv1Abs = tf.obv1Change !== null && tf.obv1Change !== undefined
+          ? Math.abs(tf.obv1Change).toLocaleString('en-US', { maximumFractionDigits: 0 })
+          : 'N/A';
+        const obv2Abs = tf.obv2Change !== null && tf.obv2Change !== undefined
+          ? Math.abs(tf.obv2Change).toLocaleString('en-US', { maximumFractionDigits: 0 })
+          : 'N/A';
+        const trend1 = tf.obv1Change > 0 ? '+' : tf.obv1Change < 0 ? '-' : '';
+        const trend2 = tf.obv2Change > 0 ? '+' : tf.obv2Change < 0 ? '-' : '';
+        return `| **${tf.days}d** | ${trend1}${obv1Abs} | ${trend2}${obv2Abs} |`;
+      }).join('\n') || '| N/A | No OBV data available |'}
 
 ---
 

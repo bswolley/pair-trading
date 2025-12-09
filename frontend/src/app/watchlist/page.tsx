@@ -9,7 +9,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { List, RefreshCw, TrendingUp, TrendingDown, Zap, HelpCircle, LineChart } from "lucide-react";
+import { List, RefreshCw, TrendingUp, TrendingDown, Zap, HelpCircle, LineChart, AlertTriangle, CheckCircle, XCircle, Filter } from "lucide-react";
 import * as api from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { PairAnalysisModal } from "@/components/PairAnalysisModal";
@@ -51,11 +51,14 @@ function MetricHeader({ label, tooltip }: { label: string; tooltip: string }) {
   );
 }
 
+type FilterMode = 'all' | 'ready' | 'blocked' | 'approaching';
+
 export default function WatchlistPage() {
   const [pairs, setPairs] = useState<api.WatchlistPair[]>([]);
   const [sectors, setSectors] = useState<Array<{ name: string; count: number }>>([]);
   const [activePairs, setActivePairs] = useState<Set<string>>(new Set());
   const [selectedSector, setSelectedSector] = useState<string | null>(null);
+  const [filterMode, setFilterMode] = useState<FilterMode>('all');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [chartPair, setChartPair] = useState<api.WatchlistPair | null>(null);
@@ -85,9 +88,71 @@ export default function WatchlistPage() {
     fetchData();
   }, [fetchData]);
 
-  // Exclude pairs that already have active trades
-  const readyPairs = pairs.filter((p) => p.isReady && !activePairs.has(p.pair));
-  const approachingPairs = pairs.filter((p) => !p.isReady && p.signalStrength >= 0.5 && !activePairs.has(p.pair));
+  // Enhanced validation: Check all entry criteria (matching backend logic)
+  const validateForEntry = (pair: api.WatchlistPair) => {
+    const reasons: string[] = [];
+
+    // Already in a trade
+    if (activePairs.has(pair.pair)) reasons.push('active_trade');
+
+    // Check 1: Z-Score signal
+    if (!pair.isReady) reasons.push('no_signal');
+
+    // Check 2: Hurst < 0.5 (NEW: Critical spread mean-reversion check)
+    if (pair.hurst !== null && pair.hurst !== undefined && pair.hurst >= 0.5) {
+      reasons.push('hurst_trending');
+    }
+
+    // Check 3: Correlation >= 0.6
+    if (pair.correlation !== null && pair.correlation !== undefined && pair.correlation < 0.6) {
+      reasons.push('low_correlation');
+    }
+
+    // Check 4: Half-life <= 30 days
+    if (pair.halfLife !== null && pair.halfLife !== undefined && pair.halfLife > 30) {
+      reasons.push('slow_reversion');
+    }
+
+    // Return all reasons
+    return {
+      valid: reasons.length === 0,
+      reasons: reasons,
+      reason: reasons[0] || null  // Keep first reason for backward compatibility
+    };
+  };
+
+  // Categorize pairs by entry readiness
+  const validatedPairs = pairs.map(p => ({
+    ...p,
+    validation: validateForEntry(p)
+  }));
+
+  // Actually ready to enter (all checks pass)
+  const readyPairs = validatedPairs.filter((p) => p.validation.valid);
+
+  // Blocked by validation (strong signal but failed checks OTHER than just being in active trade)
+  const blockedPairs = validatedPairs.filter((p) => {
+    if (!p.isReady) return false; // Must have strong signal
+    const nonActiveTradeReasons = p.validation.reasons?.filter(r => r !== 'active_trade' && r !== 'no_signal') || [];
+    return nonActiveTradeReasons.length > 0; // Has validation failures other than active trade
+  });
+
+  // Approaching entry threshold
+  const approachingPairs = validatedPairs.filter((p) =>
+    !p.isReady && p.signalStrength >= 0.5 && !activePairs.has(p.pair)
+  );
+
+  // Apply filter mode to table
+  const filteredPairs = validatedPairs.filter((pair) => {
+    if (filterMode === 'ready') return pair.validation.valid;
+    if (filterMode === 'blocked') {
+      if (!pair.isReady) return false;
+      const nonActiveTradeReasons = pair.validation.reasons?.filter(r => r !== 'active_trade' && r !== 'no_signal') || [];
+      return nonActiveTradeReasons.length > 0;
+    }
+    if (filterMode === 'approaching') return !pair.isReady && pair.signalStrength >= 0.5;
+    return true; // 'all'
+  });
 
   return (
     <TooltipProvider>
@@ -123,11 +188,24 @@ export default function WatchlistPage() {
           <span className="text-3xl font-bold tabular-nums">{pairs.length}</span>
         </div>
         <div>
-          <p className="text-sm text-muted-foreground mb-1">Ready</p>
+          <div className="flex items-center gap-1 mb-1">
+            <CheckCircle className="w-4 h-4 text-emerald-400" />
+            <p className="text-sm text-muted-foreground">Ready</p>
+          </div>
           <span className="text-3xl font-bold tabular-nums text-emerald-400">{readyPairs.length}</span>
         </div>
         <div>
-          <p className="text-sm text-muted-foreground mb-1">Approaching</p>
+          <div className="flex items-center gap-1 mb-1">
+            <XCircle className="w-4 h-4 text-red-400" />
+            <p className="text-sm text-muted-foreground">Blocked</p>
+          </div>
+          <span className="text-3xl font-bold tabular-nums text-red-400">{blockedPairs.length}</span>
+        </div>
+        <div>
+          <div className="flex items-center gap-1 mb-1">
+            <TrendingUp className="w-4 h-4 text-yellow-400" />
+            <p className="text-sm text-muted-foreground">Approaching</p>
+          </div>
           <span className="text-3xl font-bold tabular-nums text-yellow-400">{approachingPairs.length}</span>
         </div>
       </div>
@@ -157,8 +235,9 @@ export default function WatchlistPage() {
       {readyPairs.length > 0 && (
         <div>
           <div className="flex items-center gap-2 mb-3">
-            <Zap className="w-5 h-5 text-emerald-400" />
+            <CheckCircle className="w-5 h-5 text-emerald-400" />
             <h2 className="font-semibold text-emerald-400">Ready for Entry</h2>
+            <span className="text-xs text-muted-foreground">(All validation checks passed)</span>
           </div>
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
             {readyPairs.map((pair) => (
@@ -187,10 +266,97 @@ export default function WatchlistPage() {
         </div>
       )}
 
+      {/* Blocked Pairs */}
+      {blockedPairs.length > 0 && (
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <XCircle className="w-5 h-5 text-red-400" />
+            <h2 className="font-semibold text-red-400">Blocked - Strong Signal, Failed Validation</h2>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+            {blockedPairs.map((pair) => {
+              const reasonLabels: Record<string, string> = {
+                'hurst_trending': `Trending spread (H=${pair.hurst?.toFixed(2) ?? '?'})`,
+                'low_correlation': `Low correlation (${((pair.correlation ?? 0) * 100).toFixed(0)}%)`,
+                'slow_reversion': `Slow reversion (HL=${pair.halfLife?.toFixed(1) ?? '?'}d)`,
+                'active_trade': 'Already in trade',
+              };
+              return (
+                <div
+                  key={pair.pair}
+                  className="flex items-center justify-between p-3 rounded-lg border border-red-500/30 bg-red-500/10"
+                >
+                  <div>
+                    <p className="font-medium">{pair.pair}</p>
+                    <p className="text-xs text-red-400">
+                      {reasonLabels[pair.validation.reason || ''] || 'Unknown reason'}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <div className="flex items-center gap-1 font-mono">
+                      {pair.zScore < 0 ? (
+                        <TrendingUp className="w-4 h-4 text-emerald-400" />
+                      ) : (
+                        <TrendingDown className="w-4 h-4 text-red-400" />
+                      )}
+                      {pair.zScore.toFixed(2)}
+                    </div>
+                    <p className="text-xs text-muted-foreground">@ {pair.entryThreshold}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {/* All Pairs Table */}
       <div>
-        <h2 className="font-semibold mb-3">All Pairs</h2>
-        <p className="text-xs text-muted-foreground mb-3">Click on a pair to view Z-Score chart</p>
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <h2 className="font-semibold">All Pairs</h2>
+            <p className="text-xs text-muted-foreground mt-1">Click on a pair to view Z-Score chart</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <Filter className="w-4 h-4 text-muted-foreground" />
+            <div className="flex gap-1">
+              <Button
+                variant={filterMode === 'all' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setFilterMode('all')}
+              >
+                All ({validatedPairs.length})
+              </Button>
+              <Button
+                variant={filterMode === 'ready' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setFilterMode('ready')}
+                className={filterMode === 'ready' ? 'bg-emerald-500 hover:bg-emerald-600' : ''}
+              >
+                <CheckCircle className="w-3 h-3 mr-1" />
+                Ready ({readyPairs.length})
+              </Button>
+              <Button
+                variant={filterMode === 'blocked' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setFilterMode('blocked')}
+                className={filterMode === 'blocked' ? 'bg-red-500 hover:bg-red-600' : ''}
+              >
+                <XCircle className="w-3 h-3 mr-1" />
+                Blocked ({blockedPairs.length})
+              </Button>
+              <Button
+                variant={filterMode === 'approaching' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setFilterMode('approaching')}
+                className={filterMode === 'approaching' ? 'bg-yellow-500 hover:bg-yellow-600' : ''}
+              >
+                <TrendingUp className="w-3 h-3 mr-1" />
+                Approaching ({approachingPairs.length})
+              </Button>
+            </div>
+          </div>
+        </div>
         <div className="border border-border rounded-lg overflow-x-auto">
           <table className="w-full text-sm min-w-[900px]">
             <thead className="bg-muted/50">
@@ -228,24 +394,100 @@ export default function WatchlistPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-border">
-              {pairs.map((pair) => {
+              {filteredPairs.map((pair) => {
                 const signalPct = Math.round(pair.signalStrength * 100);
                 const isApproaching = pair.signalStrength >= 0.5;
+                const nonActiveTradeReasons = pair.validation.reasons?.filter(r => r !== 'active_trade' && r !== 'no_signal') || [];
+                const isBlocked = pair.isReady && nonActiveTradeReasons.length > 0;
 
                 return (
                   <tr
                     key={pair.pair}
                     className={cn(
                       "cursor-pointer hover:bg-muted/50 transition-colors",
-                      pair.isReady && "bg-emerald-500/5"
+                      pair.validation.valid && "bg-emerald-500/5",
+                      isBlocked && "bg-red-500/5"
                     )}
                     onClick={() => setChartPair(pair)}
                   >
                     <td className="px-4 py-3 font-medium">
                       <div className="flex items-center gap-2">
                         {pair.pair}
-                        {pair.isReady && (
-                          <Badge className="bg-emerald-500 text-xs">Ready</Badge>
+                        {pair.validation.valid && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Badge className="bg-emerald-500 text-xs flex items-center gap-1 cursor-help">
+                                <CheckCircle className="w-3 h-3" />
+                                Ready
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent side="right" className="max-w-xs bg-black text-white border-gray-700">
+                              <div className="space-y-1 text-xs">
+                                <p className="font-semibold text-emerald-400">All validation checks passed:</p>
+                                <p className="text-white">• Z-Score: {pair.zScore.toFixed(2)} ≥ {pair.entryThreshold.toFixed(1)}</p>
+                                <p className="text-white">• Hurst: {pair.hurst?.toFixed(2) ?? '?'} &lt; 0.5 (mean-reverting)</p>
+                                <p className="text-white">• Correlation: {((pair.correlation ?? 0) * 100).toFixed(0)}% ≥ 60%</p>
+                                <p className="text-white">• Half-life: {pair.halfLife?.toFixed(1) ?? '?'}d ≤ 30d</p>
+                              </div>
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+                        {isBlocked && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Badge className="bg-red-500 text-xs flex items-center gap-1 cursor-help">
+                                <XCircle className="w-3 h-3" />
+                                Blocked
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent side="right" className="max-w-xs bg-black text-white border-gray-700">
+                              <div className="space-y-1 text-xs">
+                                <p className="font-semibold text-red-400">Blocked by {pair.validation.reasons?.length || 1} issue{(pair.validation.reasons?.length || 1) > 1 ? 's' : ''}:</p>
+                                {pair.validation.reasons?.includes('active_trade') && (
+                                  <p className="text-yellow-400">• Already in active trade</p>
+                                )}
+                                {pair.validation.reasons?.includes('no_signal') && (
+                                  <p className="text-red-400">• Z-Score {pair.zScore.toFixed(2)} &lt; {pair.entryThreshold.toFixed(1)} (weak signal)</p>
+                                )}
+                                {pair.validation.reasons?.includes('hurst_trending') && (
+                                  <>
+                                    <p className="text-red-400">• Hurst {pair.hurst?.toFixed(2) ?? '?'} ≥ 0.5 (spread trending)</p>
+                                    <p className="text-gray-400 text-[10px] ml-2">Individual assets may mean-revert but spread trends</p>
+                                  </>
+                                )}
+                                {pair.validation.reasons?.includes('low_correlation') && (
+                                  <>
+                                    <p className="text-red-400">• Correlation {((pair.correlation ?? 0) * 100).toFixed(0)}% &lt; 60%</p>
+                                    <p className="text-gray-400 text-[10px] ml-2">Assets not moving together strongly enough</p>
+                                  </>
+                                )}
+                                {pair.validation.reasons?.includes('slow_reversion') && (
+                                  <>
+                                    <p className="text-red-400">• Half-life {pair.halfLife?.toFixed(1) ?? '?'}d &gt; 30d</p>
+                                    <p className="text-gray-400 text-[10px] ml-2">Mean reversion too slow for trading</p>
+                                  </>
+                                )}
+                                {(!pair.validation.reasons || pair.validation.reasons.length === 0) && (
+                                  <p className="text-yellow-400">• Unknown validation issue</p>
+                                )}
+                                <div className="mt-2 pt-2 border-t border-gray-700">
+                                  <p className="text-gray-300">All metrics:</p>
+                                  <p className={pair.zScore >= pair.entryThreshold ? "text-emerald-400" : "text-red-400"}>
+                                    • Z-Score: {pair.zScore.toFixed(2)} (need ≥ {pair.entryThreshold.toFixed(1)})
+                                  </p>
+                                  <p className={(pair.hurst ?? 0) < 0.5 ? "text-emerald-400" : "text-red-400"}>
+                                    • Hurst: {pair.hurst?.toFixed(2) ?? 'N/A'} (need &lt; 0.5)
+                                  </p>
+                                  <p className={(pair.correlation ?? 0) >= 0.6 ? "text-emerald-400" : "text-red-400"}>
+                                    • Corr: {((pair.correlation ?? 0) * 100).toFixed(0)}% (need ≥ 60%)
+                                  </p>
+                                  <p className={(pair.halfLife ?? 999) <= 30 ? "text-emerald-400" : "text-red-400"}>
+                                    • HL: {pair.halfLife?.toFixed(1) ?? '∞'}d (need ≤ 30d)
+                                  </p>
+                                </div>
+                              </div>
+                            </TooltipContent>
+                          </Tooltip>
                         )}
                       </div>
                     </td>
