@@ -722,11 +722,32 @@ async function main(options = {}) {
             !newPairNames.has(p.pair) && !activeTradePairs.has(p.pair)
         );
         
-        // Delete stale pairs
-        for (const pair of pairsToRemove) {
+        // Also remove pairs containing blacklisted assets (even if they were in new scan)
+        const blacklistedPairs = currentWatchlist.filter(p => 
+            (blacklist.has(p.asset1) || blacklist.has(p.asset2)) && 
+            !activeTradePairs.has(p.pair)
+        );
+        
+        // Warn about blacklisted pairs with active trades (can't auto-remove)
+        const blacklistedWithTrades = currentWatchlist.filter(p => 
+            (blacklist.has(p.asset1) || blacklist.has(p.asset2)) && 
+            activeTradePairs.has(p.pair)
+        );
+        if (blacklistedWithTrades.length > 0) {
+            console.log(`[SCANNER] ⚠️ Blacklisted pairs with active trades (manual exit required): ${blacklistedWithTrades.map(p => p.pair).join(', ')}`);
+        }
+        
+        // Combine removal lists (dedupe)
+        const allToRemove = [...new Set([...pairsToRemove, ...blacklistedPairs])];
+        
+        // Delete stale + blacklisted pairs
+        for (const pair of allToRemove) {
             try {
                 await db.deleteWatchlistPair(pair.pair);
                 removedPairs++;
+                if (blacklist.has(pair.asset1) || blacklist.has(pair.asset2)) {
+                    console.log(`[SCANNER] Removed blacklisted pair: ${pair.pair}`);
+                }
             } catch (e) {
                 console.error(`[SCANNER] Failed to remove ${pair.pair}:`, e.message);
             }

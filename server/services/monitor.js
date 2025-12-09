@@ -694,7 +694,20 @@ async function main() {
     if (!watchlistPairs || watchlistPairs.length === 0) {
         return { error: 'No watchlist found' };
     }
-    const watchlist = { pairs: watchlistPairs };
+    
+    // Load blacklist and filter out blacklisted pairs from watchlist
+    const blacklistData = await db.getBlacklist();
+    const blacklist = new Set(blacklistData?.assets || []);
+    const filteredPairs = watchlistPairs.filter(p => 
+        !blacklist.has(p.asset1) && !blacklist.has(p.asset2)
+    );
+    
+    if (filteredPairs.length < watchlistPairs.length) {
+        const removed = watchlistPairs.length - filteredPairs.length;
+        console.log(`[MONITOR] Filtered out ${removed} pairs containing blacklisted assets`);
+    }
+    
+    const watchlist = { pairs: filteredPairs };
 
     const tradesArray = await db.getTrades();
     let activeTrades = { trades: tradesArray || [] };
