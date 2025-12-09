@@ -822,13 +822,45 @@ async function main() {
 
     for (const pair of watchlist.pairs) {
         const isActiveTrade = activePairs.has(pair.pair);
-        const entryThreshold = pair.entryThreshold || DEFAULT_ENTRY_THRESHOLD;
         const hasOverlap = assetsInPositions.has(pair.asset1) || assetsInPositions.has(pair.asset2);
         const overlappingAsset = assetsInPositions.has(pair.asset1) ? pair.asset1 :
             assetsInPositions.has(pair.asset2) ? pair.asset2 : null;
 
         const prices = await fetchPrices(sdk, pair.asset1, pair.asset2);
         if (!prices) continue;
+
+        // First get basic fitness to have beta
+        const fitTemp = checkPairFitness(prices.prices1_30d, prices.prices2_30d);
+        
+        // Recalculate optimal entry threshold using percentage-based reversion
+        let entryThreshold = pair.entryThreshold || DEFAULT_ENTRY_THRESHOLD;
+        if (prices.prices1_30d.length >= 20) {
+            const spreads = prices.prices1_30d.map((p1, i) => 
+                Math.log(p1) - fitTemp.beta * Math.log(prices.prices2_30d[i]));
+            const meanSpread = spreads.reduce((a, b) => a + b, 0) / spreads.length;
+            const stdDev = Math.sqrt(spreads.reduce((sum, s) => sum + Math.pow(s - meanSpread, 2), 0) / spreads.length);
+            const zScores = spreads.map(s => (s - meanSpread) / stdDev);
+            
+            const thresholds = [1.0, 1.5, 2.0, 2.5, 3.0];
+            let optimalEntry = 1.5;
+            for (let i = thresholds.length - 1; i >= 0; i--) {
+                const threshold = thresholds[i];
+                const percentTarget = threshold * 0.5;
+                let events = 0, reverted = 0;
+                for (let j = 1; j < zScores.length; j++) {
+                    if (Math.abs(zScores[j - 1]) < threshold && Math.abs(zScores[j]) >= threshold) {
+                        events++;
+                        for (let k = j + 1; k < zScores.length; k++) {
+                            if (Math.abs(zScores[k]) < percentTarget) { reverted++; break; }
+                        }
+                    }
+                }
+                const rate = events > 0 ? (reverted / events) * 100 : 0;
+                if (events >= 3 && rate >= 90) { optimalEntry = threshold; break; }
+                if (optimalEntry === 1.5 && events >= 2 && rate >= 80) { optimalEntry = threshold; }
+            }
+            entryThreshold = optimalEntry;
+        }
 
         let validation;
         try {
