@@ -779,8 +779,7 @@ async function main() {
     await sdk.connect();
     restoreConsole(saved);
 
-    // Skip funding fetch if we just ran a scan (avoid rate limits)
-    const fundingMap = watchlist.skipEntryCheck ? new Map() : await fetchCurrentFunding();
+    const fundingMap = await fetchCurrentFunding();
 
     const entries = [];
     const exits = [];
