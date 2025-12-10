@@ -712,12 +712,26 @@ async function main() {
     const tradesArray = await db.getTrades();
     let activeTrades = { trades: tradesArray || [] };
 
-    // Check if we should run scanner: capacity available AND no ready pairs
+    // Check if we should run scanner: capacity available AND no ENTERABLE ready pairs
     const hasCapacity = activeTrades.trades.length < MAX_CONCURRENT_TRADES;
-    const hasReadyPairs = watchlist.pairs.some(p => p.isReady && !activeTrades.trades.some(t => t.pair === p.pair));
     
-    if (hasCapacity && !hasReadyPairs) {
-        console.log(`[MONITOR] Capacity available (${activeTrades.trades.length}/${MAX_CONCURRENT_TRADES}) but no ready pairs - triggering scan`);
+    // Get assets currently in positions (for overlap check)
+    const assetsInUse = new Set();
+    for (const trade of activeTrades.trades) {
+        assetsInUse.add(trade.asset1);
+        assetsInUse.add(trade.asset2);
+    }
+    
+    // A pair is enterable if: isReady AND not already traded AND no asset overlap
+    const hasEnterablePairs = watchlist.pairs.some(p => 
+        p.isReady && 
+        !activeTrades.trades.some(t => t.pair === p.pair) &&
+        !assetsInUse.has(p.asset1) && 
+        !assetsInUse.has(p.asset2)
+    );
+    
+    if (hasCapacity && !hasEnterablePairs) {
+        console.log(`[MONITOR] Capacity available (${activeTrades.trades.length}/${MAX_CONCURRENT_TRADES}) but no enterable pairs - triggering scan`);
         
         try {
             const triggerScanOnCapacity = getTriggerScanOnCapacity();
