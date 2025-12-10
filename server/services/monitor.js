@@ -755,6 +755,11 @@ async function main() {
                 
                 // Set flag to skip watchlist entry processing this cycle
                 watchlist.skipEntryCheck = true;
+                
+                // Wait for API rate limit window to reset (1200 weight/min limit)
+                // Scanner uses ~500-800 weight, need to wait for fresh window
+                console.log(`[MONITOR] Waiting 60s for API rate limit window to reset...`);
+                await new Promise(r => setTimeout(r, 60000));
             } else {
                 console.log(`[MONITOR] Scan not triggered: ${scanResult.reason}${scanResult.detail ? ` (${scanResult.detail})` : ''}`);
             }
@@ -774,7 +779,8 @@ async function main() {
     await sdk.connect();
     restoreConsole(saved);
 
-    const fundingMap = await fetchCurrentFunding();
+    // Skip funding fetch if we just ran a scan (avoid rate limits)
+    const fundingMap = watchlist.skipEntryCheck ? new Map() : await fetchCurrentFunding();
 
     const entries = [];
     const exits = [];
