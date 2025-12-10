@@ -740,6 +740,10 @@ async function main() {
             if (scanResult.triggered) {
                 console.log(`[MONITOR] Pre-scan completed - found ${scanResult.result?.watchlistPairs || 0} pairs`);
                 
+                // Wait for rate limit to cool down before continuing with monitor
+                console.log(`[MONITOR] Waiting 15s for API rate limit cooldown...`);
+                await new Promise(r => setTimeout(r, 15000));
+                
                 // Reload watchlist with fresh pairs
                 const freshWatchlistPairs = await db.getWatchlist();
                 if (freshWatchlistPairs && freshWatchlistPairs.length > 0) {
