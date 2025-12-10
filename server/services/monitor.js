@@ -740,20 +740,21 @@ async function main() {
             if (scanResult.triggered) {
                 console.log(`[MONITOR] Pre-scan completed - found ${scanResult.result?.watchlistPairs || 0} pairs`);
                 
-                // Wait for rate limit to cool down before continuing with monitor
-                console.log(`[MONITOR] Waiting 15s for API rate limit cooldown...`);
-                await new Promise(r => setTimeout(r, 15000));
+                // Scanner already updated watchlist with fresh data - skip this monitor cycle's
+                // watchlist processing to avoid API rate limits. Only check active trades for exits.
+                console.log(`[MONITOR] Skipping watchlist check (fresh from scan) - only checking active trades`);
                 
-                // Reload watchlist with fresh pairs
+                // Reload watchlist but mark that we should skip entry checks
                 const freshWatchlistPairs = await db.getWatchlist();
                 if (freshWatchlistPairs && freshWatchlistPairs.length > 0) {
-                    // Re-apply blacklist filter
                     const freshFiltered = freshWatchlistPairs.filter(p => 
                         !blacklist.has(p.asset1) && !blacklist.has(p.asset2)
                     );
                     watchlist = { pairs: freshFiltered };
-                    console.log(`[MONITOR] Reloaded watchlist with ${freshFiltered.length} pairs`);
                 }
+                
+                // Set flag to skip watchlist entry processing this cycle
+                watchlist.skipEntryCheck = true;
             } else {
                 console.log(`[MONITOR] Scan not triggered: ${scanResult.reason}${scanResult.detail ? ` (${scanResult.detail})` : ''}`);
             }
@@ -884,10 +885,17 @@ async function main() {
         }
     }
 
-    // Check watchlist for entries
+    // Check watchlist for entries (skip if we just ran a scan - data is fresh)
     const watchlistUpdates = [];
 
+    if (watchlist.skipEntryCheck) {
+        console.log(`[MONITOR] Skipping watchlist entry checks (fresh scan data)`);
+    }
+
     for (const pair of watchlist.pairs) {
+        // Skip API calls for watchlist if we just scanned
+        if (watchlist.skipEntryCheck) continue;
+        
         const isActiveTrade = activePairs.has(pair.pair);
         const hasOverlap = assetsInPositions.has(pair.asset1) || assetsInPositions.has(pair.asset2);
         const overlappingAsset = assetsInPositions.has(pair.asset1) ? pair.asset1 :
