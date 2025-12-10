@@ -421,7 +421,7 @@ function evaluatePairs(candidatePairs, priceMap, minCorrelation, crossSectorMinC
             const reactive = testCointegration(prices1_30d, prices2_30d, beta);
 
             // Must pass correlation AND 90-day cointegration test
-            if (correlation >= requiredCorr && coint.isCointegrated && reactive.halfLife <= 45) {
+            if (correlation >= requiredCorr && coint.isCointegrated && reactive.halfLife <= 5) {
 
                 // HURST (60-day window) - calculated on SPREAD, not individual asset
                 // Use 30-day beta (same as reactive metrics) for consistency
@@ -619,7 +619,7 @@ async function main(options = {}) {
             minOI: DEFAULT_MIN_OI, 
             minCorrelation: DEFAULT_MIN_CORR, 
             crossSectorMinCorrelation: DEFAULT_CROSS_SECTOR_MIN_CORR,
-            maxHalfLife: 45,
+            maxHalfLife: 5,
             maxHurst: MAX_HURST_THRESHOLD
         },
         windows: WINDOWS,  // Multi-window configuration

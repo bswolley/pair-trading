@@ -275,7 +275,7 @@ function validateEntry(prices, entryThreshold = DEFAULT_ENTRY_THRESHOLD) {
     const valid = signal30d &&
         fit30d.correlation >= MIN_CORRELATION_30D &&
         isCointegrated90d &&  // Use 90-day cointegration test
-        fit30d.halfLife <= 30 &&
+        fit30d.halfLife <= 5 &&  // Max 5 days - faster reversion = better trades
         (!fit7d || (signal7d && sameDirection));
 
     // Determine rejection reason (for debugging)
@@ -286,7 +286,7 @@ function validateEntry(prices, entryThreshold = DEFAULT_ENTRY_THRESHOLD) {
         reason = 'low_corr';
     } else if (!isCointegrated90d) {
         reason = 'not_coint_90d';
-    } else if (fit30d.halfLife > 30) {
+    } else if (fit30d.halfLife > 5) {
         reason = 'slow_reversion';
     } else if (fit7d && !signal7d) {
         reason = '7d_weak_signal';
