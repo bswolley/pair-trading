@@ -71,6 +71,15 @@ export function PairAnalysisReport({
 
   const { advanced, standardized, timeframes, divergence, expectedROI, percentageReversion, funding, obv, signal, currentPrices } = data;
 
+  // Smart price formatting for both large and micro-cap tokens
+  const formatPrice = (price: number | null | undefined): string => {
+    if (price === null || price === undefined) return "—";
+    if (price >= 1) return price.toFixed(4);
+    if (price >= 0.0001) return price.toFixed(6);
+    if (price >= 0.00000001) return price.toFixed(10);
+    return price.toExponential(4);
+  };
+
   return (
     <div className="space-y-4 sm:space-y-6 text-sm max-w-full overflow-x-hidden">
       {/* Current Prices */}
@@ -79,10 +88,10 @@ export function PairAnalysisReport({
           <span className="text-muted-foreground text-xs">Current Prices</span>
           <div className="flex flex-wrap items-center gap-2 sm:gap-4 mt-1">
             <span className="font-mono font-medium text-xs sm:text-sm">
-              {asset1}: ${currentPrices[asset1]?.toFixed(4) ?? "—"}
+              {asset1}: ${formatPrice(currentPrices[asset1])}
             </span>
             <span className="font-mono font-medium text-xs sm:text-sm">
-              {asset2}: ${currentPrices[asset2]?.toFixed(4) ?? "—"}
+              {asset2}: ${formatPrice(currentPrices[asset2])}
             </span>
           </div>
         </div>
@@ -537,9 +546,9 @@ export function PairAnalysisReport({
                   <tr key={days} className="border-b border-border/50">
                     <td className="py-2 px-2 font-medium">{days}d</td>
                     <td className="px-2">
-                      <span className="font-mono">${tf.price1Start?.toFixed(2)}</span>
+                      <span className="font-mono">${formatPrice(tf.price1Start)}</span>
                       <span className="text-muted-foreground mx-1">→</span>
-                      <span className="font-mono">${tf.price1End?.toFixed(2)}</span>
+                      <span className="font-mono">${formatPrice(tf.price1End)}</span>
                       <span className={cn(
                         "ml-2",
                         change1 && change1 >= 0 ? "text-emerald-400" : "text-red-400"
@@ -548,9 +557,9 @@ export function PairAnalysisReport({
                       </span>
                     </td>
                     <td className="px-2">
-                      <span className="font-mono">${tf.price2Start?.toFixed(2)}</span>
+                      <span className="font-mono">${formatPrice(tf.price2Start)}</span>
                       <span className="text-muted-foreground mx-1">→</span>
-                      <span className="font-mono">${tf.price2End?.toFixed(2)}</span>
+                      <span className="font-mono">${formatPrice(tf.price2End)}</span>
                       <span className={cn(
                         "ml-2",
                         change2 && change2 >= 0 ? "text-emerald-400" : "text-red-400"
