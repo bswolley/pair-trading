@@ -560,31 +560,93 @@ async function main(options = {}) {
         }
     }
 
-    fittingPairs.sort((a, b) => b.score - a.score);
-
-    // Select top pairs per sector
-    const watchlistPairs = [];
-    const sectorCounts = {};
-    const crossSectorPairs = [];
-
+    // Calculate signal strength for each pair (how close to entry threshold)
     for (const pair of fittingPairs) {
-        if (pair.isCrossSector) {
-            // Collect cross-sector pairs separately
-            if (crossSectorPairs.length < TOP_CROSS_SECTOR) {
-                crossSectorPairs.push(pair);
-            }
-        } else {
-            // Top 3 per same-sector
-            sectorCounts[pair.sector] = sectorCounts[pair.sector] || 0;
-            if (sectorCounts[pair.sector] < TOP_PER_SECTOR) {
-                watchlistPairs.push(pair);
-                sectorCounts[pair.sector]++;
+        const entryThreshold = pair.optimalEntry || 1.5;
+        pair.signalStrength = Math.abs(pair.zScore) / entryThreshold;
+    }
+
+    // HYBRID SELECTION: Top by conviction + Top by signal strength
+    // This ensures we get both quality pairs AND actionable opportunities
+    const selectedPairs = new Set(); // Track selected pair names for deduplication
+    const watchlistPairs = [];
+
+    // Helper to add pair if not already selected
+    const addPair = (pair) => {
+        const pairKey = `${pair.asset1}/${pair.asset2}`;
+        if (!selectedPairs.has(pairKey)) {
+            selectedPairs.add(pairKey);
+            watchlistPairs.push(pair);
+            return true;
+        }
+        return false;
+    };
+
+    // === SAME-SECTOR SELECTION ===
+    // Sort by conviction for quality pairs
+    const sameSectorByConviction = fittingPairs
+        .filter(p => !p.isCrossSector)
+        .sort((a, b) => b.conviction - a.conviction);
+    
+    // Sort by signal strength for actionable pairs
+    const sameSectorBySignal = fittingPairs
+        .filter(p => !p.isCrossSector)
+        .sort((a, b) => b.signalStrength - a.signalStrength);
+
+    const sectorConvictionCounts = {};
+    const sectorSignalCounts = {};
+
+    // Top 3 per sector by CONVICTION
+    for (const pair of sameSectorByConviction) {
+        sectorConvictionCounts[pair.sector] = sectorConvictionCounts[pair.sector] || 0;
+        if (sectorConvictionCounts[pair.sector] < TOP_PER_SECTOR) {
+            if (addPair(pair)) {
+                sectorConvictionCounts[pair.sector]++;
             }
         }
     }
 
-    // Add top cross-sector pairs to watchlist
-    watchlistPairs.push(...crossSectorPairs);
+    // Top 3 per sector by SIGNAL STRENGTH (deduplicated)
+    for (const pair of sameSectorBySignal) {
+        sectorSignalCounts[pair.sector] = sectorSignalCounts[pair.sector] || 0;
+        if (sectorSignalCounts[pair.sector] < TOP_PER_SECTOR) {
+            if (addPair(pair)) {
+                sectorSignalCounts[pair.sector]++;
+            }
+        }
+    }
+
+    // === CROSS-SECTOR SELECTION ===
+    const crossSectorByConviction = fittingPairs
+        .filter(p => p.isCrossSector)
+        .sort((a, b) => b.conviction - a.conviction);
+    
+    const crossSectorBySignal = fittingPairs
+        .filter(p => p.isCrossSector)
+        .sort((a, b) => b.signalStrength - a.signalStrength);
+
+    let crossConvictionCount = 0;
+    let crossSignalCount = 0;
+
+    // Top 5 cross-sector by CONVICTION
+    for (const pair of crossSectorByConviction) {
+        if (crossConvictionCount < TOP_CROSS_SECTOR) {
+            if (addPair(pair)) {
+                crossConvictionCount++;
+            }
+        }
+    }
+
+    // Top 5 cross-sector by SIGNAL STRENGTH (deduplicated)
+    for (const pair of crossSectorBySignal) {
+        if (crossSignalCount < TOP_CROSS_SECTOR) {
+            if (addPair(pair)) {
+                crossSignalCount++;
+            }
+        }
+    }
+
+    console.log(`[SCANNER] Selected ${watchlistPairs.length} pairs (conviction + signal hybrid)`);
 
     // Fetch hourly data for accurate threshold calculation (like Full Analysis)
     // This replaces the daily-based analyzeLocalDivergences with proper hourly analysis
@@ -713,7 +775,7 @@ async function main(options = {}) {
     // Save watchlist to local JSON (backup)
     const watchlist = {
         timestamp: new Date().toISOString(),
-        description: `Top ${TOP_PER_SECTOR} pairs per sector${crossSector ? ` + top ${TOP_CROSS_SECTOR} cross-sector` : ''} by conviction score (Hurst < ${MAX_HURST_THRESHOLD} filter applied)`,
+        description: `Hybrid selection: Top ${TOP_PER_SECTOR} by conviction + Top ${TOP_PER_SECTOR} by signal per sector${crossSector ? ` + Top ${TOP_CROSS_SECTOR}+${TOP_CROSS_SECTOR} cross-sector` : ''} (Hurst < ${MAX_HURST_THRESHOLD} filter)`,
         crossSectorEnabled: crossSector,
         hurstThreshold: MAX_HURST_THRESHOLD,
         totalPairs: watchlistData.length,

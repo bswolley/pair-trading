@@ -301,7 +301,8 @@ async function main() {
           conviction: conviction.score,
           convictionBreakdown: conviction.breakdown,
           
-          optimalEntry: divergenceProfile.optimalEntry
+          entryThreshold: divergenceProfile.optimalEntry || 1.5,
+          maxHistoricalZ: divergenceProfile.maxHistoricalZ || Math.abs(fitness.zScore)
         });
       }
     } catch (error) { }
@@ -323,46 +324,97 @@ async function main() {
   const meanReverting = results.filter(r => r.isMeanReverting);
   const trending = results.filter(r => !r.isMeanReverting);
 
+  // Separate in-sector and cross-sector
+  const inSector = meanReverting.filter(r => !r.isCrossSector);
+  const crossSector = meanReverting.filter(r => r.isCrossSector);
+
   console.log('========================================');
   console.log('              RESULTS');
   console.log('========================================\n');
 
   console.log(`TOTAL COINTEGRATED PAIRS: ${results.length}`);
   console.log(`  Mean-reverting (H < 0.5): ${meanReverting.length}`);
+  console.log(`    - In-sector: ${inSector.length}`);
+  console.log(`    - Cross-sector: ${crossSector.length}`);
   console.log(`  Trending/Random (H >= 0.5): ${trending.length}\n`);
 
-  // Top by conviction (mean-reverting only)
-  const topByConviction = [...meanReverting].sort((a, b) => b.conviction - a.conviction).slice(0, 10);
+  // Check for --all flag to show all pairs
+  const showAll = args.includes('--all') || args.includes('-a');
+  const showCsv = args.includes('--csv');
 
-  if (topByConviction.length > 0) {
-    console.log('TOP 10 MEAN-REVERTING BY CONVICTION:\n');
-    console.log('Rank | Pair              | Conv | Hurst | Regime          | Z-Score | Half-Life');
-    console.log('-----|-------------------|------|-------|-----------------|---------|----------');
-    topByConviction.forEach((p, i) => {
-      console.log(
-        `${String(i + 1).padStart(4)} | ${p.pair.padEnd(17)} | ${p.conviction.toFixed(0).padStart(4)} | ${p.hurst.toFixed(2).padStart(5)} | ${p.regime.padEnd(15)} | ${p.zScore.toFixed(2).padStart(7)} | ${p.halfLife.toFixed(1).padStart(9)}`
-      );
-    });
+  // Helper to format pairs
+  const formatPair = (p, rank) => {
+    const signalPct = p.entryThreshold > 0 ? Math.abs(p.zScore) / p.entryThreshold * 100 : 0;
+    return `${String(rank).padStart(4)} | ${p.pair.padEnd(17)} | ${p.sector.padEnd(12)} | ${p.conviction.toFixed(0).padStart(4)} | ${p.hurst.toFixed(2)} | ${p.zScore >= 0 ? '+' : ''}${p.zScore.toFixed(2).padStart(5)} | ${p.halfLife.toFixed(1).padStart(6)} | ${p.correlation.toFixed(2)} | ${signalPct.toFixed(0).padStart(3)}% | ${p.regime}`;
+  };
+
+  const header = 'Rank | Pair              | Sector       | Conv | Hurst | Z-Score | HL(d) | Corr | Signal | Regime';
+  const divider = '-----|-------------------|--------------|------|-------|---------|-------|------|--------|--------';
+
+  // IN-SECTOR PAIRS
+  console.log('\n========== IN-SECTOR PAIRS ==========\n');
+  const sortedInSector = [...inSector].sort((a, b) => b.conviction - a.conviction);
+  const displayInSector = showAll ? sortedInSector : sortedInSector.slice(0, 20);
+  
+  console.log(header);
+  console.log(divider);
+  displayInSector.forEach((p, i) => console.log(formatPair(p, i + 1)));
+  
+  if (!showAll && sortedInSector.length > 20) {
+    console.log(`\n... ${sortedInSector.length - 20} more pairs (use --all to show all)`);
   }
 
-  // Trending pairs that would be filtered
-  if (trending.length > 0) {
-    console.log('\n\nWOULD BE FILTERED OUT (H >= 0.5):\n');
-    const topTrending = [...trending].sort((a, b) => b.correlation - a.correlation).slice(0, 10);
-    console.log('Pair              | Hurst | Classification      | Corr  | Z-Score');
-    console.log('------------------|-------|---------------------|-------|--------');
-    topTrending.forEach(p => {
-      console.log(
-        `${p.pair.padEnd(17)} | ${p.hurst.toFixed(2).padStart(5)} | ${p.hurstClassification.padEnd(19)} | ${p.correlation.toFixed(2).padStart(5)} | ${p.zScore.toFixed(2).padStart(7)}`
-      );
-    });
+  // CROSS-SECTOR PAIRS
+  if (crossSector.length > 0) {
+    console.log('\n\n========== CROSS-SECTOR PAIRS ==========\n');
+    const sortedCrossSector = [...crossSector].sort((a, b) => b.conviction - a.conviction);
+    const displayCrossSector = showAll ? sortedCrossSector : sortedCrossSector.slice(0, 20);
+    
+    console.log(header);
+    console.log(divider);
+    displayCrossSector.forEach((p, i) => console.log(formatPair(p, i + 1)));
+    
+    if (!showAll && sortedCrossSector.length > 20) {
+      console.log(`\n... ${sortedCrossSector.length - 20} more pairs (use --all to show all)`);
+    }
+  }
+
+  // APPROACHING ENTRY (Signal >= 80%)
+  const approaching = meanReverting.filter(p => {
+    const signalPct = p.entryThreshold > 0 ? Math.abs(p.zScore) / p.entryThreshold : 0;
+    return signalPct >= 0.8;
+  }).sort((a, b) => {
+    const aPct = Math.abs(a.zScore) / a.entryThreshold;
+    const bPct = Math.abs(b.zScore) / b.entryThreshold;
+    return bPct - aPct;
+  });
+
+  if (approaching.length > 0) {
+    console.log('\n\n========== APPROACHING ENTRY (Signal >= 80%) ==========\n');
+    console.log(header);
+    console.log(divider);
+    approaching.forEach((p, i) => console.log(formatPair(p, i + 1)));
+  }
+
+  // READY TO TRADE (Signal >= 100%)
+  const ready = meanReverting.filter(p => {
+    const signalPct = p.entryThreshold > 0 ? Math.abs(p.zScore) / p.entryThreshold : 0;
+    return signalPct >= 1.0;
+  }).sort((a, b) => b.conviction - a.conviction);
+
+  if (ready.length > 0) {
+    console.log('\n\n========== READY TO TRADE (Signal >= 100%) ==========\n');
+    console.log(header);
+    console.log(divider);
+    ready.forEach((p, i) => console.log(formatPair(p, i + 1)));
   }
 
   // Sector breakdown
-  console.log('\n\nSECTOR BREAKDOWN (Mean-Reverting Only):\n');
+  console.log('\n\n========== SECTOR BREAKDOWN ==========\n');
   const sectorCounts = {};
   for (const p of meanReverting) {
-    sectorCounts[p.sector] = (sectorCounts[p.sector] || 0) + 1;
+    const key = p.isCrossSector ? `${p.sector} (cross)` : p.sector;
+    sectorCounts[key] = (sectorCounts[key] || 0) + 1;
   }
   Object.entries(sectorCounts)
     .sort((a, b) => b[1] - a[1])
@@ -371,20 +423,34 @@ async function main() {
     });
 
   // Summary stats
-  console.log('\n\nSUMMARY STATISTICS:\n');
+  console.log('\n\n========== SUMMARY ==========\n');
   if (meanReverting.length > 0) {
     const avgHurst = meanReverting.reduce((s, p) => s + p.hurst, 0) / meanReverting.length;
     const avgConviction = meanReverting.reduce((s, p) => s + p.conviction, 0) / meanReverting.length;
     const avgHalfLife = meanReverting.reduce((s, p) => s + p.halfLife, 0) / meanReverting.length;
     
-    console.log(`  Mean-reverting pairs:`);
-    console.log(`    Avg Hurst: ${avgHurst.toFixed(3)}`);
-    console.log(`    Avg Conviction: ${avgConviction.toFixed(1)}`);
-    console.log(`    Avg Half-Life: ${avgHalfLife.toFixed(1)} days`);
+    console.log(`  Total mean-reverting: ${meanReverting.length}`);
+    console.log(`  Approaching entry: ${approaching.length}`);
+    console.log(`  Ready to trade: ${ready.length}`);
+    console.log(`  Avg Hurst: ${avgHurst.toFixed(3)}`);
+    console.log(`  Avg Conviction: ${avgConviction.toFixed(1)}`);
+    console.log(`  Avg Half-Life: ${avgHalfLife.toFixed(1)} days`);
+  }
+
+  // CSV output option
+  if (showCsv) {
+    console.log('\n\n========== CSV OUTPUT ==========\n');
+    console.log('pair,sector,type,conviction,hurst,zScore,halfLife,correlation,entryThreshold,signalPct,regime');
+    for (const p of [...meanReverting].sort((a, b) => b.conviction - a.conviction)) {
+      const signalPct = p.entryThreshold > 0 ? (Math.abs(p.zScore) / p.entryThreshold * 100).toFixed(1) : '0';
+      const type = p.isCrossSector ? 'cross' : 'same';
+      console.log(`${p.pair},${p.sector},${type},${p.conviction.toFixed(1)},${p.hurst.toFixed(3)},${p.zScore.toFixed(2)},${p.halfLife.toFixed(1)},${p.correlation.toFixed(3)},${p.entryThreshold.toFixed(1)},${signalPct},${p.regime}`);
+    }
   }
 
   console.log('\n========================================');
   console.log('  DRY RUN COMPLETE - No changes saved');
+  console.log('  Options: --all (show all), --csv, --cross-sector / -c');
   console.log('========================================\n');
 }
 
