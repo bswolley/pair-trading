@@ -849,13 +849,16 @@ async function main(options = {}) {
         console.error('[SCANNER] Failed to save to Supabase:', err.message);
     }
 
+    // Count cross-sector pairs in final watchlist
+    const crossSectorCount = watchlistPairs.filter(p => p.isCrossSector).length;
+
     return {
         totalAssets: universe.length,
         filteredAssets: filtered.length,
         candidatePairs: candidatePairs.length,
         fittingPairs: fittingPairs.length,
         watchlistPairs: watchlistPairs.length,
-        crossSectorPairs: crossSectorPairs.length,
+        crossSectorPairs: crossSectorCount,
         crossSectorEnabled: crossSector,
         removedPairs: removedPairs,
         unmappedSymbols: unmapped
