@@ -507,7 +507,13 @@ async function main(options = {}) {
     const { crossSector = false } = options;
     
     const { symbolToSector, sectors } = loadSectorMap();
-    const blacklist = loadBlacklist();
+    
+    // Load blacklist from database (production source of truth)
+    const blacklistData = await db.getBlacklist();
+    const blacklist = new Set(blacklistData?.assets || []);
+    if (blacklist.size > 0) {
+        console.log(`[SCANNER] Blacklisted assets (${blacklist.size}): ${[...blacklist].join(', ')}`);
+    }
 
     // Fetch universe
     const { assets: universe, sdk } = await fetchUniverse();
