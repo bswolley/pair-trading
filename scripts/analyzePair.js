@@ -20,27 +20,45 @@ const { generateZScoreChart } = require('../lib/generateZScoreChart');
 // Parse arguments
 const args = process.argv.slice(2);
 if (args.length < 2) {
-  console.error('Usage: node scripts/analyzePair.js BASE UNDERLYING [direction] [--output-dir DIR]');
+  console.error('Usage: node scripts/analyzePair.js BASE UNDERLYING [direction] [--output-dir DIR] [--timestamp TIMESTAMP]');
   console.error('\nExamples:');
   console.error('  node scripts/analyzePair.js HYPE ZEC long');
   console.error('  node scripts/analyzePair.js TAO BTC short');
   console.error('  node scripts/analyzePair.js LTC BTC long --output-dir reports');
+  console.error('  node scripts/analyzePair.js MEME GALA --timestamp 2025-12-01T10:00:00Z');
   process.exit(1);
 }
 
 const baseSymbol = args[0].toUpperCase();
 const underlyingSymbol = args[1].toUpperCase();
-const direction = (args[2] || 'long').toLowerCase();
 
-if (!['long', 'short'].includes(direction)) {
-  console.error('Direction must be "long" or "short"');
-  process.exit(1);
+// Find direction (skip flags)
+let direction = 'long';
+for (let i = 2; i < args.length; i++) {
+  if (args[i] === '--output-dir' || args[i] === '--timestamp') {
+    i++; // Skip flag value
+    continue;
+  }
+  if (args[i] === 'long' || args[i] === 'short') {
+    direction = args[i].toLowerCase();
+    break;
+  }
 }
 
 let outputDir = 'pair_reports';
 const outputDirIndex = args.indexOf('--output-dir');
 if (outputDirIndex !== -1 && args[outputDirIndex + 1]) {
   outputDir = args[outputDirIndex + 1];
+}
+
+let cutoffTime = null;
+const timestampIndex = args.indexOf('--timestamp');
+if (timestampIndex !== -1 && args[timestampIndex + 1]) {
+  cutoffTime = new Date(args[timestampIndex + 1]).getTime();
+  if (isNaN(cutoffTime)) {
+    console.error('Invalid timestamp format. Use ISO format: 2025-12-01T10:00:00Z');
+    process.exit(1);
+  }
 }
 
 // Ensure output directory exists
@@ -50,15 +68,21 @@ if (!fs.existsSync(outputDir)) {
 
 async function main() {
   console.log(`\nAnalyzing ${baseSymbol}/${underlyingSymbol}...`);
-  console.log(`   Strategy: ${direction === 'long' ? `LONG ${baseSymbol} / SHORT ${underlyingSymbol}` : `SHORT ${baseSymbol} / LONG ${underlyingSymbol}`}\n`);
+  console.log(`   Strategy: ${direction === 'long' ? `LONG ${baseSymbol} / SHORT ${underlyingSymbol}` : `SHORT ${baseSymbol} / LONG ${underlyingSymbol}`}`);
+  if (cutoffTime) {
+    console.log(`   Historical analysis as of: ${new Date(cutoffTime).toISOString()}\n`);
+  } else {
+    console.log();
+  }
   
   try {
     const result = await analyzePair({
       symbol1: baseSymbol,
       symbol2: underlyingSymbol,
       direction,
-      timeframes: [7, 30, 90, 180],
-      obvTimeframes: [7, 30]
+      timeframes: [7, 14, 30, 90, 180],
+      obvTimeframes: [7, 14],
+      cutoffTime: cutoffTime
     });
     
     // Generate report
@@ -275,7 +299,7 @@ ${allTimeframes.map(tf => {
 | Timeframe | ${pair.symbol1} OBV | ${pair.symbol2} OBV |
 |-----------|-------------------|-------------------|
 ${Object.values(pair.timeframes)
-  .filter(tf => !tf.error && tf.obv1Change !== null && [7, 30].includes(tf.days))
+  .filter(tf => !tf.error && tf.obv1Change !== null && [7, 14].includes(tf.days))
   .sort((a, b) => a.days - b.days)
   .map(tf => {
     // Format absolute value, then add sign prefix (avoid double negative)
@@ -290,6 +314,31 @@ ${Object.values(pair.timeframes)
     return `| **${tf.days}d** | ${trend1}${obv1Abs} | ${trend2}${obv2Abs} |`;
   }).join('\n') || '| N/A | No OBV data available |'}
 
+${Object.values(pair.timeframes).some(tf => tf.obvDivergence1 !== null || tf.obvDivergence2 !== null) ? `## OBV Divergence Score
+
+*Divergence Score = OBV Change % - Price Change %*
+
+| Timeframe | ${pair.symbol1} Divergence | Signal | ${pair.symbol2} Divergence | Signal |
+|-----------|-------------------------|--------|-------------------------|--------|
+${Object.values(pair.timeframes)
+  .filter(tf => !tf.error && (tf.obvDivergence1 !== null || tf.obvDivergence2 !== null) && [7, 14].includes(tf.days))
+  .sort((a, b) => a.days - b.days)
+  .map(tf => {
+    const div1 = tf.obvDivergence1 !== null ? tf.obvDivergence1.toFixed(1) + '%' : 'N/A';
+    const div2 = tf.obvDivergence2 !== null ? tf.obvDivergence2.toFixed(1) + '%' : 'N/A';
+    const signal1 = tf.obvSignal1 || 'N/A';
+    const signal2 = tf.obvSignal2 || 'N/A';
+    return `| **${tf.days}d** | ${div1} | ${signal1} | ${div2} | ${signal2} |`;
+  }).join('\n')}
+
+**Interpretation:**
+- **+30% or more**: STRONG BUY - Strong accumulation, price likely to rise
+- **+10% to +30%**: BUY - Moderate accumulation
+- **-10% to +10%**: NEUTRAL - No divergence, normal trading
+- **-10% to -30%**: SELL - Moderate distribution
+- **-30% or less**: STRONG SELL - Strong distribution, price likely to fall
+
+` : ''}
 ---
 
 ## Notes

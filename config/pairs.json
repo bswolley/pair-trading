@@ -23,7 +23,7 @@
     }
   ],
   "timeframes": [7, 30, 90, 180],
-  "obvTimeframes": [7, 30],
+  "obvTimeframes": [7, 14],
   "zScoreWindow": 30,
   "apiSettings": {
     "rateLimitDelay": 2000,
