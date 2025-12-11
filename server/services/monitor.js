@@ -1035,6 +1035,11 @@ async function main() {
             maxHistoricalZ: pair.maxHistoricalZ,
             fundingSpread: pair.fundingSpread,
             addedManually: pair.addedManually,
+            // Preserve volume and volatility metrics (scanner-calculated)
+            volume1: pair.volume1,
+            volume2: pair.volume2,
+            spreadVol: pair.spreadVol,
+            volRatio: pair.volRatio,
             lastScan: new Date().toISOString()
         };
 
