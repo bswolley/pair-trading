@@ -177,6 +177,15 @@ function restoreConsole(orig) {
     console.error = orig.error;
 }
 
+// Format volume as compact string (e.g. $1.2M, $500K)
+function formatVolume(vol) {
+    if (vol === null || vol === undefined) return null;
+    if (vol >= 1e9) return `$${(vol / 1e9).toFixed(1)}B`;
+    if (vol >= 1e6) return `$${(vol / 1e6).toFixed(1)}M`;
+    if (vol >= 1e3) return `$${(vol / 1e3).toFixed(0)}K`;
+    return `$${vol.toFixed(0)}`;
+}
+
 // Time windows - must match scanner for consistency
 const WINDOWS = {
     cointegration: 90,  // Structural test - longer window for confidence
@@ -673,7 +682,10 @@ function formatStatusReport(activeTrades, entries, exits, history, approaching =
             msg += `${status} ${p.pair} (${p.sector})`;
             if (blockNote) msg += ` [${blockNote}]`;
             msg += `\n`;
-            msg += `   Z: ${p.zScore.toFixed(2)} → entry@${p.entryThreshold} [${pct}%]\n\n`;
+            // Show minimum volume (bottleneck) for liquidity awareness
+            const minVol = formatVolume(Math.min(p.volume1 || 0, p.volume2 || 0));
+            const volStr = minVol ? ` | Vol: ${minVol}` : '';
+            msg += `   Z: ${p.zScore.toFixed(2)} → entry@${p.entryThreshold} [${pct}%]${volStr}\n\n`;
         }
     }
 
@@ -1090,6 +1102,9 @@ async function main() {
                 overlappingAsset,
                 validationPassed: validation.valid,
                 blockReason,
+                // Volume data (for volume-informed signal analysis)
+                volume1: pair.volume1,
+                volume2: pair.volume2,
                 // Reversion safety from scanner
                 reversionWarning: pair.reversionWarning,
                 reversionRate: pair.reversionRate

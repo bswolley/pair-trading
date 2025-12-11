@@ -690,6 +690,9 @@ async function main(options = {}) {
             exitThreshold: EXIT_THRESHOLD,
             maxHistoricalZ: parseFloat(p.maxHistoricalZ.toFixed(2)),
             fundingSpread: parseFloat(p.fundingSpread.toFixed(2)),
+            // Volume data (for volume-informed signal analysis)
+            volume1: p.volume1 ? parseFloat(p.volume1.toFixed(2)) : null,
+            volume2: p.volume2 ? parseFloat(p.volume2.toFixed(2)) : null,
             // Safety check fields
             reversionWarning: safety.warning,
             reversionRate: safety.reversionRate,

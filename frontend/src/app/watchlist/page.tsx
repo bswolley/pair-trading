@@ -25,7 +25,17 @@ const METRIC_TOOLTIPS = {
   correlation: "Pearson correlation of log returns (30-day window). Higher = stronger co-movement.",
   weights: "Position sizing from hedge ratio (β). Calculated: w1 = 1/(1+β), w2 = β/(1+β). Uses 30-day β from OLS regression.",
   betaDrift: "% change in beta since scanner discovered pair. High drift (>15%) = hedge ratio unstable since discovery. Note: Trade drift is measured from trade entry, not discovery.",
+  volume: "24h trading volume (USD). Low volume divergences may revert better than high volume (liquidity noise vs fundamental shift).",
 };
+
+// Format volume as compact string (e.g. $1.2M, $500K)
+function formatVolume(vol: number | null | undefined): string {
+  if (vol === null || vol === undefined) return "—";
+  if (vol >= 1e9) return `$${(vol / 1e9).toFixed(1)}B`;
+  if (vol >= 1e6) return `$${(vol / 1e6).toFixed(1)}M`;
+  if (vol >= 1e3) return `$${(vol / 1e3).toFixed(0)}K`;
+  return `$${vol.toFixed(0)}`;
+}
 
 // Calculate position weights from beta
 function getWeights(beta: number | undefined | null): { w1: number; w2: number } | null {
@@ -415,7 +425,10 @@ export default function WatchlistPage() {
                   <MetricHeader label="Weights" tooltip={METRIC_TOOLTIPS.weights} />
                 </th>
                 <th className="text-right px-4 py-3 font-medium">
-                  <MetricHeader label="β Drift (discovery)" tooltip={METRIC_TOOLTIPS.betaDrift} />
+                  <MetricHeader label="Volume" tooltip={METRIC_TOOLTIPS.volume} />
+                </th>
+                <th className="text-right px-4 py-3 font-medium">
+                  <MetricHeader label="β Drift" tooltip={METRIC_TOOLTIPS.betaDrift} />
                 </th>
                 <th className="w-10"></th>
               </tr>
@@ -601,6 +614,19 @@ export default function WatchlistPage() {
                           </span>
                         );
                       })()}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className="font-mono text-xs text-muted-foreground cursor-help">
+                            {formatVolume(Math.min(pair.volume1 ?? 0, pair.volume2 ?? 0))}
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="text-xs">
+                          <p>{pair.asset1}: {formatVolume(pair.volume1)}</p>
+                          <p>{pair.asset2}: {formatVolume(pair.volume2)}</p>
+                        </TooltipContent>
+                      </Tooltip>
                     </td>
                     <td className="px-4 py-3 text-right">
                       {pair.betaDrift !== undefined && pair.betaDrift !== null ? (

@@ -67,6 +67,8 @@ export interface WatchlistPair {
     entryThreshold: number;
     exitThreshold?: number;
     maxHistoricalZ?: number;
+    volume1?: number;
+    volume2?: number;
     reversionWarning?: string | null;
     reversionRate?: number | null;
 }
