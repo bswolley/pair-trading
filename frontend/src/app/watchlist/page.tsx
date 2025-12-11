@@ -26,6 +26,7 @@ const METRIC_TOOLTIPS = {
   weights: "Position sizing from hedge ratio (β). Calculated: w1 = 1/(1+β), w2 = β/(1+β). Uses 30-day β from OLS regression.",
   betaDrift: "% change in beta since scanner discovered pair. High drift (>15%) = hedge ratio unstable since discovery. Note: Trade drift is measured from trade entry, not discovery.",
   volume: "24h trading volume (USD). Low volume divergences may revert better than high volume (liquidity noise vs fundamental shift).",
+  volRatio: "Spread volatility / Directional volatility. Lower = better beta neutralization. <0.3 excellent, 0.3-0.5 good, >0.5 poor.",
 };
 
 // Format volume as compact string (e.g. $1.2M, $500K)
@@ -428,6 +429,9 @@ export default function WatchlistPage() {
                   <MetricHeader label="Volume" tooltip={METRIC_TOOLTIPS.volume} />
                 </th>
                 <th className="text-right px-4 py-3 font-medium">
+                  <MetricHeader label="Vol Ratio" tooltip={METRIC_TOOLTIPS.volRatio} />
+                </th>
+                <th className="text-right px-4 py-3 font-medium">
                   <MetricHeader label="β Drift" tooltip={METRIC_TOOLTIPS.betaDrift} />
                 </th>
                 <th className="w-10"></th>
@@ -627,6 +631,20 @@ export default function WatchlistPage() {
                           <p>{pair.asset2}: {formatVolume(pair.volume2)}</p>
                         </TooltipContent>
                       </Tooltip>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      {pair.volRatio !== undefined && pair.volRatio !== null ? (
+                        <span className={cn(
+                          "font-mono text-xs",
+                          pair.volRatio < 0.3 ? "text-emerald-400" :
+                          pair.volRatio < 0.5 ? "text-yellow-400" :
+                          "text-red-400"
+                        )}>
+                          {pair.volRatio.toFixed(2)}
+                        </span>
+                      ) : (
+                        <span className="text-muted-foreground/50">—</span>
+                      )}
                     </td>
                     <td className="px-4 py-3 text-right">
                       {pair.betaDrift !== undefined && pair.betaDrift !== null ? (

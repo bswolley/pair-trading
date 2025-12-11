@@ -16,6 +16,7 @@ const {
     calculateHurst,
     calculateDualBeta,
     calculateConvictionScore,
+    calculateVolatilityMetrics,
     analyzeHistoricalDivergences
 } = require('../../lib/pairAnalysis');
 const db = require('../db/queries');
@@ -455,6 +456,9 @@ function evaluatePairs(candidatePairs, priceMap, minCorrelation, crossSectorMinC
 
                 const divergenceProfile = analyzeLocalDivergences(prices1_30d, prices2_30d, beta);
 
+                // Calculate volatility metrics for beta neutralization analysis
+                const volMetrics = calculateVolatilityMetrics(prices1_30d, prices2_30d, beta);
+
                 fittingPairs.push({
                     sector: pair.sector,
                     asset1: pair.asset1.symbol,
@@ -484,6 +488,9 @@ function evaluatePairs(candidatePairs, priceMap, minCorrelation, crossSectorMinC
                         r2: dualBeta.structural.r2
                     },
                     conviction: conviction.score,
+                    // Volatility metrics (beta neutralization)
+                    spreadVol: volMetrics.spreadVol,
+                    volRatio: volMetrics.volRatio,
                     // Window info for transparency
                     windows: {
                         cointegration: cointLen,
@@ -693,6 +700,9 @@ async function main(options = {}) {
             // Volume data (for volume-informed signal analysis)
             volume1: p.volume1 ? parseFloat(p.volume1.toFixed(2)) : null,
             volume2: p.volume2 ? parseFloat(p.volume2.toFixed(2)) : null,
+            // Volatility metrics (beta neutralization analysis)
+            spreadVol: p.spreadVol,
+            volRatio: p.volRatio,
             // Safety check fields
             reversionWarning: safety.warning,
             reversionRate: safety.reversionRate,

@@ -69,6 +69,8 @@ export interface WatchlistPair {
     maxHistoricalZ?: number;
     volume1?: number;
     volume2?: number;
+    spreadVol?: number;
+    volRatio?: number;
     reversionWarning?: string | null;
     reversionRate?: number | null;
 }

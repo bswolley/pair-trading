@@ -685,7 +685,10 @@ function formatStatusReport(activeTrades, entries, exits, history, approaching =
             // Show minimum volume (bottleneck) for liquidity awareness
             const minVol = formatVolume(Math.min(p.volume1 || 0, p.volume2 || 0));
             const volStr = minVol ? ` | Vol: ${minVol}` : '';
-            msg += `   Z: ${p.zScore.toFixed(2)} → entry@${p.entryThreshold} [${pct}%]${volStr}\n\n`;
+            // Show volatility ratio with emoji indicator
+            const vrEmoji = p.volRatio < 0.3 ? '🟢' : p.volRatio < 0.5 ? '🟡' : '🔴';
+            const vrStr = p.volRatio ? ` | VR: ${p.volRatio.toFixed(2)}${vrEmoji}` : '';
+            msg += `   Z: ${p.zScore.toFixed(2)} → entry@${p.entryThreshold} [${pct}%]${volStr}${vrStr}\n\n`;
         }
     }
 
@@ -1105,6 +1108,9 @@ async function main() {
                 // Volume data (for volume-informed signal analysis)
                 volume1: pair.volume1,
                 volume2: pair.volume2,
+                // Volatility metrics (beta neutralization)
+                spreadVol: pair.spreadVol,
+                volRatio: pair.volRatio,
                 // Reversion safety from scanner
                 reversionWarning: pair.reversionWarning,
                 reversionRate: pair.reversionRate
