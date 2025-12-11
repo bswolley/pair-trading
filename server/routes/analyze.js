@@ -40,12 +40,16 @@ router.get('/:asset1/:asset2', async (req, res) => {
       obvTimeframes: [7, 30]
     });
 
-    // Fetch funding rates
+    // Use normalized symbols from result (handles k-prefix correctly)
+    const sym1 = result.symbol1;
+    const sym2 = result.symbol2;
+
+    // Fetch funding rates (use normalized symbols for Hyperliquid lookup)
     let funding = null;
     try {
       const fundingMap = await fetchCurrentFunding();
-      const longAsset = direction === 'long' ? asset1 : asset2;
-      const shortAsset = direction === 'long' ? asset2 : asset1;
+      const longAsset = direction === 'long' ? sym1 : sym2;
+      const shortAsset = direction === 'long' ? sym2 : sym1;
       const netFunding = calculateNetFunding(longAsset, shortAsset, fundingMap);
       
       if (netFunding.netFunding8h !== null) {
@@ -67,16 +71,16 @@ router.get('/:asset1/:asset2', async (req, res) => {
     // Transform analyzePair result to API response format
     const response = {
       pair: result.pair,
-      asset1: result.symbol1,
-      asset2: result.symbol2,
+      asset1: sym1,
+      asset2: sym2,
       direction: result.direction,
       generatedAt: new Date().toISOString(),
       processingTimeMs: Date.now() - startTime,
 
       // Current state
       currentPrices: {
-        [asset1]: result.currentPrice1,
-        [asset2]: result.currentPrice2
+        [sym1]: result.currentPrice1,
+        [sym2]: result.currentPrice2
       },
 
       // Signal
@@ -246,8 +250,8 @@ router.get('/:asset1/:asset2', async (req, res) => {
         .filter(tf => !tf.error && tf.obv1Change !== null && [7, 30].includes(tf.days))
         .reduce((acc, tf) => {
           acc[tf.days] = {
-            [asset1]: tf.obv1Change,
-            [asset2]: tf.obv2Change
+            [sym1]: tf.obv1Change,
+            [sym2]: tf.obv2Change
           };
           return acc;
         }, {})
