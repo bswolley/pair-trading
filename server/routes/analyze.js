@@ -115,6 +115,7 @@ router.get('/:asset1/:asset2', async (req, res) => {
       } : null,
 
       // Multi-timeframe - transform from analyzePair format
+      // Half-life now uses unified calculateHalfLifeAR1 everywhere
       timeframes: Object.values(result.timeframes || {})
         .filter(tf => !tf.error && [7, 30, 90, 180].includes(tf.days))
         .reduce((acc, tf) => {
