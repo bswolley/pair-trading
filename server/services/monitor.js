@@ -35,6 +35,7 @@ const MAX_CONCURRENT_TRADES = parseInt(process.env.MAX_CONCURRENT_TRADES) || 5;
 
 // Thresholds
 const DEFAULT_ENTRY_THRESHOLD = 2.0;
+const MIN_ENTRY_THRESHOLD = 1.5;       // Safety floor - never enter below this Z-score
 const FINAL_EXIT_ZSCORE = 0.5;         // Final exit when |Z| < 0.5 (full mean reversion)
 const STOP_LOSS_MULTIPLIER = 1.2;      // Exit if Z exceeds maxHistoricalZ by 20%
 const STOP_LOSS_ENTRY_MULTIPLIER = 1.5;  // Or if Z exceeds entry by 50%
@@ -925,7 +926,8 @@ async function main() {
         if (!prices) continue;
 
         // Use scanner-set threshold only - scanner has hourly data for meaningful calculation
-        const entryThreshold = pair.entryThreshold || DEFAULT_ENTRY_THRESHOLD;
+        // Enforce minimum floor to prevent entering at weak signals
+        const entryThreshold = Math.max(pair.entryThreshold || DEFAULT_ENTRY_THRESHOLD, MIN_ENTRY_THRESHOLD);
 
         let validation;
         try {

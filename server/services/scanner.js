@@ -107,6 +107,10 @@ function analyzeLocalDivergences(prices1, prices2, beta) {
         }
     }
 
+    // Enforce minimum threshold floor (MIN_ENTRY_THRESHOLD = 1.5)
+    // Note: This function runs before the constant is defined, so we hardcode 1.5 here
+    optimalEntry = Math.max(optimalEntry, 1.5);
+
     return { optimalEntry, maxHistoricalZ, thresholds: profile };
 }
 
@@ -115,6 +119,7 @@ const DEFAULT_MIN_OI = 100_000;
 const DEFAULT_MIN_CORR = 0.6;
 const DEFAULT_CROSS_SECTOR_MIN_CORR = 0.7; // Higher threshold for cross-sector
 const MAX_HURST_THRESHOLD = 0.5; // Only keep mean-reverting pairs (H < 0.5)
+const MIN_ENTRY_THRESHOLD = 1.5; // Safety floor - never enter below this Z-score
 
 // Time windows for different metrics
 const WINDOWS = {
@@ -655,9 +660,9 @@ async function main(options = {}) {
         try {
             const hourlyResult = await analyzeHistoricalDivergences(pair.asset1, pair.asset2, sdk);
             
-            // Update with hourly-derived thresholds
+            // Update with hourly-derived thresholds (enforce minimum floor)
             if (hourlyResult && hourlyResult.optimalEntry) {
-                pair.optimalEntry = hourlyResult.optimalEntry;
+                pair.optimalEntry = Math.max(hourlyResult.optimalEntry, MIN_ENTRY_THRESHOLD);
                 
                 // Also update maxHistoricalZ if available from hourly data
                 // Find max Z from the threshold profiles

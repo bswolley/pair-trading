@@ -11,7 +11,7 @@ const express = require('express');
 const router = express.Router();
 const db = require('../db/queries');
 const { Hyperliquid } = require('hyperliquid');
-const { checkPairFitness } = require('../../lib/pairAnalysis');
+const { checkPairFitness, analyzeHistoricalDivergences } = require('../../lib/pairAnalysis');
 
 // GET /api/watchlist - List all pairs
 router.get('/', async (req, res) => {
@@ -43,12 +43,12 @@ router.get('/', async (req, res) => {
 router.get('/sectors', async (req, res) => {
     try {
         let pairs = await db.getWatchlist();
-        
+
         // Filter out blacklisted pairs
         const blacklistData = await db.getBlacklist();
         const blacklist = new Set(blacklistData?.assets || []);
         pairs = pairs.filter(p => !blacklist.has(p.asset1) && !blacklist.has(p.asset2));
-        
+
         const sectorCounts = {};
 
         for (const pair of pairs) {
@@ -133,7 +133,7 @@ router.post('/:pair/refresh', async (req, res) => {
     try {
         const pairParam = req.params.pair;
         const [asset1, asset2] = pairParam.replace('_', '/').split('/');
-        
+
         if (!asset1 || !asset2) {
             return res.status(400).json({ error: 'Invalid pair format' });
         }
@@ -147,22 +147,22 @@ router.post('/:pair/refresh', async (req, res) => {
         const sdk = new Hyperliquid();
         const origLog = console.log;
         const origErr = console.error;
-        console.log = () => {};
-        console.error = () => {};
+        console.log = () => { };
+        console.error = () => { };
         await sdk.connect();
         console.log = origLog;
         console.error = origErr;
 
         const endTime = Date.now();
         const startTime = endTime - (35 * 24 * 60 * 60 * 1000); // 35 days
-        
+
         const [candles1, candles2] = await Promise.all([
             sdk.info.getCandleSnapshot(`${asset1}-PERP`, '1d', startTime, endTime),
             sdk.info.getCandleSnapshot(`${asset2}-PERP`, '1d', startTime, endTime)
         ]);
 
-        console.log = () => {};
-        console.error = () => {};
+        console.log = () => { };
+        console.error = () => { };
         await sdk.disconnect();
         console.log = origLog;
         console.error = origErr;
@@ -181,32 +181,18 @@ router.post('/:pair/refresh', async (req, res) => {
         // Calculate fitness
         const fitness = checkPairFitness(prices1, prices2);
 
-        // Calculate optimal entry using percentage-based reversion
-        const spreads = prices1.map((p1, i) => Math.log(p1) - fitness.beta * Math.log(prices2[i]));
-        const meanSpread = spreads.reduce((a, b) => a + b, 0) / spreads.length;
-        const stdDev = Math.sqrt(spreads.reduce((sum, s) => sum + Math.pow(s - meanSpread, 2), 0) / spreads.length);
-        const zScores = spreads.map(s => (s - meanSpread) / stdDev);
-
-        const thresholds = [1.0, 1.5, 2.0, 2.5, 3.0];
-        let optimalEntry = 1.5;
-        
-        for (let i = thresholds.length - 1; i >= 0; i--) {
-            const threshold = thresholds[i];
-            const percentTarget = threshold * 0.5;
-            let events = 0, reverted = 0;
-            
-            for (let j = 1; j < zScores.length; j++) {
-                if (Math.abs(zScores[j - 1]) < threshold && Math.abs(zScores[j]) >= threshold) {
-                    events++;
-                    for (let k = j + 1; k < zScores.length; k++) {
-                        if (Math.abs(zScores[k]) < percentTarget) { reverted++; break; }
-                    }
-                }
+        // Calculate optimal entry using HOURLY data (60 days) for accurate divergence analysis
+        // This is critical - daily data (30 points) produces unreliable thresholds
+        const MIN_ENTRY_THRESHOLD = 1.5; // Safety floor - never enter below this
+        let optimalEntry = MIN_ENTRY_THRESHOLD;
+        try {
+            const divergenceProfile = await analyzeHistoricalDivergences(asset1, asset2, sdk);
+            if (divergenceProfile?.optimalEntry) {
+                // Enforce minimum threshold floor
+                optimalEntry = Math.max(divergenceProfile.optimalEntry, MIN_ENTRY_THRESHOLD);
             }
-            
-            const rate = events > 0 ? (reverted / events) * 100 : 0;
-            if (events >= 3 && rate >= 90) { optimalEntry = threshold; break; }
-            if (optimalEntry === 1.5 && events >= 2 && rate >= 80) { optimalEntry = threshold; }
+        } catch (divErr) {
+            console.warn(`[WATCHLIST] Divergence analysis failed for ${pair}, using default threshold:`, divErr.message);
         }
 
         // Calculate signal strength
@@ -229,8 +215,8 @@ router.post('/:pair/refresh', async (req, res) => {
 
         await db.upsertWatchlist([updatedPair]);
 
-        res.json({ 
-            success: true, 
+        res.json({
+            success: true,
             pair: updatedPair,
             message: `Updated entry threshold to ${optimalEntry}`
         });
