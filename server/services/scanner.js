@@ -107,9 +107,9 @@ function analyzeLocalDivergences(prices1, prices2, beta) {
         }
     }
 
-    // Enforce minimum threshold floor (MIN_ENTRY_THRESHOLD = 1.5)
-    // Note: This function runs before the constant is defined, so we hardcode 1.5 here
-    optimalEntry = Math.max(optimalEntry, 1.5);
+    // Enforce minimum threshold floor (MIN_ENTRY_THRESHOLD = 2.0)
+    // Note: This function runs before the constant is defined, so we hardcode 2.0 here
+    optimalEntry = Math.max(optimalEntry, 2.0);
 
     return { optimalEntry, maxHistoricalZ, thresholds: profile };
 }
@@ -119,7 +119,7 @@ const DEFAULT_MIN_OI = 100_000;
 const DEFAULT_MIN_CORR = 0.6;
 const DEFAULT_CROSS_SECTOR_MIN_CORR = 0.7; // Higher threshold for cross-sector
 const MAX_HURST_THRESHOLD = 0.5; // Only keep mean-reverting pairs (H < 0.5)
-const MIN_ENTRY_THRESHOLD = 1.5; // Safety floor - never enter below this Z-score
+const MIN_ENTRY_THRESHOLD = 2.0; // Safety floor - never enter below this Z-score (raised from 1.5 for better edge)
 
 // Time windows for different metrics
 const WINDOWS = {

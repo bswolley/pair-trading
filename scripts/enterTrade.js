@@ -169,7 +169,7 @@ async function main() {
   const zScores = spreads.map(s => (s - meanSpread) / stdDevSpread);
   
   const thresholds = [1.0, 1.5, 2.0, 2.5, 3.0];
-  let optimalEntry = 1.5;
+  let optimalEntry = 2.0; // Safety floor - raised from 1.5 for better edge
   for (let i = thresholds.length - 1; i >= 0; i--) {
     const threshold = thresholds[i];
     const percentTarget = threshold * 0.5;
@@ -184,7 +184,7 @@ async function main() {
     }
     const rate = events > 0 ? (reverted / events) * 100 : 0;
     if (events >= 3 && rate >= 90) { optimalEntry = threshold; break; }
-    if (optimalEntry === 1.5 && events >= 2 && rate >= 80) { optimalEntry = threshold; }
+    if (optimalEntry === 2.0 && events >= 2 && rate >= 80) { optimalEntry = threshold; }
   }
   
   // Disconnect

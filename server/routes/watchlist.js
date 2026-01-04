@@ -183,7 +183,7 @@ router.post('/:pair/refresh', async (req, res) => {
 
         // Calculate optimal entry using HOURLY data (60 days) for accurate divergence analysis
         // This is critical - daily data (30 points) produces unreliable thresholds
-        const MIN_ENTRY_THRESHOLD = 1.5; // Safety floor - never enter below this
+        const MIN_ENTRY_THRESHOLD = 2.0; // Safety floor - never enter below this (raised from 1.5 for better edge)
         let optimalEntry = MIN_ENTRY_THRESHOLD;
         try {
             const divergenceProfile = await analyzeHistoricalDivergences(asset1, asset2, sdk);

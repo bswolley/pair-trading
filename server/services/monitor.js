@@ -35,7 +35,7 @@ const MAX_CONCURRENT_TRADES = parseInt(process.env.MAX_CONCURRENT_TRADES) || 5;
 
 // Thresholds
 const DEFAULT_ENTRY_THRESHOLD = 2.0;
-const MIN_ENTRY_THRESHOLD = 1.5;       // Safety floor - never enter below this Z-score
+const MIN_ENTRY_THRESHOLD = 2.0;       // Safety floor - never enter below this Z-score (raised from 1.5 for better edge)
 const FINAL_EXIT_ZSCORE = 0.5;         // Final exit when |Z| < 0.5 (full mean reversion)
 const STOP_LOSS_MULTIPLIER = 1.2;      // Exit if Z exceeds maxHistoricalZ by 20%
 const STOP_LOSS_ENTRY_MULTIPLIER = 1.5;  // Or if Z exceeds entry by 50%
@@ -43,6 +43,9 @@ const STOP_LOSS_FLOOR = 3.0;           // Minimum stop-loss threshold
 const MIN_CORRELATION_30D = 0.6;
 const CORRELATION_BREAKDOWN = 0.4;
 const HALFLIFE_MULTIPLIER = 2;
+
+// Hurst regime exit thresholds - exit early when spread becomes trending
+const HURST_EXIT_THRESHOLD = 0.55;     // Exit if Hurst >= 0.55 (trending regime)
 
 // Exit strategy - aligned with percentage-based reversion analysis
 // Partial exit: when |Z| < 50% of entry threshold OR PnL >= 3% (whichever first)
@@ -329,12 +332,15 @@ function calcPnL(trade, prices) {
  * Check exit conditions - aligned with percentage-based reversion
  * Partial exit (50%): when |Z| < 50% of entry threshold
  * Final exit (remaining): when |Z| < 0.5 or +5% PnL
+ *
+ * NEW: Hurst regime exit - exit early if spread becomes trending (H >= 0.55)
  */
 function checkExitConditions(trade, fitness, currentPnL) {
     const currentZ = Math.abs(fitness.zScore);
     const daysInTrade = (Date.now() - new Date(trade.entryTime)) / (1000 * 60 * 60 * 24);
     const maxDuration = (trade.halfLife || 15) * HALFLIFE_MULTIPLIER;
     const partialTaken = trade.partialExitTaken || false;
+    const currentHurst = trade.currentHurst;
 
     // Dynamic partial exit threshold = 50% of entry threshold
     const entryThreshold = trade.entryThreshold || DEFAULT_ENTRY_THRESHOLD;
@@ -414,6 +420,16 @@ function checkExitConditions(trade, fitness, currentPnL) {
             shouldExit: true, isPartial: false, exitSize: 1.0,
             reason: 'BREAKDOWN', emoji: '💔',
             message: `Correlation breakdown (${fitness.correlation.toFixed(2)})`
+        };
+    }
+
+    // HURST REGIME EXIT - Exit if spread becomes trending (mean-reversion assumption violated)
+    // This catches regime shifts early before they cause large losses
+    if (currentHurst !== null && currentHurst !== undefined && currentHurst >= HURST_EXIT_THRESHOLD) {
+        return {
+            shouldExit: true, isPartial: false, exitSize: 1.0,
+            reason: 'HURST_REGIME', emoji: '📈',
+            message: `Hurst regime shift (H=${currentHurst.toFixed(2)} >= ${HURST_EXIT_THRESHOLD} - trending)`
         };
     }
 

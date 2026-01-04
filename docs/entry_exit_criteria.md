@@ -13,6 +13,7 @@ This document describes the automated entry and exit criteria used by the pair t
 | Parameter | Value | Description |
 |-----------|-------|-------------|
 | `DEFAULT_ENTRY_THRESHOLD` | 2.0 | Z-score required for entry signal |
+| `MIN_ENTRY_THRESHOLD` | 2.0 | Safety floor - never enter below this Z-score |
 | `MIN_CORRELATION_30D` | 0.6 | Minimum 30-day correlation |
 | `MAX_CONCURRENT_TRADES` | 5 | Maximum simultaneous positions (env var) |
 
@@ -69,6 +70,7 @@ Example: If beta = 1.5
 | `STOP_LOSS_FLOOR` | 3.0 | Minimum stop-loss threshold |
 | `HALFLIFE_MULTIPLIER` | 2 | Time stop = halfLife × 2 |
 | `CORRELATION_BREAKDOWN` | 0.4 | Exit if correlation drops below |
+| `HURST_EXIT_THRESHOLD` | 0.55 | Exit if Hurst indicates trending regime |
 
 ### Exit Conditions (checked in order)
 
@@ -80,6 +82,7 @@ Example: If beta = 1.5
 | 4 | **Dynamic Stop-Loss** | Z > dynamicStopLoss | Full exit | 🛑 |
 | 5 | **Time Stop** | daysInTrade > halfLife × 2 | Full exit | ⏰ |
 | 6 | **Correlation Breakdown** | correlation < 0.4 | Full exit | 💔 |
+| 7 | **Hurst Regime Exit** | Hurst ≥ 0.55 | Full exit | 📈 |
 
 ### Dynamic Stop-Loss Formula
 
@@ -175,6 +178,8 @@ Days > halfLife × 2? ──────── YES → ⏰ Time stop
      ↓ NO
 Correlation < 0.4? ────────── YES → 💔 Breakdown
      ↓ NO
+Hurst ≥ 0.55? ─────────────── YES → 📈 Hurst regime shift
+     ↓ NO
 📊 HOLD POSITION
 ```
 
@@ -195,11 +200,16 @@ Correlation < 0.4? ────────── YES → 💔 Breakdown
 Currently tracked but NOT used for automatic exit:
 - **Beta drift**: Displayed as warning, no auto-exit (threshold TBD: 50%?)
 - **Half-life drift**: Displayed, no auto-exit (threshold TBD: 4×?)
-- **Hurst drift**: Displayed, no auto-exit (slow-moving metric)
 
 These metrics are monitored and displayed to support manual intervention decisions.
 
+### Hurst Regime Exit (NEW - January 2026)
+
+**Rationale**: Analysis of 62 closed trades showed that trades exiting with Hurst > 0.5 (trending regime) had significantly worse outcomes. The mean-reversion strategy fundamentally relies on H < 0.5. When Hurst rises above 0.55 during a trade, it indicates the spread has shifted from mean-reverting to trending behavior, violating the strategy's core assumption.
+
+**Threshold**: 0.55 (slightly above 0.5 to avoid noisy exits)
+
 ---
 
-*Last updated: December 2024*
+*Last updated: January 2026*
 
