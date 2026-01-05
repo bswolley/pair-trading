@@ -90,8 +90,8 @@ export function TradesTable({ trades, showActions, onClose }: TradesTableProps) 
           eta = currentHL * halfLivesToExit;
         }
         
-        // Time stop calculation: (entryHalfLife × 2) - daysInTrade
-        const timeStopMax = (entryHL || 15) * 2;
+        // Time stop calculation: (entryHalfLife × 1.5) - daysInTrade
+        const timeStopMax = (entryHL || 15) * 1.5;
         const timeStopRemaining = timeStopMax - daysInTrade;
         const showTimeStop = timeStopRemaining < (eta ?? Infinity) || timeStopRemaining < 3;
         const timeStopUrgent = timeStopRemaining < 1;
