@@ -30,7 +30,7 @@ const DRY_RUN = args.includes('--dry-run');
 const MANUAL_MODE = args.includes('--manual');
 
 // Thresholds
-const DEFAULT_ENTRY_THRESHOLD = 2.0;  // Fallback if pair doesn't have dynamic threshold
+const DEFAULT_ENTRY_THRESHOLD = 2.5;  // Fallback if pair doesn't have dynamic threshold (raised from 2.0)
 const FINAL_EXIT_ZSCORE = 0.5;        // Final exit when |Z| < 0.5 (full mean reversion)
 const STOP_LOSS_THRESHOLD = 3.0;      // Exit if Z diverges too much
 const MIN_CORRELATION_7D = 0.5;       // Looser for 7d

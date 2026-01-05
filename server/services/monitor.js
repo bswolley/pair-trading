@@ -34,15 +34,15 @@ const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 const MAX_CONCURRENT_TRADES = parseInt(process.env.MAX_CONCURRENT_TRADES) || 5;
 
 // Thresholds
-const DEFAULT_ENTRY_THRESHOLD = 2.0;
-const MIN_ENTRY_THRESHOLD = 2.0;       // Safety floor - never enter below this Z-score (raised from 1.5 for better edge)
+const DEFAULT_ENTRY_THRESHOLD = 2.5;
+const MIN_ENTRY_THRESHOLD = 2.5;       // Safety floor - never enter below this Z-score (raised from 2.0 based on performance data)
 const FINAL_EXIT_ZSCORE = 0.5;         // Final exit when |Z| < 0.5 (full mean reversion)
 const STOP_LOSS_MULTIPLIER = 1.2;      // Exit if Z exceeds maxHistoricalZ by 20%
 const STOP_LOSS_ENTRY_MULTIPLIER = 1.5;  // Or if Z exceeds entry by 50%
 const STOP_LOSS_FLOOR = 3.0;           // Minimum stop-loss threshold
 const MIN_CORRELATION_30D = 0.6;
 const CORRELATION_BREAKDOWN = 0.4;
-const HALFLIFE_MULTIPLIER = 2;
+const HALFLIFE_MULTIPLIER = 1.5;  // Reduced from 2 - data shows trades held 3+ days underperform
 
 // Hurst regime exit thresholds - exit early when spread becomes trending
 const HURST_EXIT_THRESHOLD = 0.55;     // Exit if Hurst >= 0.55 (trending regime)

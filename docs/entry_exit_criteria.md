@@ -12,8 +12,8 @@ This document describes the automated entry and exit criteria used by the pair t
 
 | Parameter | Value | Description |
 |-----------|-------|-------------|
-| `DEFAULT_ENTRY_THRESHOLD` | 2.0 | Z-score required for entry signal |
-| `MIN_ENTRY_THRESHOLD` | 2.0 | Safety floor - never enter below this Z-score |
+| `DEFAULT_ENTRY_THRESHOLD` | 2.5 | Z-score required for entry signal (raised from 2.0) |
+| `MIN_ENTRY_THRESHOLD` | 2.5 | Safety floor - never enter below this Z-score (raised from 2.0) |
 | `MIN_CORRELATION_30D` | 0.6 | Minimum 30-day correlation |
 | `MAX_CONCURRENT_TRADES` | 5 | Maximum simultaneous positions (env var) |
 

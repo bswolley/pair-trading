@@ -118,8 +118,8 @@ const DEFAULT_MIN_VOLUME = 500_000;
 const DEFAULT_MIN_OI = 100_000;
 const DEFAULT_MIN_CORR = 0.6;
 const DEFAULT_CROSS_SECTOR_MIN_CORR = 0.7; // Higher threshold for cross-sector
-const MAX_HURST_THRESHOLD = 0.5; // Only keep mean-reverting pairs (H < 0.5)
-const MIN_ENTRY_THRESHOLD = 2.0; // Safety floor - never enter below this Z-score (raised from 1.5 for better edge)
+const MAX_HURST_THRESHOLD = 0.45; // Only keep mean-reverting pairs (H < 0.45) - tightened from 0.5 based on data
+const MIN_ENTRY_THRESHOLD = 2.5; // Safety floor - never enter below this Z-score (raised from 2.0 based on performance data)
 
 // Time windows for different metrics
 const WINDOWS = {
