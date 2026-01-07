@@ -33,6 +33,7 @@ const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 const MAX_CONCURRENT_TRADES = parseInt(process.env.MAX_CONCURRENT_TRADES) || 8;
 const MAX_TRADES_PER_ASSET = 2; // Allow same-side overlap but limit exposure
+const MAX_VOL_RATIO = 0.5; // Only enter pairs with good beta neutralization (lower = better)
 
 // Thresholds
 const DEFAULT_ENTRY_THRESHOLD = 2.5;
@@ -679,6 +680,9 @@ function formatStatusReport(activeTrades, entries, exits, history, approaching =
             if (p.hurstBlocked) {
                 status = '📈';
                 blockNote = `H=${p.hurst?.toFixed(2)}`;
+            } else if (p.volRatioBlocked) {
+                status = '📊';
+                blockNote = `VR=${p.volRatio?.toFixed(2)}`;
             } else if (p.hasOverlap) {
                 status = '🚫';
                 const overlapMsg = p.overlapReason === 'long_conflict' ? `${p.overlappingAsset} already short` :
@@ -1145,6 +1149,9 @@ async function main() {
         // Hurst validation: only enter mean-reverting pairs (H < 0.5)
         const hurstValid = hurst === null || hurst < 0.5;
         
+        // Vol ratio validation: only enter pairs with good beta neutralization
+        const volRatioValid = pair.volRatio === null || pair.volRatio === undefined || pair.volRatio <= MAX_VOL_RATIO;
+        
         // Check max trades dynamically (not just once before loop)
         const currentlyAtMax = activeTrades.trades.length >= MAX_CONCURRENT_TRADES;
         
@@ -1157,7 +1164,7 @@ async function main() {
         const finalOverlapCheck = checkSmartOverlap(actualLongAsset, actualShortAsset);
         const finalHasOverlap = finalOverlapCheck.isBlocked;
         
-        if (signal && validation.valid && hurstValid && reversionSafe && !finalHasOverlap && !currentlyAtMax) {
+        if (signal && validation.valid && hurstValid && volRatioValid && reversionSafe && !finalHasOverlap && !currentlyAtMax) {
             const trade = await enterTrade(pair, fit, prices, activeTrades, hurst, entryThreshold);
             entries.push(trade);
             activePairs.add(pair.pair);
@@ -1179,6 +1186,8 @@ async function main() {
                 blockReason = validation.reason;
             } else if (!hurstValid) {
                 blockReason = 'hurst_trending';
+            } else if (!volRatioValid) {
+                blockReason = 'high_vol_ratio';
             } else if (!reversionSafe) {
                 blockReason = 'low_reversion';
             } else if (finalHasOverlap) {
@@ -1197,6 +1206,7 @@ async function main() {
                 proximity: Math.abs(z) / entryThreshold,
                 hurst: hurst,
                 hurstBlocked: hurst !== null && hurst >= 0.5,
+                volRatioBlocked: pair.volRatio !== null && pair.volRatio !== undefined && pair.volRatio > MAX_VOL_RATIO,
                 halfLife: fit.halfLife,
                 direction,
                 longAsset: z < 0 ? pair.asset1 : pair.asset2,

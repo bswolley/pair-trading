@@ -129,7 +129,12 @@ export default function WatchlistPage() {
       reasons.push('slow_reversion');
     }
 
-    // Check 5: Reversion safety (from scanner hourly analysis)
+    // Check 5: Vol ratio <= 0.5 (good beta neutralization)
+    if (pair.volRatio !== null && pair.volRatio !== undefined && pair.volRatio > 0.5) {
+      reasons.push('high_vol_ratio');
+    }
+
+    // Check 6: Reversion safety (from scanner hourly analysis)
     if (pair.reversionWarning) {
       reasons.push('low_reversion');
     }
@@ -316,6 +321,7 @@ export default function WatchlistPage() {
                 'low_correlation': `Low correlation (${((pair.correlation ?? 0) * 100).toFixed(0)}%)`,
                 'slow_reversion': `Slow reversion (HL=${pair.halfLife?.toFixed(1) ?? '?'}d)`,
                 'low_reversion': `Low reversion rate (${pair.reversionRate !== null && pair.reversionRate !== undefined ? pair.reversionRate.toFixed(0) + '%' : '?'})`,
+                'high_vol_ratio': `High vol ratio (${pair.volRatio?.toFixed(2) ?? '?'} > 0.5)`,
                 'active_trade': 'Already in trade',
                 'asset_overlap': `Asset overlap (${pair.overlapAsset || pair.asset1})`,
                 'long_conflict': `${pair.overlapAsset} already short elsewhere`,
@@ -555,6 +561,12 @@ export default function WatchlistPage() {
                                   <>
                                     <p className="text-red-400">• Half-life {pair.halfLife?.toFixed(1) ?? '?'}d &gt; 30d</p>
                                     <p className="text-gray-400 text-[10px] ml-2">Mean reversion too slow for trading</p>
+                                  </>
+                                )}
+                                {pair.validation.reasons?.includes('high_vol_ratio') && (
+                                  <>
+                                    <p className="text-red-400">• Vol ratio {pair.volRatio?.toFixed(2) ?? '?'} &gt; 0.5</p>
+                                    <p className="text-gray-400 text-[10px] ml-2">Poor beta neutralization - spread too volatile vs direction</p>
                                   </>
                                 )}
                                 {pair.validation.reasons?.includes('low_reversion') && (
