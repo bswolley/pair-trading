@@ -75,8 +75,11 @@ export interface WatchlistPair {
     reversionRate?: number | null;
     // Trade status (from backend)
     isActive?: boolean;           // Pair is currently being traded
-    hasAssetOverlap?: boolean;    // One of the assets is in another active trade
-    isBlocked?: boolean;          // Can't enter (active OR asset overlap)
+    hasAssetOverlap?: boolean;    // Smart overlap: conflict or max exposure
+    overlapType?: 'long_conflict' | 'short_conflict' | 'max_exposure' | 'active_trade' | null;
+    overlapAsset?: string | null; // Which asset caused the overlap
+    isBlocked?: boolean;          // Can't enter (active OR overlap)
+    sameDirectionTrades?: { long: number; short: number }; // Count of same-direction trades
 }
 
 export interface HistoryTrade extends Trade {

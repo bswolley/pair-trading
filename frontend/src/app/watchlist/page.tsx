@@ -103,8 +103,12 @@ export default function WatchlistPage() {
     // Already in a trade (exact pair match) - use backend field
     if (pair.isActive) reasons.push('active_trade');
 
-    // Asset overlap (one of the assets is in another active trade) - use backend field
-    if (pair.hasAssetOverlap) reasons.push('asset_overlap');
+    // Smart asset overlap - use backend-provided type
+    if (pair.hasAssetOverlap && pair.overlapType) {
+      reasons.push(pair.overlapType);
+    } else if (pair.hasAssetOverlap) {
+      reasons.push('asset_overlap');
+    }
 
     // Check 1: Z-Score signal - use signalStrength instead of isReady 
     // (scanner may set isReady=false for safety reasons even when at threshold)
@@ -313,7 +317,10 @@ export default function WatchlistPage() {
                 'slow_reversion': `Slow reversion (HL=${pair.halfLife?.toFixed(1) ?? '?'}d)`,
                 'low_reversion': `Low reversion rate (${pair.reversionRate !== null && pair.reversionRate !== undefined ? pair.reversionRate.toFixed(0) + '%' : '?'})`,
                 'active_trade': 'Already in trade',
-                'asset_overlap': `Asset overlap (${pair.asset1} or ${pair.asset2} in use)`,
+                'asset_overlap': `Asset overlap (${pair.overlapAsset || pair.asset1})`,
+                'long_conflict': `${pair.overlapAsset} already short elsewhere`,
+                'short_conflict': `${pair.overlapAsset} already long elsewhere`,
+                'max_exposure': `${pair.overlapAsset} at max exposure (2 trades)`,
                 'no_signal': `Below threshold (${Math.round(pair.signalStrength * 100)}%)`,
               };
               return (
@@ -518,7 +525,16 @@ export default function WatchlistPage() {
                                   <p className="text-yellow-400">• Already in active trade</p>
                                 )}
                                 {pair.validation.reasons?.includes('asset_overlap') && (
-                                  <p className="text-yellow-400">• Asset already in use ({pair.asset1} or {pair.asset2} in another trade)</p>
+                                  <p className="text-yellow-400">• Asset already in use ({pair.overlapAsset || pair.asset1} in another trade)</p>
+                                )}
+                                {pair.validation.reasons?.includes('long_conflict') && (
+                                  <p className="text-yellow-400">• Conflict: {pair.overlapAsset} is SHORT in another trade (can&apos;t go LONG)</p>
+                                )}
+                                {pair.validation.reasons?.includes('short_conflict') && (
+                                  <p className="text-yellow-400">• Conflict: {pair.overlapAsset} is LONG in another trade (can&apos;t go SHORT)</p>
+                                )}
+                                {pair.validation.reasons?.includes('max_exposure') && (
+                                  <p className="text-yellow-400">• Max exposure: {pair.overlapAsset} already in 2 trades</p>
                                 )}
                                 {pair.validation.reasons?.includes('no_signal') && (
                                   <p className="text-red-400">• Z-Score {pair.zScore.toFixed(2)} &lt; {pair.entryThreshold.toFixed(1)} (weak signal)</p>
@@ -572,17 +588,49 @@ export default function WatchlistPage() {
                         {pair.hasAssetOverlap && !pair.isActive && (
                           <Tooltip>
                             <TooltipTrigger asChild>
-                              <Badge className="bg-orange-500 text-xs flex items-center gap-1 cursor-help">
+                              <Badge className={cn(
+                                "text-xs flex items-center gap-1 cursor-help",
+                                pair.overlapType === 'max_exposure' ? "bg-yellow-500" : "bg-orange-500"
+                              )}>
                                 <AlertTriangle className="w-3 h-3" />
-                                Overlap
+                                {pair.overlapType === 'max_exposure' ? 'Max' : 
+                                 pair.overlapType === 'long_conflict' || pair.overlapType === 'short_conflict' ? 'Conflict' : 'Overlap'}
                               </Badge>
                             </TooltipTrigger>
                             <TooltipContent side="right" className="max-w-xs bg-black text-white border-gray-700">
                               <div className="space-y-1 text-xs">
-                                <p className="font-semibold text-orange-400">Asset already in another trade</p>
-                                <p className="text-gray-300">
-                                  {pair.asset1} or {pair.asset2} is being used in another active position.
-                                </p>
+                                {pair.overlapType === 'long_conflict' && (
+                                  <>
+                                    <p className="font-semibold text-orange-400">Conflicting Position</p>
+                                    <p className="text-gray-300">
+                                      Can&apos;t go LONG on {pair.overlapAsset} - it&apos;s already SHORT in another trade.
+                                    </p>
+                                  </>
+                                )}
+                                {pair.overlapType === 'short_conflict' && (
+                                  <>
+                                    <p className="font-semibold text-orange-400">Conflicting Position</p>
+                                    <p className="text-gray-300">
+                                      Can&apos;t go SHORT on {pair.overlapAsset} - it&apos;s already LONG in another trade.
+                                    </p>
+                                  </>
+                                )}
+                                {pair.overlapType === 'max_exposure' && (
+                                  <>
+                                    <p className="font-semibold text-yellow-400">Max Exposure Reached</p>
+                                    <p className="text-gray-300">
+                                      {pair.overlapAsset} is already in 2 trades. Same-side overlap is allowed but limited to 2 trades per asset.
+                                    </p>
+                                  </>
+                                )}
+                                {!pair.overlapType && (
+                                  <>
+                                    <p className="font-semibold text-orange-400">Asset Overlap</p>
+                                    <p className="text-gray-300">
+                                      {pair.asset1} or {pair.asset2} is being used in another position.
+                                    </p>
+                                  </>
+                                )}
                               </div>
                             </TooltipContent>
                           </Tooltip>

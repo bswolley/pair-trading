@@ -31,7 +31,8 @@ function getTriggerScanOnCapacity() {
 
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
-const MAX_CONCURRENT_TRADES = parseInt(process.env.MAX_CONCURRENT_TRADES) || 5;
+const MAX_CONCURRENT_TRADES = parseInt(process.env.MAX_CONCURRENT_TRADES) || 8;
+const MAX_TRADES_PER_ASSET = 2; // Allow same-side overlap but limit exposure
 
 // Thresholds
 const DEFAULT_ENTRY_THRESHOLD = 2.5;
@@ -680,7 +681,11 @@ function formatStatusReport(activeTrades, entries, exits, history, approaching =
                 blockNote = `H=${p.hurst?.toFixed(2)}`;
             } else if (p.hasOverlap) {
                 status = '🚫';
-                blockNote = `${p.overlappingAsset} in use`;
+                const overlapMsg = p.overlapReason === 'long_conflict' ? `${p.overlappingAsset} already short` :
+                                   p.overlapReason === 'short_conflict' ? `${p.overlappingAsset} already long` :
+                                   p.overlapReason === 'max_exposure' ? `${p.overlappingAsset} max exposure` :
+                                   `${p.overlappingAsset} in use`;
+                blockNote = overlapMsg;
             } else if (p.reversionWarning) {
                 // Safety check: poor reversion rate at current Z level
                 status = '⚠️';
@@ -747,20 +752,43 @@ async function main() {
     // Check if we should run scanner: capacity available AND no ENTERABLE ready pairs
     const hasCapacity = activeTrades.trades.length < MAX_CONCURRENT_TRADES;
     
-    // Get assets currently in positions (for overlap check)
-    const assetsInUse = new Set();
+    // Build smart overlap tracking for pre-scan check
+    const preScanAssetsLong = new Map();
+    const preScanAssetsShort = new Map();
+    const preScanAssetCount = new Map();
+    
     for (const trade of activeTrades.trades) {
-        assetsInUse.add(trade.asset1);
-        assetsInUse.add(trade.asset2);
+        if (trade.longAsset) {
+            preScanAssetsLong.set(trade.longAsset, (preScanAssetsLong.get(trade.longAsset) || 0) + 1);
+            preScanAssetCount.set(trade.longAsset, (preScanAssetCount.get(trade.longAsset) || 0) + 1);
+        }
+        if (trade.shortAsset) {
+            preScanAssetsShort.set(trade.shortAsset, (preScanAssetsShort.get(trade.shortAsset) || 0) + 1);
+            preScanAssetCount.set(trade.shortAsset, (preScanAssetCount.get(trade.shortAsset) || 0) + 1);
+        }
     }
     
-    // A pair is enterable if: isReady AND not already traded AND no asset overlap
-    const hasEnterablePairs = watchlist.pairs.some(p => 
-        p.isReady && 
-        !activeTrades.trades.some(t => t.pair === p.pair) &&
-        !assetsInUse.has(p.asset1) && 
-        !assetsInUse.has(p.asset2)
-    );
+    // Helper for pre-scan overlap check
+    function preScanOverlapCheck(pairLongAsset, pairShortAsset) {
+        const longConflict = preScanAssetsShort.has(pairLongAsset);
+        const shortConflict = preScanAssetsLong.has(pairShortAsset);
+        const longCount = preScanAssetCount.get(pairLongAsset) || 0;
+        const shortCount = preScanAssetCount.get(pairShortAsset) || 0;
+        return longConflict || shortConflict || longCount >= MAX_TRADES_PER_ASSET || shortCount >= MAX_TRADES_PER_ASSET;
+    }
+    
+    // A pair is enterable if: isReady AND not already traded AND no smart overlap
+    const hasEnterablePairs = watchlist.pairs.some(p => {
+        if (!p.isReady) return false;
+        if (activeTrades.trades.some(t => t.pair === p.pair)) return false;
+        
+        // Determine direction for overlap check
+        const pairDir = p.direction || (p.zScore < 0 ? 'long' : 'short');
+        const pairLong = pairDir === 'long' ? p.asset1 : p.asset2;
+        const pairShort = pairDir === 'long' ? p.asset2 : p.asset1;
+        
+        return !preScanOverlapCheck(pairLong, pairShort);
+    });
     
     if (hasCapacity && !hasEnterablePairs) {
         console.log(`[MONITOR] Capacity available (${activeTrades.trades.length}/${MAX_CONCURRENT_TRADES}) but no enterable pairs - triggering scan`);
@@ -817,11 +845,44 @@ async function main() {
     const exits = [];
     const approaching = [];
     const activePairs = new Set(activeTrades.trades.map(t => t.pair));
-    const assetsInPositions = new Set();
+    
+    // Smart overlap tracking: track which assets are long vs short
+    const assetsLong = new Map();  // asset -> count of times it's long
+    const assetsShort = new Map(); // asset -> count of times it's short
+    const assetTradeCount = new Map(); // asset -> total trade count
 
     for (const trade of activeTrades.trades) {
-        assetsInPositions.add(trade.asset1);
-        assetsInPositions.add(trade.asset2);
+        // Track long/short positions
+        if (trade.longAsset) {
+            assetsLong.set(trade.longAsset, (assetsLong.get(trade.longAsset) || 0) + 1);
+            assetTradeCount.set(trade.longAsset, (assetTradeCount.get(trade.longAsset) || 0) + 1);
+        }
+        if (trade.shortAsset) {
+            assetsShort.set(trade.shortAsset, (assetsShort.get(trade.shortAsset) || 0) + 1);
+            assetTradeCount.set(trade.shortAsset, (assetTradeCount.get(trade.shortAsset) || 0) + 1);
+        }
+    }
+    
+    // Helper function to check smart overlap
+    function checkSmartOverlap(newLongAsset, newShortAsset) {
+        // Check for conflicting positions (same asset on opposite sides)
+        const longConflict = assetsShort.has(newLongAsset); // We want to long it, but it's already short
+        const shortConflict = assetsLong.has(newShortAsset); // We want to short it, but it's already long
+        
+        // Check max trades per asset limit
+        const longAssetCount = assetTradeCount.get(newLongAsset) || 0;
+        const shortAssetCount = assetTradeCount.get(newShortAsset) || 0;
+        const exceedsLimit = longAssetCount >= MAX_TRADES_PER_ASSET || shortAssetCount >= MAX_TRADES_PER_ASSET;
+        
+        return {
+            hasConflict: longConflict || shortConflict,
+            exceedsLimit,
+            isBlocked: longConflict || shortConflict || exceedsLimit,
+            conflictType: longConflict ? 'long_conflict' : shortConflict ? 'short_conflict' : exceedsLimit ? 'max_exposure' : null,
+            conflictAsset: longConflict ? newLongAsset : shortConflict ? newShortAsset : 
+                           (longAssetCount >= MAX_TRADES_PER_ASSET ? newLongAsset : 
+                            shortAssetCount >= MAX_TRADES_PER_ASSET ? newShortAsset : null)
+        };
     }
 
     // Check active trades for exits
@@ -934,9 +995,18 @@ async function main() {
         if (watchlist.skipEntryCheck) continue;
         
         const isActiveTrade = activePairs.has(pair.pair);
-        const hasOverlap = assetsInPositions.has(pair.asset1) || assetsInPositions.has(pair.asset2);
-        const overlappingAsset = assetsInPositions.has(pair.asset1) ? pair.asset1 :
-            assetsInPositions.has(pair.asset2) ? pair.asset2 : null;
+        
+        // Determine direction BEFORE checking overlap (need to know which asset is long/short)
+        // This is a preliminary direction based on current pair data - will be refined after price fetch
+        const prelimDirection = pair.direction || (pair.zScore < 0 ? 'long' : 'short');
+        const prelimLongAsset = prelimDirection === 'long' ? pair.asset1 : pair.asset2;
+        const prelimShortAsset = prelimDirection === 'long' ? pair.asset2 : pair.asset1;
+        
+        // Smart overlap check
+        const overlapCheck = checkSmartOverlap(prelimLongAsset, prelimShortAsset);
+        const hasOverlap = overlapCheck.isBlocked;
+        const overlappingAsset = overlapCheck.conflictAsset;
+        const overlapReason = overlapCheck.conflictType;
 
         const prices = await fetchPrices(sdk, pair.asset1, pair.asset2);
         if (!prices) continue;
@@ -1081,12 +1151,21 @@ async function main() {
         // Safety check: don't enter if reversion rate at current Z is too low
         const reversionSafe = !pair.reversionWarning;
         
-        if (signal && validation.valid && hurstValid && reversionSafe && !hasOverlap && !currentlyAtMax) {
+        // Re-check overlap with actual direction from current Z-score
+        const actualLongAsset = z < 0 ? pair.asset1 : pair.asset2;
+        const actualShortAsset = z < 0 ? pair.asset2 : pair.asset1;
+        const finalOverlapCheck = checkSmartOverlap(actualLongAsset, actualShortAsset);
+        const finalHasOverlap = finalOverlapCheck.isBlocked;
+        
+        if (signal && validation.valid && hurstValid && reversionSafe && !finalHasOverlap && !currentlyAtMax) {
             const trade = await enterTrade(pair, fit, prices, activeTrades, hurst, entryThreshold);
             entries.push(trade);
             activePairs.add(pair.pair);
-            assetsInPositions.add(pair.asset1);
-            assetsInPositions.add(pair.asset2);
+            // Update smart overlap tracking
+            assetsLong.set(actualLongAsset, (assetsLong.get(actualLongAsset) || 0) + 1);
+            assetsShort.set(actualShortAsset, (assetsShort.get(actualShortAsset) || 0) + 1);
+            assetTradeCount.set(actualLongAsset, (assetTradeCount.get(actualLongAsset) || 0) + 1);
+            assetTradeCount.set(actualShortAsset, (assetTradeCount.get(actualShortAsset) || 0) + 1);
         } else if (Math.abs(z) >= entryThreshold * 0.5) {
             const absBeta = Math.abs(fit.beta);
             const w1 = (1 / (1 + absBeta)) * 100;
@@ -1102,8 +1181,8 @@ async function main() {
                 blockReason = 'hurst_trending';
             } else if (!reversionSafe) {
                 blockReason = 'low_reversion';
-            } else if (hasOverlap) {
-                blockReason = 'asset_overlap';
+            } else if (finalHasOverlap) {
+                blockReason = finalOverlapCheck.conflictType || 'asset_overlap';
             } else if (currentlyAtMax) {
                 blockReason = 'max_positions';
             }
@@ -1124,8 +1203,9 @@ async function main() {
                 shortAsset: z < 0 ? pair.asset2 : pair.asset1,
                 longWeight: z < 0 ? w1 : w2,
                 shortWeight: z < 0 ? w2 : w1,
-                hasOverlap,
-                overlappingAsset,
+                hasOverlap: finalHasOverlap,
+                overlapReason: finalOverlapCheck.conflictType,
+                overlappingAsset: finalOverlapCheck.conflictAsset,
                 validationPassed: validation.valid,
                 blockReason,
                 // Volume data (for volume-informed signal analysis)
