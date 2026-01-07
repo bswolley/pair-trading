@@ -290,7 +290,7 @@ function validateEntry(prices, entryThreshold = DEFAULT_ENTRY_THRESHOLD) {
     const valid = signal30d &&
         fit30d.correlation >= MIN_CORRELATION_30D &&
         isCointegrated90d &&  // Use 90-day cointegration test
-        fit30d.halfLife <= 5 &&  // Max 5 days - faster reversion = better trades
+        fit30d.halfLife <= 10 &&  // Max 10 days - HL 5-10 has higher win rate than < 5
         (!fit7d || (signal7d && sameDirection));
 
     // Determine rejection reason (for debugging)
