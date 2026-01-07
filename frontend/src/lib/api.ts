@@ -73,6 +73,10 @@ export interface WatchlistPair {
     volRatio?: number;
     reversionWarning?: string | null;
     reversionRate?: number | null;
+    // Trade status (from backend)
+    isActive?: boolean;           // Pair is currently being traded
+    hasAssetOverlap?: boolean;    // One of the assets is in another active trade
+    isBlocked?: boolean;          // Can't enter (active OR asset overlap)
 }
 
 export interface HistoryTrade extends Trade {

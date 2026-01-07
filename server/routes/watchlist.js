@@ -28,9 +28,27 @@ router.get('/', async (req, res) => {
         const blacklist = new Set(blacklistData?.assets || []);
         pairs = pairs.filter(p => !blacklist.has(p.asset1) && !blacklist.has(p.asset2));
 
+        // Get active trades to mark pairs that are already being traded
+        const activeTrades = await db.getTrades();
+        const activePairs = new Set(activeTrades.map(t => t.pair));
+        const assetsInUse = new Set();
+        activeTrades.forEach(t => {
+            assetsInUse.add(t.asset1);
+            assetsInUse.add(t.asset2);
+        });
+
+        // Enrich pairs with trade status
+        pairs = pairs.map(p => ({
+            ...p,
+            isActive: activePairs.has(p.pair),
+            hasAssetOverlap: !activePairs.has(p.pair) && (assetsInUse.has(p.asset1) || assetsInUse.has(p.asset2)),
+            isBlocked: activePairs.has(p.pair) || assetsInUse.has(p.asset1) || assetsInUse.has(p.asset2)
+        }));
+
         res.json({
             timestamp: new Date().toISOString(),
             totalPairs: pairs.length,
+            activeTrades: activeTrades.length,
             pairs
         });
     } catch (err) {

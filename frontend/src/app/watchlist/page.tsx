@@ -9,7 +9,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
-import { List, RefreshCw, TrendingUp, TrendingDown, Zap, HelpCircle, LineChart, AlertTriangle, CheckCircle, XCircle, Filter } from "lucide-react";
+import { List, RefreshCw, TrendingUp, TrendingDown, Zap, HelpCircle, LineChart, AlertTriangle, CheckCircle, XCircle, Filter, Play } from "lucide-react";
 import * as api from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { PairAnalysisModal } from "@/components/PairAnalysisModal";
@@ -62,13 +62,11 @@ function MetricHeader({ label, tooltip }: { label: string; tooltip: string }) {
   );
 }
 
-type FilterMode = 'all' | 'ready' | 'blocked' | 'approaching';
+type FilterMode = 'all' | 'ready' | 'blocked' | 'active' | 'approaching';
 
 export default function WatchlistPage() {
   const [pairs, setPairs] = useState<api.WatchlistPair[]>([]);
   const [sectors, setSectors] = useState<Array<{ name: string; count: number }>>([]);
-  const [activePairs, setActivePairs] = useState<Set<string>>(new Set());
-  const [assetsInUse, setAssetsInUse] = useState<Set<string>>(new Set());
   const [selectedSector, setSelectedSector] = useState<string | null>(null);
   const [filterMode, setFilterMode] = useState<FilterMode>('all');
   const [loading, setLoading] = useState(true);
@@ -79,23 +77,13 @@ export default function WatchlistPage() {
     setLoading(true);
     setError(null);
     try {
-      const [watchlistRes, sectorsRes, tradesRes] = await Promise.all([
+      const [watchlistRes, sectorsRes] = await Promise.all([
         api.getWatchlist(selectedSector ? { sector: selectedSector } : undefined),
         api.getWatchlistSectors(),
-        api.getTrades(),
       ]);
 
       setPairs(watchlistRes.pairs || []);
       setSectors(sectorsRes.sectors || []);
-      const trades = tradesRes.trades || [];
-      setActivePairs(new Set(trades.map((t) => t.pair)));
-      // Track assets in use for overlap detection
-      const usedAssets = new Set<string>();
-      trades.forEach((t) => {
-        if (t.asset1) usedAssets.add(t.asset1);
-        if (t.asset2) usedAssets.add(t.asset2);
-      });
-      setAssetsInUse(usedAssets);
     } catch (err) {
       console.error("Error fetching watchlist:", err);
       setError(err instanceof Error ? err.message : "Failed to fetch watchlist");
@@ -112,13 +100,11 @@ export default function WatchlistPage() {
   const validateForEntry = (pair: api.WatchlistPair) => {
     const reasons: string[] = [];
 
-    // Already in a trade (exact pair match)
-    if (activePairs.has(pair.pair)) reasons.push('active_trade');
+    // Already in a trade (exact pair match) - use backend field
+    if (pair.isActive) reasons.push('active_trade');
 
-    // Asset overlap (one of the assets is in another active trade)
-    if (!activePairs.has(pair.pair) && (assetsInUse.has(pair.asset1) || assetsInUse.has(pair.asset2))) {
-      reasons.push('asset_overlap');
-    }
+    // Asset overlap (one of the assets is in another active trade) - use backend field
+    if (pair.hasAssetOverlap) reasons.push('asset_overlap');
 
     // Check 1: Z-Score signal - use signalStrength instead of isReady 
     // (scanner may set isReady=false for safety reasons even when at threshold)
@@ -158,10 +144,13 @@ export default function WatchlistPage() {
     validation: validateForEntry(p)
   }));
 
+  // Active pairs (currently in trade)
+  const activePairsList = validatedPairs.filter((p) => p.isActive);
+
   // Actually ready to enter (all checks pass)
   const readyPairs = validatedPairs.filter((p) => p.validation.valid);
 
-  // Blocked by validation (at threshold but failed any check including active trade)
+  // Blocked by validation (at threshold but failed any check INCLUDING active trade)
   // Use signalStrength >= 1 instead of isReady because scanner may set isReady=false for safety reasons
   const blockedPairs = validatedPairs.filter((p) => {
     const atThreshold = p.signalStrength >= 1;
@@ -171,14 +160,15 @@ export default function WatchlistPage() {
     return blockingReasons.length > 0; // Has any validation failure
   });
 
-  // Approaching entry threshold (below threshold, not blocked)
+  // Approaching entry threshold (below threshold, not in active trade)
   const approachingPairs = validatedPairs.filter((p) =>
-    p.signalStrength >= 0.5 && p.signalStrength < 1 && !activePairs.has(p.pair)
+    p.signalStrength >= 0.5 && p.signalStrength < 1 && !p.isActive
   );
 
   // Apply filter mode to table
   const filteredPairs = validatedPairs.filter((pair) => {
     if (filterMode === 'ready') return pair.validation.valid;
+    if (filterMode === 'active') return pair.isActive;
     if (filterMode === 'blocked') {
       const atThreshold = pair.signalStrength >= 1;
       if (!atThreshold) return false;
@@ -221,6 +211,13 @@ export default function WatchlistPage() {
         <div>
           <p className="text-sm text-muted-foreground mb-1">Total Pairs</p>
           <span className="text-3xl font-bold tabular-nums">{pairs.length}</span>
+        </div>
+        <div>
+          <div className="flex items-center gap-1 mb-1">
+            <Play className="w-4 h-4 text-blue-400" />
+            <p className="text-sm text-muted-foreground">Active</p>
+          </div>
+          <span className="text-3xl font-bold tabular-nums text-blue-400">{activePairsList.length}</span>
         </div>
         <div>
           <div className="flex items-center gap-1 mb-1">
@@ -316,7 +313,7 @@ export default function WatchlistPage() {
                 'slow_reversion': `Slow reversion (HL=${pair.halfLife?.toFixed(1) ?? '?'}d)`,
                 'low_reversion': `Low reversion rate (${pair.reversionRate !== null && pair.reversionRate !== undefined ? pair.reversionRate.toFixed(0) + '%' : '?'})`,
                 'active_trade': 'Already in trade',
-                'asset_overlap': `Asset in use (${assetsInUse.has(pair.asset1) ? pair.asset1 : pair.asset2})`,
+                'asset_overlap': `Asset overlap (${pair.asset1} or ${pair.asset2} in use)`,
                 'no_signal': `Below threshold (${Math.round(pair.signalStrength * 100)}%)`,
               };
               return (
@@ -364,6 +361,15 @@ export default function WatchlistPage() {
                 onClick={() => setFilterMode('all')}
               >
                 All ({validatedPairs.length})
+              </Button>
+              <Button
+                variant={filterMode === 'active' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setFilterMode('active')}
+                className={filterMode === 'active' ? 'bg-blue-500 hover:bg-blue-600' : ''}
+              >
+                <Play className="w-3 h-3 mr-1" />
+                Active ({activePairsList.length})
               </Button>
               <Button
                 variant={filterMode === 'ready' ? 'default' : 'outline'}
@@ -452,15 +458,33 @@ export default function WatchlistPage() {
                     key={pair.pair}
                     className={cn(
                       "cursor-pointer hover:bg-muted/50 transition-colors",
-                      pair.validation.valid && "bg-emerald-500/5",
-                      isBlocked && "bg-red-500/5"
+                      pair.isActive && "bg-blue-500/10",
+                      pair.validation.valid && !pair.isActive && "bg-emerald-500/5",
+                      isBlocked && !pair.isActive && "bg-red-500/5",
+                      pair.hasAssetOverlap && !pair.isActive && "bg-orange-500/5"
                     )}
                     onClick={() => setChartPair(pair)}
                   >
                     <td className="px-4 py-3 font-medium">
                       <div className="flex items-center gap-2">
                         {pair.pair}
-                        {pair.validation.valid && (
+                        {pair.isActive && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Badge className="bg-blue-500 text-xs flex items-center gap-1 cursor-help">
+                                <Play className="w-3 h-3" />
+                                Active
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent side="right" className="max-w-xs bg-black text-white border-gray-700">
+                              <div className="space-y-1 text-xs">
+                                <p className="font-semibold text-blue-400">Currently trading this pair</p>
+                                <p className="text-gray-300">Check the Trades page for position details.</p>
+                              </div>
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+                        {pair.validation.valid && !pair.isActive && (
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <Badge className="bg-emerald-500 text-xs flex items-center gap-1 cursor-help">
@@ -479,7 +503,7 @@ export default function WatchlistPage() {
                             </TooltipContent>
                           </Tooltip>
                         )}
-                        {isBlocked && (
+                        {isBlocked && !pair.isActive && !pair.hasAssetOverlap && (
                           <Tooltip>
                             <TooltipTrigger asChild>
                               <Badge className="bg-red-500 text-xs flex items-center gap-1 cursor-help">
@@ -494,7 +518,7 @@ export default function WatchlistPage() {
                                   <p className="text-yellow-400">• Already in active trade</p>
                                 )}
                                 {pair.validation.reasons?.includes('asset_overlap') && (
-                                  <p className="text-yellow-400">• Asset already in use ({assetsInUse.has(pair.asset1) ? pair.asset1 : pair.asset2} in another trade)</p>
+                                  <p className="text-yellow-400">• Asset already in use ({pair.asset1} or {pair.asset2} in another trade)</p>
                                 )}
                                 {pair.validation.reasons?.includes('no_signal') && (
                                   <p className="text-red-400">• Z-Score {pair.zScore.toFixed(2)} &lt; {pair.entryThreshold.toFixed(1)} (weak signal)</p>
@@ -541,6 +565,24 @@ export default function WatchlistPage() {
                                     • HL: {pair.halfLife?.toFixed(1) ?? '∞'}d (need ≤ 30d)
                                   </p>
                                 </div>
+                              </div>
+                            </TooltipContent>
+                          </Tooltip>
+                        )}
+                        {pair.hasAssetOverlap && !pair.isActive && (
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <Badge className="bg-orange-500 text-xs flex items-center gap-1 cursor-help">
+                                <AlertTriangle className="w-3 h-3" />
+                                Overlap
+                              </Badge>
+                            </TooltipTrigger>
+                            <TooltipContent side="right" className="max-w-xs bg-black text-white border-gray-700">
+                              <div className="space-y-1 text-xs">
+                                <p className="font-semibold text-orange-400">Asset already in another trade</p>
+                                <p className="text-gray-300">
+                                  {pair.asset1} or {pair.asset2} is being used in another active position.
+                                </p>
                               </div>
                             </TooltipContent>
                           </Tooltip>
