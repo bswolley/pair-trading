@@ -122,35 +122,43 @@ const MAX_HURST_THRESHOLD = 0.45; // Only keep mean-reverting pairs (H < 0.45) -
 const MIN_ENTRY_THRESHOLD = 2.5; // Safety floor - never enter below this Z-score (raised from 2.0 based on performance data)
 
 // Asset tier definitions - based on market cap, liquidity, and reliability
+// Updated based on actual Hyperliquid liquidity and market structure
 const ASSET_TIERS = {
     majors: ['BTC', 'ETH', 'SOL'],
     bluechip: [
-        // L1s
-        'AVAX', 'DOT', 'ATOM', 'NEAR', 'SUI', 'APT', 'TON', 'ADA', 'XRP',
+        // L1s (top tier, high liquidity)
+        'AVAX', 'DOT', 'ATOM', 'NEAR', 'SUI', 'APT', 'TON', 'ADA', 'XRP', 'LTC', 'TRX',
+        'INJ', 'SEI', 'TIA',
         // L2s
-        'ARB', 'OP', 'MATIC', 'POL',
-        // DeFi
+        'ARB', 'OP', 'MATIC', 'POL', 'MNT', 'STRK',
+        // DeFi (established protocols)
         'LINK', 'AAVE', 'UNI', 'MKR', 'LDO', 'CRV', 'SNX', 'DYDX', 'GMX', 'PENDLE',
-        // AI
-        'RENDER', 'FET', 'TAO', 'WLD',
-        // Exchange/Meme
-        'BNB', 'DOGE'
+        'JUP', 'RUNE',
+        // AI (top projects)
+        'RENDER', 'RNDR', 'FET', 'TAO', 'WLD', 'VIRTUAL', 'AIXBT',
+        // Exchange tokens
+        'BNB', 'HYPE',
+        // Top meme coins (high liquidity, established)
+        'DOGE', 'kSHIB', 'kPEPE', 'WIF', 'POPCAT', 'kBONK', 'PENGU'
     ],
     established: [
-        // L1/L2
-        'INJ', 'SEI', 'TIA', 'STRK', 'MANTA',
-        // DeFi
-        'JUP', 'ENA', 'ETHFI', 'RUNE', 'COMP',
-        // AI
-        'AIXBT', 'VIRTUAL', 'GRIFFAIN', 'GRASS', 'IO',
+        // L1/L2 (newer but proven)
+        'MANTA', 'BERA', 'MOVE', 'INIT', 'HBAR', 'ZEN',
+        // DeFi (proven but smaller)
+        'ENA', 'ETHFI', 'COMP', 'EIGEN', 'ZRO', 'JTO', 'AERO', 'USUAL',
+        // AI (established but smaller)
+        'GRIFFAIN', 'ZEREBRO', 'GRASS', 'IO', 'AR',
         // Gaming
-        'IMX', 'GALA', 'SAND', 'ILV', 'BEAM',
+        'IMX', 'GALA', 'SAND', 'ILV', 'BEAM', 'PRIME', 'PIXEL',
         // Infrastructure
-        'ENS', 'TRB', 'BAND', 'API3',
+        'ENS', 'TRB', 'BAND', 'API3', 'PYTH',
         // RWA
         'ONDO', 'OM',
         // NFT
-        'BLUR'
+        'BLUR',
+        // Meme (established but lower liquidity)
+        'MEME', 'kFLOKI', 'BOME', 'MEW', 'MYRO', 'kNEIRO', 'NEIROETH', 'BRETT',
+        'MOODENG', 'FARTCOIN', 'GOAT', 'PNUT', 'CHILLGUY'
     ]
 };
 
