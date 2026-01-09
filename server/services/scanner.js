@@ -121,6 +121,47 @@ const DEFAULT_CROSS_SECTOR_MIN_CORR = 0.7; // Higher threshold for cross-sector
 const MAX_HURST_THRESHOLD = 0.45; // Only keep mean-reverting pairs (H < 0.45) - tightened from 0.5 based on data
 const MIN_ENTRY_THRESHOLD = 2.5; // Safety floor - never enter below this Z-score (raised from 2.0 based on performance data)
 
+// Asset tier definitions - based on market cap, liquidity, and reliability
+const ASSET_TIERS = {
+    majors: ['BTC', 'ETH', 'SOL'],
+    bluechip: [
+        // L1s
+        'AVAX', 'DOT', 'ATOM', 'NEAR', 'SUI', 'APT', 'TON', 'ADA', 'XRP',
+        // L2s
+        'ARB', 'OP', 'MATIC', 'POL',
+        // DeFi
+        'LINK', 'AAVE', 'UNI', 'MKR', 'LDO', 'CRV', 'SNX', 'DYDX', 'GMX', 'PENDLE',
+        // AI
+        'RENDER', 'FET', 'TAO', 'WLD',
+        // Exchange/Meme
+        'BNB', 'DOGE'
+    ],
+    established: [
+        // L1/L2
+        'INJ', 'SEI', 'TIA', 'STRK', 'MANTA',
+        // DeFi
+        'JUP', 'ENA', 'ETHFI', 'RUNE', 'COMP',
+        // AI
+        'AIXBT', 'VIRTUAL', 'GRIFFAIN', 'GRASS', 'IO',
+        // Gaming
+        'IMX', 'GALA', 'SAND', 'ILV', 'BEAM',
+        // Infrastructure
+        'ENS', 'TRB', 'BAND', 'API3',
+        // RWA
+        'ONDO', 'OM',
+        // NFT
+        'BLUR'
+    ]
+};
+
+// Quality multipliers for conviction scoring
+const QUALITY_MULTIPLIERS = {
+    majors: 2.0,
+    bluechip: 1.5,
+    established: 1.2,
+    other: 1.0
+};
+
 // Time windows for different metrics
 const WINDOWS = {
     cointegration: 90,  // Structural test - longer window for confidence
@@ -131,6 +172,35 @@ const TOP_PER_SECTOR = 3;
 const TOP_CROSS_SECTOR = 5; // Top 5 cross-sector pairs total
 const EXIT_THRESHOLD = 0.5;
 const MIN_REVERSION_RATE = 50; // Don't mark READY if reversion rate < 50% at current Z level
+
+/**
+ * Get the quality tier of an asset
+ * @param {string} symbol - Asset symbol (e.g., "SOL", "LINK")
+ * @returns {string} - Tier name: "majors", "bluechip", "established", or "other"
+ */
+function getAssetTier(symbol) {
+    if (ASSET_TIERS.majors.includes(symbol)) return 'majors';
+    if (ASSET_TIERS.bluechip.includes(symbol)) return 'bluechip';
+    if (ASSET_TIERS.established.includes(symbol)) return 'established';
+    return 'other';
+}
+
+/**
+ * Calculate quality multiplier for a pair based on asset tiers
+ * @param {string} symbol1 - First asset symbol
+ * @param {string} symbol2 - Second asset symbol
+ * @returns {number} - Quality multiplier (1.0 to 2.0)
+ */
+function getPairQualityMultiplier(symbol1, symbol2) {
+    const tier1 = getAssetTier(symbol1);
+    const tier2 = getAssetTier(symbol2);
+
+    // Use the higher quality tier's multiplier (favors pairs with at least one strong asset)
+    const mult1 = QUALITY_MULTIPLIERS[tier1] || 1.0;
+    const mult2 = QUALITY_MULTIPLIERS[tier2] || 1.0;
+
+    return Math.max(mult1, mult2);
+}
 
 /**
  * Check if current Z-score has acceptable historical reversion rate
@@ -342,29 +412,92 @@ function groupBySector(assets, symbolToSector) {
 function generateCandidatePairs(sectorGroups, includeCrossSector = false) {
     const pairs = [];
 
-    // Same-sector pairs
+    // Flatten all assets for major-anchored pairs
+    const allAssets = [];
+    for (const [sector, assets] of Object.entries(sectorGroups)) {
+        assets.forEach(asset => {
+            allAssets.push({ ...asset, sector });
+        });
+    }
+
+    // Sort by volume for quality filtering
+    allAssets.sort((a, b) => b.volume24h - a.volume24h);
+
+    // STRATEGY 1: Major-Anchored Pairs (highest priority)
+    // Pair each Major (BTC, ETH, SOL) with top bluechip and established altcoins
+    const majors = allAssets.filter(a => ASSET_TIERS.majors.includes(a.symbol));
+    const bluechips = allAssets.filter(a => ASSET_TIERS.bluechip.includes(a.symbol));
+    const established = allAssets.filter(a => ASSET_TIERS.established.includes(a.symbol));
+
+    console.log(`[SCANNER] Major-anchored pairs: ${majors.length} majors × ${bluechips.length + established.length} quality altcoins`);
+
+    for (const major of majors) {
+        // Pair each major with top 20 bluechips
+        for (const alt of bluechips.slice(0, 20)) {
+            const sector = major.sector === alt.sector ? major.sector : `${major.sector}×${alt.sector}`;
+            pairs.push({
+                sector,
+                asset1: major,
+                asset2: alt,
+                isCrossSector: major.sector !== alt.sector,
+                pairType: 'major_bluechip'
+            });
+        }
+
+        // Pair each major with top 15 established
+        for (const alt of established.slice(0, 15)) {
+            const sector = major.sector === alt.sector ? major.sector : `${major.sector}×${alt.sector}`;
+            pairs.push({
+                sector,
+                asset1: major,
+                asset2: alt,
+                isCrossSector: major.sector !== alt.sector,
+                pairType: 'major_established'
+            });
+        }
+    }
+
+    // STRATEGY 2: Same-sector pairs (bluechip × bluechip within same sector)
     for (const [sector, assets] of Object.entries(sectorGroups)) {
         if (assets.length < 2) continue;
         assets.sort((a, b) => b.volume24h - a.volume24h);
 
-        for (let i = 0; i < assets.length; i++) {
-            for (let j = i + 1; j < assets.length; j++) {
-                pairs.push({ sector, asset1: assets[i], asset2: assets[j], isCrossSector: false });
+        // Only pair bluechips and established within same sector
+        const qualityAssets = assets.filter(a =>
+            ASSET_TIERS.bluechip.includes(a.symbol) ||
+            ASSET_TIERS.established.includes(a.symbol)
+        );
+
+        for (let i = 0; i < qualityAssets.length; i++) {
+            for (let j = i + 1; j < qualityAssets.length; j++) {
+                pairs.push({
+                    sector,
+                    asset1: qualityAssets[i],
+                    asset2: qualityAssets[j],
+                    isCrossSector: false,
+                    pairType: 'same_sector_quality'
+                });
             }
         }
     }
 
-    // Cross-sector pairs (top 5 most liquid from each sector)
+    // STRATEGY 3: Cross-sector pairs (only for bluechips)
     if (includeCrossSector) {
         const sectors = Object.keys(sectorGroups);
-        const TOP_PER_SECTOR_CROSS = 5;
+        const TOP_PER_SECTOR_CROSS = 3; // Reduced from 5 - focus on highest quality
 
         for (let s1 = 0; s1 < sectors.length; s1++) {
             for (let s2 = s1 + 1; s2 < sectors.length; s2++) {
                 const sector1 = sectors[s1];
                 const sector2 = sectors[s2];
-                const assets1 = sectorGroups[sector1]?.slice(0, TOP_PER_SECTOR_CROSS) || [];
-                const assets2 = sectorGroups[sector2]?.slice(0, TOP_PER_SECTOR_CROSS) || [];
+
+                // Only use bluechip assets for cross-sector
+                const assets1 = sectorGroups[sector1]
+                    ?.filter(a => ASSET_TIERS.bluechip.includes(a.symbol))
+                    .slice(0, TOP_PER_SECTOR_CROSS) || [];
+                const assets2 = sectorGroups[sector2]
+                    ?.filter(a => ASSET_TIERS.bluechip.includes(a.symbol))
+                    .slice(0, TOP_PER_SECTOR_CROSS) || [];
 
                 for (const a1 of assets1) {
                     for (const a2 of assets2) {
@@ -372,7 +505,8 @@ function generateCandidatePairs(sectorGroups, includeCrossSector = false) {
                             sector: `${sector1}×${sector2}`,
                             asset1: a1,
                             asset2: a2,
-                            isCrossSector: true
+                            isCrossSector: true,
+                            pairType: 'cross_sector_bluechip'
                         });
                     }
                 }
@@ -380,6 +514,7 @@ function generateCandidatePairs(sectorGroups, includeCrossSector = false) {
         }
     }
 
+    console.log(`[SCANNER] Generated ${pairs.length} candidate pairs (major-anchored: ~${majors.length * 35}, same-sector quality, cross-sector bluechip)`);
     return pairs;
 }
 
