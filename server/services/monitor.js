@@ -34,6 +34,7 @@ const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 const MAX_CONCURRENT_TRADES = parseInt(process.env.MAX_CONCURRENT_TRADES) || 8;
 const MAX_TRADES_PER_ASSET = 2; // Allow same-side overlap but limit exposure
 const MAX_VOL_RATIO = 0.5; // Only enter pairs with good beta neutralization (lower = better)
+const PAIR_COOLDOWN_HOURS = 48; // Hours to wait before re-entering same pair after exit
 
 // Thresholds
 const DEFAULT_ENTRY_THRESHOLD = 2.5;
@@ -190,6 +191,42 @@ function formatVolume(vol) {
     if (vol >= 1e6) return `$${(vol / 1e6).toFixed(1)}M`;
     if (vol >= 1e3) return `$${(vol / 1e3).toFixed(0)}K`;
     return `$${vol.toFixed(0)}`;
+}
+
+/**
+ * Check if a pair recently exited and is still in cooldown period
+ * @param {string} pairName - Pair identifier (e.g. "XRP/VIRTUAL")
+ * @param {Array} history - Trade history array
+ * @returns {Object} { inCooldown: boolean, hoursRemaining: number|null, lastExitTime: string|null }
+ */
+function checkPairCooldown(pairName, history) {
+    if (!history || history.length === 0) {
+        return { inCooldown: false, hoursRemaining: null, lastExitTime: null };
+    }
+
+    // Find most recent exit for this pair
+    const recentExit = history.find(trade => trade.pair === pairName);
+
+    if (!recentExit || !recentExit.exitTime) {
+        return { inCooldown: false, hoursRemaining: null, lastExitTime: null };
+    }
+
+    const exitTime = new Date(recentExit.exitTime);
+    const now = new Date();
+    const hoursSinceExit = (now - exitTime) / (1000 * 60 * 60);
+
+    if (hoursSinceExit < PAIR_COOLDOWN_HOURS) {
+        const hoursRemaining = Math.ceil(PAIR_COOLDOWN_HOURS - hoursSinceExit);
+        return {
+            inCooldown: true,
+            hoursRemaining,
+            lastExitTime: recentExit.exitTime,
+            lastExitReason: recentExit.exitReason,
+            lastExitPnL: recentExit.totalPnL
+        };
+    }
+
+    return { inCooldown: false, hoursRemaining: null, lastExitTime: null };
 }
 
 // Time windows - must match scanner for consistency
@@ -833,8 +870,12 @@ async function main() {
     }
 
     const stats = await db.getStats();
+
+    // Fetch recent trade history for cooldown checks (last 20 trades should be enough)
+    const recentTrades = await db.getHistory({ limit: 20 });
+
     let history = {
-        trades: [],
+        trades: recentTrades || [],
         stats: stats || { totalTrades: 0, wins: 0, losses: 0, totalPnL: 0 }
     };
 
@@ -1146,15 +1187,19 @@ async function main() {
         // Skip entry/approaching logic for pairs already in active trades
         if (isActiveTrade) continue;
 
+        // Cooldown check: prevent re-entering same pair too quickly
+        const cooldownCheck = checkPairCooldown(pair.pair, history.trades);
+        const inCooldown = cooldownCheck.inCooldown;
+
         // Hurst validation: only enter mean-reverting pairs (H < 0.5)
         const hurstValid = hurst === null || hurst < 0.5;
-        
+
         // Vol ratio validation: only enter pairs with good beta neutralization
         const volRatioValid = pair.volRatio === null || pair.volRatio === undefined || pair.volRatio <= MAX_VOL_RATIO;
-        
+
         // Check max trades dynamically (not just once before loop)
         const currentlyAtMax = activeTrades.trades.length >= MAX_CONCURRENT_TRADES;
-        
+
         // Safety check: don't enter if reversion rate at current Z is too low
         const reversionSafe = !pair.reversionWarning;
         
@@ -1164,7 +1209,7 @@ async function main() {
         const finalOverlapCheck = checkSmartOverlap(actualLongAsset, actualShortAsset);
         const finalHasOverlap = finalOverlapCheck.isBlocked;
         
-        if (signal && validation.valid && hurstValid && volRatioValid && reversionSafe && !finalHasOverlap && !currentlyAtMax) {
+        if (signal && validation.valid && hurstValid && volRatioValid && reversionSafe && !finalHasOverlap && !currentlyAtMax && !inCooldown) {
             const trade = await enterTrade(pair, fit, prices, activeTrades, hurst, entryThreshold);
             entries.push(trade);
             activePairs.add(pair.pair);
@@ -1184,6 +1229,8 @@ async function main() {
                 blockReason = 'below_threshold';
             } else if (!validation.valid) {
                 blockReason = validation.reason;
+            } else if (inCooldown) {
+                blockReason = `cooldown_${cooldownCheck.hoursRemaining}h`;
             } else if (!hurstValid) {
                 blockReason = 'hurst_trending';
             } else if (!volRatioValid) {
@@ -1218,6 +1265,12 @@ async function main() {
                 overlappingAsset: finalOverlapCheck.conflictAsset,
                 validationPassed: validation.valid,
                 blockReason,
+                // Cooldown info
+                inCooldown: inCooldown,
+                cooldownHoursRemaining: cooldownCheck.hoursRemaining,
+                lastExitTime: cooldownCheck.lastExitTime,
+                lastExitReason: cooldownCheck.lastExitReason,
+                lastExitPnL: cooldownCheck.lastExitPnL,
                 // Volume data (for volume-informed signal analysis)
                 volume1: pair.volume1,
                 volume2: pair.volume2,
