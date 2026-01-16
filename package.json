@@ -11,6 +11,8 @@
         "analyze-batch": "node scripts/pair_obv_analysis.js",
         "update-trade-report": "node scripts/generate_comprehensive_trade_report.js",
         "backtest-roi": "node scripts/backtestHistoricalROI.js",
+        "backtest-windows": "node scripts/backtestRollingWindows.js",
+        "analyze-trade-reversion-drift": "node scripts/analyzeTradeReversionAndDrift.js",
         "test": "jest",
         "test:watch": "jest --watch"
     },
@@ -24,6 +26,7 @@
     },
     "devDependencies": {
         "jest": "^30.2.0",
+        "markdown-pdf": "^11.0.0",
         "nodemon": "^3.0.1"
     }
 }

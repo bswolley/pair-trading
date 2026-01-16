@@ -40,4 +40,8 @@ coverage/
 # Generated reports
 pair_reports/
 pair_reports_pdf/
+backtest_reports/*.md
+backtest_reports/*.pdf
+backtest_reports/*.json
+historical_data/
 

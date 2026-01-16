@@ -160,8 +160,12 @@ async function backtestTrades(options = {}) {
   let query = supabase
     .from('trade_history')
     .select('*')
-    .order('entry_time', { ascending: false })
-    .limit(limit);
+    .order('entry_time', { ascending: false });
+  
+  // Add limit only if specified
+  if (limit) {
+    query = query.limit(limit);
+  }
   
   // Add filters if provided
   if (symbol1) {
@@ -195,7 +199,9 @@ async function backtestTrades(options = {}) {
   
   const results = [];
   
-  for (const trade of tradesToAnalyze) {
+  for (let i = 0; i < tradesToAnalyze.length; i++) {
+    const trade = tradesToAnalyze[i];
+    console.log(`Processing trade ${i + 1}/${tradesToAnalyze.length}: ${trade.asset1}/${trade.asset2}`);
     // Using trade_history schema
     const entryTime = new Date(trade.entry_time);
     const exitTime = trade.exit_time ? new Date(trade.exit_time) : null;
@@ -211,7 +217,6 @@ async function backtestTrades(options = {}) {
     const exitReason = trade.exit_reason;
     const daysInTrade = trade.days_in_trade;
     
-    console.log(`\nTrade: ${symbol1}/${symbol2}`);
     console.log(`  Entry: ${entryTime.toISOString()} (Z: ${entryZScore?.toFixed(2) || 'N/A'})`);
     if (exitTime) {
       console.log(`  Exit: ${exitTime.toISOString()} (Z: ${exitZScore?.toFixed(2) || 'N/A'}, Reason: ${exitReason || 'N/A'})`);
@@ -470,26 +475,60 @@ async function main() {
   
   let symbol1 = null;
   let symbol2 = null;
-  let limit = 50;
+  let limit = null;
+  let startDate = null;
+  let endDate = null;
   
+  // Parse arguments
   if (args.length === 1) {
-    // Just limit provided
-    limit = parseInt(args[0]) || 50;
+    // Could be limit or daysBack
+    const arg = args[0];
+    if (arg.includes('days') || arg.includes('d')) {
+      // Date range: last N days
+      const days = parseInt(arg.replace(/[^0-9]/g, '')) || 30;
+      const cutoffDate = new Date();
+      cutoffDate.setDate(cutoffDate.getDate() - days);
+      startDate = cutoffDate.toISOString();
+      endDate = new Date().toISOString();
+    } else {
+      // Just limit provided
+      limit = parseInt(arg) || 50;
+    }
   } else if (args.length === 2) {
-    // Two symbols provided
-    symbol1 = args[0];
-    symbol2 = args[1];
+    // Two symbols provided OR startDate/endDate
+    if (args[0].includes('-') && args[1].includes('-')) {
+      // Date range
+      startDate = new Date(args[0]).toISOString();
+      endDate = new Date(args[1]).toISOString();
+    } else {
+      // Two symbols
+      symbol1 = args[0];
+      symbol2 = args[1];
+    }
   } else if (args.length >= 3) {
-    // All three provided
-    symbol1 = args[0];
-    symbol2 = args[1];
-    limit = parseInt(args[2]) || 50;
+    // Could be symbols + limit OR dates + limit
+    if (args[0].includes('-') && args[1].includes('-')) {
+      // Date range + limit
+      startDate = new Date(args[0]).toISOString();
+      endDate = new Date(args[1]).toISOString();
+      limit = parseInt(args[2]) || null;
+    } else {
+      // Symbols + limit
+      symbol1 = args[0];
+      symbol2 = args[1];
+      limit = parseInt(args[2]) || 50;
+    }
   }
+  
+  // Default: if no limit and no date range, get ALL trades
+  // (no date filter = all trades)
   
   const options = {
     symbol1,
     symbol2,
-    limit
+    limit,
+    startDate,
+    endDate
   };
   
   console.log('Backtest Options:');
@@ -498,7 +537,13 @@ async function main() {
   } else {
     console.log(`  Filter: All pairs`);
   }
-  console.log(`  Limit: ${limit} trades\n`);
+  if (startDate && endDate) {
+    console.log(`  Date Range: ${new Date(startDate).toISOString().split('T')[0]} to ${new Date(endDate).toISOString().split('T')[0]}`);
+  }
+  if (limit) {
+    console.log(`  Limit: ${limit} trades`);
+  }
+  console.log('');
   
   try {
     const results = await backtestTrades(options);
