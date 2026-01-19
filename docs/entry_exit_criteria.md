@@ -71,6 +71,7 @@ Example: If beta = 1.5
 | `HALFLIFE_MULTIPLIER` | 1.5 | Time stop = halfLife × 1.5 |
 | `CORRELATION_BREAKDOWN` | 0.4 | Exit if correlation drops below |
 | `HURST_EXIT_THRESHOLD` | 0.55 | Exit if Hurst indicates trending regime |
+| `BETA_DRIFT_MIN_ABS` | 0.15 | Ignore tiny drift to avoid early exits |
 | `BETA_DRIFT_REDUCE_RATIO` | 0.8 | Partial reduce when drift is elevated and reversion is weak |
 | `BETA_DRIFT_EXIT_LOSS_RATIO` | 0.9 | Hard exit if drift is high and PnL is negative |
 | `BETA_DRIFT_EXIT_RATIO` | 1.0 | Hard exit if drift exceeds prior max |
@@ -135,9 +136,9 @@ Example: Entry at Z = 2.0, maxHistoricalZ = 2.5
 
 | Drift Ratio | Condition | Action |
 |-------------|-----------|--------|
-| ≥ 0.8 | Z improvement < 40% and no partial | 50% reduce |
-| ≥ 0.9 | PnL < 0 | Full exit |
-| ≥ 1.0 | Any | Full exit |
+| ≥ 0.8 | betaDrift ≥ 15% AND Z improvement < 40% and no partial | 50% reduce |
+| ≥ 0.9 | betaDrift ≥ 15% AND PnL < 0 | Full exit |
+| ≥ 1.0 | betaDrift ≥ 15% | Full exit |
 
 ### Hurst Drift Alerts
 

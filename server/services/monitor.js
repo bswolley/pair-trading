@@ -52,6 +52,7 @@ const HURST_EXIT_THRESHOLD = 0.55;     // Exit if Hurst >= 0.55 (trending regime
 
 // Beta drift exit thresholds (ratio of betaDrift / maxBetaDrift)
 // Data shows negative expectancy once drift reaches 0.8-1.0 of max seen
+const BETA_DRIFT_MIN_ABS = 0.15;        // Ignore tiny drift to avoid early exits
 const BETA_DRIFT_REDUCE_RATIO = 0.8;   // Reduce if drift is elevated and mean reversion weak
 const BETA_DRIFT_EXIT_RATIO = 1.0;     // Hard exit if drift exceeds prior max
 const BETA_DRIFT_EXIT_LOSS_RATIO = 0.9; // Exit if drift is high and trade is losing
@@ -455,7 +456,12 @@ function checkExitConditions(trade, fitness, currentPnL) {
     }
 
     // Beta drift exits (use ratio vs max drift seen)
-    if (trade.betaDrift !== undefined && trade.betaDrift !== null && trade.maxBetaDrift) {
+    if (
+        trade.betaDrift !== undefined &&
+        trade.betaDrift !== null &&
+        trade.maxBetaDrift &&
+        trade.betaDrift >= BETA_DRIFT_MIN_ABS
+    ) {
         const driftRatio = trade.maxBetaDrift > 0 ? trade.betaDrift / trade.maxBetaDrift : null;
         if (driftRatio !== null && driftRatio >= BETA_DRIFT_EXIT_RATIO) {
             return {
