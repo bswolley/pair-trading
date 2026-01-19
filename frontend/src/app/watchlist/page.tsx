@@ -543,7 +543,9 @@ export default function WatchlistPage() {
                                   <p className="text-yellow-400">• Max exposure: {pair.overlapAsset} already in 2 trades</p>
                                 )}
                                 {pair.validation.reasons?.includes('no_signal') && (
-                                  <p className="text-red-400">• Z-Score {pair.zScore.toFixed(2)} &lt; {pair.entryThreshold.toFixed(1)} (weak signal)</p>
+                                  <p className="text-red-400">
+                                    • Z-Score |{pair.zScore.toFixed(2)}| &lt; {pair.entryThreshold.toFixed(1)} (weak signal)
+                                  </p>
                                 )}
                                 {pair.validation.reasons?.includes('hurst_trending') && (
                                   <>
@@ -580,7 +582,7 @@ export default function WatchlistPage() {
                                 )}
                                 <div className="mt-2 pt-2 border-t border-gray-700">
                                   <p className="text-gray-300">All metrics:</p>
-                                  <p className={pair.zScore >= pair.entryThreshold ? "text-emerald-400" : "text-red-400"}>
+                                  <p className={Math.abs(pair.zScore) >= pair.entryThreshold ? "text-emerald-400" : "text-red-400"}>
                                     • Z-Score: {pair.zScore.toFixed(2)} (need ≥ {pair.entryThreshold.toFixed(1)})
                                   </p>
                                   <p className={(pair.hurst ?? 0) < 0.5 ? "text-emerald-400" : "text-red-400"}>
