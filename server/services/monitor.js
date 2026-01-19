@@ -50,6 +50,13 @@ const HALFLIFE_MULTIPLIER = 1.5;  // Reduced from 2 - data shows trades held 3+ 
 // Hurst regime exit thresholds - exit early when spread becomes trending
 const HURST_EXIT_THRESHOLD = 0.55;     // Exit if Hurst >= 0.55 (trending regime)
 
+// Beta drift exit thresholds (ratio of betaDrift / maxBetaDrift)
+// Data shows negative expectancy once drift reaches 0.8-1.0 of max seen
+const BETA_DRIFT_REDUCE_RATIO = 0.8;   // Reduce if drift is elevated and mean reversion weak
+const BETA_DRIFT_EXIT_RATIO = 1.0;     // Hard exit if drift exceeds prior max
+const BETA_DRIFT_EXIT_LOSS_RATIO = 0.9; // Exit if drift is high and trade is losing
+const BETA_DRIFT_MIN_Z_IMPROVEMENT = 0.4; // Require >=40% Z improvement to avoid de-risk
+
 // Exit strategy - aligned with percentage-based reversion analysis
 // Partial exit: when |Z| < 50% of entry threshold OR PnL >= 3% (whichever first)
 // Final exit: when |Z| < 0.5 (full mean reversion) or PnL >= 5%
@@ -380,6 +387,8 @@ function checkExitConditions(trade, fitness, currentPnL) {
     const maxDuration = (trade.halfLife || 15) * HALFLIFE_MULTIPLIER;
     const partialTaken = trade.partialExitTaken || false;
     const currentHurst = trade.currentHurst;
+    const entryZ = Math.abs(trade.entryZScore || 2.0);
+    const zImprovement = entryZ > 0 ? (entryZ - currentZ) / entryZ : 0;
 
     // Dynamic partial exit threshold = 50% of entry threshold
     const entryThreshold = trade.entryThreshold || DEFAULT_ENTRY_THRESHOLD;
@@ -430,7 +439,6 @@ function checkExitConditions(trade, fitness, currentPnL) {
     }
 
     // Dynamic stop-loss based on historical max and entry Z
-    const entryZ = Math.abs(trade.entryZScore || 2.0);
     const maxHistZ = trade.maxHistoricalZ || 3.0;
     const dynamicStopLoss = Math.max(
         entryZ * STOP_LOSS_ENTRY_MULTIPLIER,    // 50% beyond entry
@@ -444,6 +452,32 @@ function checkExitConditions(trade, fitness, currentPnL) {
             reason: 'STOP_LOSS', emoji: '🛑',
             message: `Stop loss (Z=${fitness.zScore.toFixed(2)} > ${dynamicStopLoss.toFixed(1)})`
         };
+    }
+
+    // Beta drift exits (use ratio vs max drift seen)
+    if (trade.betaDrift !== undefined && trade.betaDrift !== null && trade.maxBetaDrift) {
+        const driftRatio = trade.maxBetaDrift > 0 ? trade.betaDrift / trade.maxBetaDrift : null;
+        if (driftRatio !== null && driftRatio >= BETA_DRIFT_EXIT_RATIO) {
+            return {
+                shouldExit: true, isPartial: false, exitSize: 1.0,
+                reason: 'BETA_DRIFT', emoji: '⚠️',
+                message: `Beta drift exit (${(trade.betaDrift * 100).toFixed(0)}% of max)`
+            };
+        }
+        if (driftRatio !== null && driftRatio >= BETA_DRIFT_EXIT_LOSS_RATIO && currentPnL < 0) {
+            return {
+                shouldExit: true, isPartial: false, exitSize: 1.0,
+                reason: 'BETA_DRIFT_LOSS', emoji: '⚠️',
+                message: `Beta drift + loss (${(trade.betaDrift * 100).toFixed(0)}% of max, PnL ${currentPnL.toFixed(1)}%)`
+            };
+        }
+        if (!partialTaken && driftRatio !== null && driftRatio >= BETA_DRIFT_REDUCE_RATIO && zImprovement < BETA_DRIFT_MIN_Z_IMPROVEMENT) {
+            return {
+                shouldExit: true, isPartial: true, exitSize: PARTIAL_EXIT_SIZE,
+                reason: 'BETA_DRIFT_REDUCE', emoji: '⚠️',
+                message: `Beta drift reduce (${(trade.betaDrift * 100).toFixed(0)}% of max, weak reversion)`
+            };
+        }
     }
 
     if (daysInTrade > maxDuration) {

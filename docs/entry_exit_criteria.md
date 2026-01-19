@@ -68,9 +68,12 @@ Example: If beta = 1.5
 | `STOP_LOSS_MULTIPLIER` | 1.2 | 20% beyond maxHistoricalZ |
 | `STOP_LOSS_ENTRY_MULTIPLIER` | 1.5 | 50% beyond entryZ |
 | `STOP_LOSS_FLOOR` | 3.0 | Minimum stop-loss threshold |
-| `HALFLIFE_MULTIPLIER` | 2 | Time stop = halfLife × 2 |
+| `HALFLIFE_MULTIPLIER` | 1.5 | Time stop = halfLife × 1.5 |
 | `CORRELATION_BREAKDOWN` | 0.4 | Exit if correlation drops below |
 | `HURST_EXIT_THRESHOLD` | 0.55 | Exit if Hurst indicates trending regime |
+| `BETA_DRIFT_REDUCE_RATIO` | 0.8 | Partial reduce when drift is elevated and reversion is weak |
+| `BETA_DRIFT_EXIT_LOSS_RATIO` | 0.9 | Hard exit if drift is high and PnL is negative |
+| `BETA_DRIFT_EXIT_RATIO` | 1.0 | Hard exit if drift exceeds prior max |
 
 ### Exit Conditions (checked in order)
 
@@ -80,9 +83,12 @@ Example: If beta = 1.5
 | 2 | **Final Take-Profit** | PnL ≥ +5% AND partial taken | Close remaining position | 🎯 |
 | 3 | **Mean Reversion Target** | \|Z\| ≤ 0.5 | Full exit | 🎯 |
 | 4 | **Dynamic Stop-Loss** | Z > dynamicStopLoss | Full exit | 🛑 |
-| 5 | **Time Stop** | daysInTrade > halfLife × 2 | Full exit | ⏰ |
-| 6 | **Correlation Breakdown** | correlation < 0.4 | Full exit | 💔 |
-| 7 | **Hurst Regime Exit** | Hurst ≥ 0.55 | Full exit | 📈 |
+| 5 | **Beta Drift Reduce** | driftRatio ≥ 0.8 AND Z improvement < 40% | Close 50% of position | ⚠️ |
+| 6 | **Beta Drift Exit** | driftRatio ≥ 0.9 AND PnL < 0 | Full exit | ⚠️ |
+| 7 | **Beta Drift Hard Exit** | driftRatio ≥ 1.0 | Full exit | ⚠️ |
+| 8 | **Time Stop** | daysInTrade > halfLife × 1.5 | Full exit | ⏰ |
+| 9 | **Correlation Breakdown** | correlation < 0.4 | Full exit | 💔 |
+| 10 | **Hurst Regime Exit** | Hurst ≥ 0.55 | Full exit | 📈 |
 
 ### Dynamic Stop-Loss Formula
 
@@ -124,6 +130,14 @@ Example: Entry at Z = 2.0, maxHistoricalZ = 2.5
 | < 15% | Normal | Hedge ratio stable |
 | 15-30% | ⚡ Warning | Relationship weakening |
 | > 30% | ⚠️ Critical | Hedge ratio significantly different |
+
+### Beta Drift Exit Logic
+
+| Drift Ratio | Condition | Action |
+|-------------|-----------|--------|
+| ≥ 0.8 | Z improvement < 40% and no partial | 50% reduce |
+| ≥ 0.9 | PnL < 0 | Full exit |
+| ≥ 1.0 | Any | Full exit |
 
 ### Hurst Drift Alerts
 
@@ -174,7 +188,13 @@ PnL ≥ +5% & partial taken? ── YES → 🎯 Final TP
      ↓ NO
 Z > dynamic stop? ─────────── YES → 🛑 Stop loss
      ↓ NO
-Days > halfLife × 2? ──────── YES → ⏰ Time stop
+Beta drift ≥ 0.8 & weak Z? ── YES → ⚠️ Reduce 50%
+    ↓ NO
+Beta drift ≥ 0.9 & PnL < 0? ─ YES → ⚠️ Exit
+    ↓ NO
+Beta drift ≥ 1.0? ─────────── YES → ⚠️ Exit
+    ↓ NO
+Days > halfLife × 1.5? ────── YES → ⏰ Time stop
      ↓ NO
 Correlation < 0.4? ────────── YES → 💔 Breakdown
      ↓ NO
@@ -198,7 +218,6 @@ Hurst ≥ 0.55? ─────────────── YES → 📈 Hurst
 ### Future Considerations
 
 Currently tracked but NOT used for automatic exit:
-- **Beta drift**: Displayed as warning, no auto-exit (threshold TBD: 50%?)
 - **Half-life drift**: Displayed, no auto-exit (threshold TBD: 4×?)
 
 These metrics are monitored and displayed to support manual intervention decisions.
