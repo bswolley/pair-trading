@@ -9,7 +9,7 @@
 const fs = require('fs');
 const path = require('path');
 const { Hyperliquid } = require('hyperliquid');
-const { 
+const {
     checkPairFitness,
     calculateCorrelation,
     testCointegration,
@@ -23,13 +23,15 @@ const db = require('../db/queries');
 
 const CONFIG_DIR = path.join(__dirname, '../../config');
 
+const MIN_ENTRY_THRESHOLD = 2.5; // Safety floor - never enter below this Z-score (raised from 2.0 based on performance data)
+
 /**
  * Simplified divergence analysis using daily prices (no extra API calls)
  * Used by scanner for quick pair filtering
  */
 function analyzeLocalDivergences(prices1, prices2, beta) {
     if (prices1.length < 15 || prices2.length < 15) {
-        return { optimalEntry: 1.5, maxHistoricalZ: 2.0, thresholds: {} };
+        return { optimalEntry: MIN_ENTRY_THRESHOLD, maxHistoricalZ: 2.0, thresholds: {} };
     }
 
     // Calculate spreads and z-scores from daily data
@@ -40,14 +42,14 @@ function analyzeLocalDivergences(prices1, prices2, beta) {
     );
 
     if (stdDevSpread === 0) {
-        return { optimalEntry: 1.5, maxHistoricalZ: 2.0, thresholds: {} };
+        return { optimalEntry: MIN_ENTRY_THRESHOLD, maxHistoricalZ: 2.0, thresholds: {} };
     }
 
     const zScores = spreads.map(s => (s - meanSpread) / stdDevSpread);
-    
+
     // Find max historical z-score
     const maxHistoricalZ = Math.max(...zScores.map(z => Math.abs(z)));
-    
+
     // Analyze threshold crossings with percentage-based reversion (to 50% of threshold)
     const thresholds = [1.0, 1.5, 2.0, 2.5, 3.0];
     const profile = {};
@@ -56,11 +58,11 @@ function analyzeLocalDivergences(prices1, prices2, beta) {
         let events = 0;
         let reverted = 0;
         const percentReversionTarget = threshold * 0.5; // 50% of threshold
-        
+
         for (let i = 1; i < zScores.length; i++) {
             const absZ = Math.abs(zScores[i]);
             const prevAbsZ = Math.abs(zScores[i - 1]);
-            
+
             // Crossed above threshold
             if (prevAbsZ < threshold && absZ >= threshold) {
                 events++;
@@ -73,7 +75,7 @@ function analyzeLocalDivergences(prices1, prices2, beta) {
                 }
             }
         }
-        
+
         profile[threshold] = {
             events,
             reverted,
@@ -107,9 +109,8 @@ function analyzeLocalDivergences(prices1, prices2, beta) {
         }
     }
 
-    // Enforce minimum threshold floor (MIN_ENTRY_THRESHOLD = 2.0)
-    // Note: This function runs before the constant is defined, so we hardcode 2.0 here
-    optimalEntry = Math.max(optimalEntry, 2.0);
+    // Enforce minimum threshold floor
+    optimalEntry = Math.max(optimalEntry, MIN_ENTRY_THRESHOLD);
 
     return { optimalEntry, maxHistoricalZ, thresholds: profile };
 }
@@ -119,7 +120,6 @@ const DEFAULT_MIN_OI = 100_000;
 const DEFAULT_MIN_CORR = 0.6;
 const DEFAULT_CROSS_SECTOR_MIN_CORR = 0.7; // Higher threshold for cross-sector
 const MAX_HURST_THRESHOLD = 0.45; // Only keep mean-reverting pairs (H < 0.45) - tightened from 0.5 based on data
-const MIN_ENTRY_THRESHOLD = 2.5; // Safety floor - never enter below this Z-score (raised from 2.0 based on performance data)
 
 // Asset tier definitions - based on market cap, liquidity, and reliability
 // Updated based on actual Hyperliquid liquidity and market structure
@@ -137,13 +137,17 @@ const ASSET_TIERS = {
         // AI (top projects)
         'RENDER', 'RNDR', 'FET', 'TAO', 'WLD', 'VIRTUAL', 'AIXBT',
         // Exchange tokens
-        'BNB', 'HYPE',
+        'BNB', 'HYPE', 'LIT',
+        // Privacy (established, high demand)
+        'XMR', 'ZEC',
         // Top meme coins (high liquidity, established)
         'DOGE', 'kSHIB', 'kPEPE', 'WIF', 'POPCAT', 'kBONK', 'PENGU'
     ],
     established: [
         // L1/L2 (newer but proven)
-        'MANTA', 'BERA', 'MOVE', 'INIT', 'HBAR', 'ZEN',
+        'MANTA', 'BERA', 'MOVE', 'INIT', 'HBAR', 'FOGO',
+        // Privacy (smaller but proven)
+        'ZEN',
         // DeFi (proven but smaller)
         'ENA', 'ETHFI', 'COMP', 'EIGEN', 'ZRO', 'JTO', 'AERO', 'USUAL',
         // AI (established but smaller)
@@ -221,7 +225,7 @@ function checkReversionSafety(currentZ, divergenceProfile) {
 
     const absZ = Math.abs(currentZ);
     const thresholds = [1.0, 1.5, 2.0, 2.5, 3.0];
-    
+
     // Find the nearest threshold at or below current Z
     let nearestThreshold = null;
     for (let i = thresholds.length - 1; i >= 0; i--) {
@@ -239,11 +243,11 @@ function checkReversionSafety(currentZ, divergenceProfile) {
     if (!stats || stats.events === 0) {
         // No events at this threshold - can't judge, but warn if Z is extreme
         if (absZ >= 2.5) {
-            return { 
-                isSafe: false, 
-                reversionRate: null, 
-                nearestThreshold, 
-                warning: `Z=${absZ.toFixed(2)} but no historical events at ${nearestThreshold}` 
+            return {
+                isSafe: false,
+                reversionRate: null,
+                nearestThreshold,
+                warning: `Z=${absZ.toFixed(2)} but no historical events at ${nearestThreshold}`
             };
         }
         return { isSafe: true, reversionRate: null, nearestThreshold, warning: null };
@@ -251,7 +255,7 @@ function checkReversionSafety(currentZ, divergenceProfile) {
 
     const reversionRate = parseFloat(stats.rate);
     const isSafe = reversionRate >= MIN_REVERSION_RATE;
-    
+
     let warning = null;
     if (!isSafe) {
         warning = `Z=${absZ.toFixed(2)} but only ${stats.rate} reversion at ${nearestThreshold} (${stats.events} events)`;
@@ -362,10 +366,10 @@ async function fetchHistoricalPrices(sdk, symbols) {
                 if (data && data.length > 0) {
                     const sorted = data.sort((a, b) => a.t - b.t);
                     const allPrices = sorted.map(c => parseFloat(c.c));
-                    
+
                     // Return multi-window structure
-                    return { 
-                        symbol, 
+                    return {
+                        symbol,
                         prices: {
                             all: allPrices,
                             d90: allPrices.slice(-90),  // Cointegration
@@ -553,19 +557,19 @@ function evaluatePairs(candidatePairs, priceMap, minCorrelation, crossSectorMinC
         try {
             // REACTIVE METRICS (30-day window) - responsive to recent market
             const { correlation, beta } = calculateCorrelation(prices1_30d, prices2_30d);
-            
+
             // STRUCTURAL TEST (90-day window) - internally consistent with 90d beta
             const cointLen = Math.min(prices1_90d.length, 90);
             const { beta: beta90d } = calculateCorrelation(
-                prices1_90d.slice(-cointLen), 
+                prices1_90d.slice(-cointLen),
                 prices2_90d.slice(-cointLen)
             );
             const coint = testCointegration(
-                prices1_90d.slice(-cointLen), 
-                prices2_90d.slice(-cointLen), 
+                prices1_90d.slice(-cointLen),
+                prices2_90d.slice(-cointLen),
                 beta90d  // Use 90d beta for 90d cointegration test
             );
-            
+
             // Also get 30-day Z-score and half-life for trading
             const reactive = testCointegration(prices1_30d, prices2_30d, beta);
 
@@ -583,15 +587,15 @@ function evaluatePairs(candidatePairs, priceMap, minCorrelation, crossSectorMinC
                     spreads60d.push(Math.log(p1) - beta * Math.log(p2));
                 }
                 const hurst = calculateHurst(spreads60d);
-                
+
                 // Skip pairs that are not mean-reverting (H >= 0.5)
                 if (hurst.isValid && hurst.hurst >= MAX_HURST_THRESHOLD) {
                     continue; // Skip trending/random walk pairs
                 }
-                
+
                 // Calculate dual beta for regression quality metrics (uses all data)
                 const dualBeta = calculateDualBeta(prices1_90d, prices2_90d, reactive.halfLife);
-                
+
                 // Calculate conviction score
                 const conviction = calculateConvictionScore({
                     correlation: correlation,
@@ -661,9 +665,9 @@ function evaluatePairs(candidatePairs, priceMap, minCorrelation, crossSectorMinC
  */
 async function main(options = {}) {
     const { crossSector = false } = options;
-    
+
     const { symbolToSector, sectors } = loadSectorMap();
-    
+
     // Load blacklist from database (production source of truth)
     const blacklistData = await db.getBlacklist();
     const blacklist = new Set(blacklistData?.assets || []);
@@ -711,7 +715,7 @@ async function main(options = {}) {
 
     // Calculate signal strength for each pair (how close to entry threshold)
     for (const pair of fittingPairs) {
-        const entryThreshold = pair.optimalEntry || 1.5;
+        const entryThreshold = Math.max(pair.optimalEntry || MIN_ENTRY_THRESHOLD, MIN_ENTRY_THRESHOLD);
         pair.signalStrength = Math.abs(pair.zScore) / entryThreshold;
     }
 
@@ -736,7 +740,7 @@ async function main(options = {}) {
     const sameSectorByConviction = fittingPairs
         .filter(p => !p.isCrossSector)
         .sort((a, b) => b.conviction - a.conviction);
-    
+
     // Sort by signal strength for actionable pairs
     const sameSectorBySignal = fittingPairs
         .filter(p => !p.isCrossSector)
@@ -769,7 +773,7 @@ async function main(options = {}) {
     const crossSectorByConviction = fittingPairs
         .filter(p => p.isCrossSector)
         .sort((a, b) => b.conviction - a.conviction);
-    
+
     const crossSectorBySignal = fittingPairs
         .filter(p => p.isCrossSector)
         .sort((a, b) => b.signalStrength - a.signalStrength);
@@ -803,11 +807,11 @@ async function main(options = {}) {
     for (const pair of watchlistPairs) {
         try {
             const hourlyResult = await analyzeHistoricalDivergences(pair.asset1, pair.asset2, sdk);
-            
+
             // Update with hourly-derived thresholds (enforce minimum floor)
             if (hourlyResult && hourlyResult.optimalEntry) {
                 pair.optimalEntry = Math.max(hourlyResult.optimalEntry, MIN_ENTRY_THRESHOLD);
-                
+
                 // Also update maxHistoricalZ if available from hourly data
                 // Find max Z from the threshold profiles
                 const maxZFromProfile = Math.max(...Object.keys(hourlyResult.profilePercent || {})
@@ -816,11 +820,11 @@ async function main(options = {}) {
                 if (!isNaN(maxZFromProfile) && maxZFromProfile > 0) {
                     pair.maxHistoricalZ = Math.max(pair.maxHistoricalZ || 0, maxZFromProfile);
                 }
-                
+
                 // Store profile for safety check later
                 pair.divergenceProfilePercent = hourlyResult.profilePercent;
             }
-            
+
             // Small delay to avoid rate limiting
             await new Promise(r => setTimeout(r, 300));
         } catch (err) {
@@ -838,10 +842,10 @@ async function main(options = {}) {
     // Save discovered pairs
     const output = {
         timestamp: new Date().toISOString(),
-        thresholds: { 
-            minVolume: DEFAULT_MIN_VOLUME, 
-            minOI: DEFAULT_MIN_OI, 
-            minCorrelation: DEFAULT_MIN_CORR, 
+        thresholds: {
+            minVolume: DEFAULT_MIN_VOLUME,
+            minOI: DEFAULT_MIN_OI,
+            minCorrelation: DEFAULT_MIN_CORR,
             crossSectorMinCorrelation: DEFAULT_CROSS_SECTOR_MIN_CORR,
             maxHalfLife: 10,
             maxHurst: MAX_HURST_THRESHOLD
@@ -875,7 +879,7 @@ async function main(options = {}) {
 
     // Build watchlist pairs
     const watchlistData = watchlistPairs.map(p => {
-        const entryThreshold = p.optimalEntry;
+        const entryThreshold = Math.max(p.optimalEntry || MIN_ENTRY_THRESHOLD, MIN_ENTRY_THRESHOLD);
         const signalStrength = Math.min(Math.abs(p.zScore) / entryThreshold, 1.0);
         const direction = p.zScore < 0 ? 'long' : 'short';
         const atThreshold = Math.abs(p.zScore) >= entryThreshold;
@@ -938,38 +942,38 @@ async function main(options = {}) {
     try {
         await db.upsertWatchlist(watchlistData);
         console.log(`[SCANNER] Saved ${watchlistData.length} pairs to Supabase`);
-        
+
         // Clean up old pairs: keep only new discoveries + active trades
         const newPairNames = new Set(watchlistData.map(p => p.pair));
         const activeTrades = await db.getTrades();
         const activeTradePairs = new Set(activeTrades.map(t => t.pair));
-        
+
         // Get all current watchlist pairs from DB
         const currentWatchlist = await db.getWatchlist();
-        
+
         // Find pairs to remove (not in new scan AND not in active trades)
-        const pairsToRemove = currentWatchlist.filter(p => 
+        const pairsToRemove = currentWatchlist.filter(p =>
             !newPairNames.has(p.pair) && !activeTradePairs.has(p.pair)
         );
-        
+
         // Also remove pairs containing blacklisted assets (even if they were in new scan)
-        const blacklistedPairs = currentWatchlist.filter(p => 
-            (blacklist.has(p.asset1) || blacklist.has(p.asset2)) && 
+        const blacklistedPairs = currentWatchlist.filter(p =>
+            (blacklist.has(p.asset1) || blacklist.has(p.asset2)) &&
             !activeTradePairs.has(p.pair)
         );
-        
+
         // Warn about blacklisted pairs with active trades (can't auto-remove)
-        const blacklistedWithTrades = currentWatchlist.filter(p => 
-            (blacklist.has(p.asset1) || blacklist.has(p.asset2)) && 
+        const blacklistedWithTrades = currentWatchlist.filter(p =>
+            (blacklist.has(p.asset1) || blacklist.has(p.asset2)) &&
             activeTradePairs.has(p.pair)
         );
         if (blacklistedWithTrades.length > 0) {
             console.log(`[SCANNER] ⚠️ Blacklisted pairs with active trades (manual exit required): ${blacklistedWithTrades.map(p => p.pair).join(', ')}`);
         }
-        
+
         // Combine removal lists (dedupe)
         const allToRemove = [...new Set([...pairsToRemove, ...blacklistedPairs])];
-        
+
         // Delete stale + blacklisted pairs
         for (const pair of allToRemove) {
             try {
@@ -982,12 +986,12 @@ async function main(options = {}) {
                 console.error(`[SCANNER] Failed to remove ${pair.pair}:`, e.message);
             }
         }
-        
+
         if (removedPairs > 0) {
             console.log(`[SCANNER] Cleaned up ${removedPairs} stale pairs from watchlist`);
         }
         if (activeTradePairs.size > 0) {
-            const preserved = currentWatchlist.filter(p => 
+            const preserved = currentWatchlist.filter(p =>
                 activeTradePairs.has(p.pair) && !newPairNames.has(p.pair)
             );
             if (preserved.length > 0) {
