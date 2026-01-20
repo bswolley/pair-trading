@@ -830,6 +830,9 @@ async function main() {
     const tradesArray = await db.getTrades();
     let activeTrades = { trades: tradesArray || [] };
 
+    // Fetch recent trade history early for cooldown checks
+    const recentTrades = await db.getHistory({ limit: 20 });
+
     // Check if we should run scanner: capacity available AND no ENTERABLE ready pairs
     const hasCapacity = activeTrades.trades.length < MAX_CONCURRENT_TRADES;
     
@@ -858,16 +861,28 @@ async function main() {
         return longConflict || shortConflict || longCount >= MAX_TRADES_PER_ASSET || shortCount >= MAX_TRADES_PER_ASSET;
     }
     
-    // A pair is enterable if: isReady AND not already traded AND no smart overlap
+    // A pair is enterable if it passes the same high-level checks as entry logic
     const hasEnterablePairs = watchlist.pairs.some(p => {
-        if (!p.isReady) return false;
+        const atThreshold = (p.signalStrength ?? 0) >= 1 || p.isReady;
+        if (!atThreshold) return false;
         if (activeTrades.trades.some(t => t.pair === p.pair)) return false;
-        
+
+        // Basic validation using existing watchlist metrics (no fresh API calls)
+        if (p.hurst !== null && p.hurst !== undefined && p.hurst >= 0.5) return false;
+        if (p.correlation !== null && p.correlation !== undefined && p.correlation < MIN_CORRELATION_30D) return false;
+        if (p.halfLife !== null && p.halfLife !== undefined && p.halfLife > 30) return false;
+        if (p.volRatio !== null && p.volRatio !== undefined && p.volRatio > MAX_VOL_RATIO) return false;
+        if (p.reversionWarning) return false;
+
+        // Cooldown check
+        const cooldownCheck = checkPairCooldown(p.pair, recentTrades || []);
+        if (cooldownCheck.inCooldown) return false;
+
         // Determine direction for overlap check
         const pairDir = p.direction || (p.zScore < 0 ? 'long' : 'short');
         const pairLong = pairDir === 'long' ? p.asset1 : p.asset2;
         const pairShort = pairDir === 'long' ? p.asset2 : p.asset1;
-        
+
         return !preScanOverlapCheck(pairLong, pairShort);
     });
     
@@ -910,9 +925,6 @@ async function main() {
     }
 
     const stats = await db.getStats();
-
-    // Fetch recent trade history for cooldown checks (last 20 trades should be enough)
-    const recentTrades = await db.getHistory({ limit: 20 });
 
     let history = {
         trades: recentTrades || [],
