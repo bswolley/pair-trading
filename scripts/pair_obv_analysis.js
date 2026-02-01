@@ -264,7 +264,20 @@ async function analyzePairs() {
           variance2 /= returns.length;
           
           const correlation = covariance / (Math.sqrt(variance1) * Math.sqrt(variance2));
-          const beta = covariance / variance2;
+          
+          // Beta: OLS regression on log prices (proper hedge ratio)
+          // log(P1) = α + β*log(P2) + ε
+          const n = prices1.length;
+          const logP1 = prices1.map(p => Math.log(p));
+          const logP2 = prices2.map(p => Math.log(p));
+          const meanLogP1 = logP1.reduce((a, b) => a + b, 0) / n;
+          const meanLogP2 = logP2.reduce((a, b) => a + b, 0) / n;
+          let covLogPrices = 0, varLogP2 = 0;
+          for (let i = 0; i < n; i++) {
+            covLogPrices += (logP2[i] - meanLogP2) * (logP1[i] - meanLogP1);
+            varLogP2 += (logP2[i] - meanLogP2) ** 2;
+          }
+          const beta = varLogP2 > 0 ? covLogPrices / varLogP2 : 0;
           
           // Calculate spread
           const spreads = [];
