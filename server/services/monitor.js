@@ -237,67 +237,75 @@ function checkPairCooldown(pairName, history) {
     return { inCooldown: false, hoursRemaining: null, lastExitTime: null };
 }
 
-// Time windows - must match scanner for consistency
+// Time windows - all use 1-hour candles for granularity (must match scanner)
 const WINDOWS = {
-    cointegration: 90,  // Structural test - 90 days of HOURLY data (2160 points)
-    hurst: 60,          // Needs 40+ data points for R/S analysis
-    reactive: 30        // Z-score, correlation, beta - responsive to recent market
+    cointegration: 90,  // Beta, Z-score, half-life: 90 days × 24h = 2160 points
+    correlation: 60,    // Correlation: 60 days × 24h = 1440 points
+    hurst: 60,          // Hurst: 60 days × 24h = 1440 points
+    reactive: 30        // Short-term: 30 days × 24h = 720 points
 };
 
 async function fetchPrices(sdk, sym1, sym2) {
     const endTime = Date.now();
-    // Fetch enough data for cointegration window (90 days) + buffer
-    const startTimeDaily = endTime - ((WINDOWS.cointegration + 5) * 24 * 60 * 60 * 1000);
-    // For hourly cointegration: 90 days of hourly data
-    const startTimeHourly = endTime - ((WINDOWS.cointegration + 2) * 24 * 60 * 60 * 1000);
+    // Hourly: 90 days for cointegration, correlation, z-score, half-life
+    // Daily: 60 days for Hurst (trading-horizon mean reversion check)
+    const startTimeHourly = endTime - ((WINDOWS.cointegration + 5) * 24 * 60 * 60 * 1000);
+    const startTimeDaily = endTime - ((WINDOWS.hurst + 5) * 24 * 60 * 60 * 1000);
 
     try {
-        // Fetch both daily (for reactive metrics) and hourly (for cointegration)
-        const [d1, d2, h1, h2] = await Promise.all([
-            sdk.info.getCandleSnapshot(`${sym1}-PERP`, '1d', startTimeDaily, endTime),
-            sdk.info.getCandleSnapshot(`${sym2}-PERP`, '1d', startTimeDaily, endTime),
+        // Fetch both hourly (stat power) and daily (Hurst) data
+        const [h1, h2, d1, d2] = await Promise.all([
             sdk.info.getCandleSnapshot(`${sym1}-PERP`, '1h', startTimeHourly, endTime),
-            sdk.info.getCandleSnapshot(`${sym2}-PERP`, '1h', startTimeHourly, endTime)
+            sdk.info.getCandleSnapshot(`${sym2}-PERP`, '1h', startTimeHourly, endTime),
+            sdk.info.getCandleSnapshot(`${sym1}-PERP`, '1d', startTimeDaily, endTime),
+            sdk.info.getCandleSnapshot(`${sym2}-PERP`, '1d', startTimeDaily, endTime)
         ]);
 
-        if (!d1?.length || !d2?.length) return null;
+        if (!h1?.length || !h2?.length) return null;
 
-        // Process daily data
-        const m1 = new Map(), m2 = new Map();
-        d1.forEach(c => m1.set(new Date(c.t).toISOString().split('T')[0], parseFloat(c.c)));
-        d2.forEach(c => m2.set(new Date(c.t).toISOString().split('T')[0], parseFloat(c.c)));
+        // Process hourly data and align timestamps
+        const hm1 = new Map(), hm2 = new Map();
+        h1.forEach(c => hm1.set(c.t, parseFloat(c.c)));
+        h2.forEach(c => hm2.set(c.t, parseFloat(c.c)));
+        
+        const timestamps = [...hm1.keys()].filter(t => hm2.has(t)).sort((a, b) => a - b);
+        if (timestamps.length < 500) return null; // Need at least ~20 days
 
-        const dates = [...m1.keys()].filter(d => m2.has(d)).sort();
-        if (dates.length < 10) return null;
-
-        // Process hourly data for cointegration (90 days = 2160 hours)
-        let prices1_h90 = null, prices2_h90 = null;
-        if (h1?.length && h2?.length) {
-            const hm1 = new Map(), hm2 = new Map();
-            h1.forEach(c => hm1.set(c.t, parseFloat(c.c)));
-            h2.forEach(c => hm2.set(c.t, parseFloat(c.c)));
-            
-            const hourlyTimestamps = [...hm1.keys()].filter(t => hm2.has(t)).sort((a, b) => a - b);
-            if (hourlyTimestamps.length >= 500) {
-                prices1_h90 = hourlyTimestamps.slice(-(90 * 24)).map(t => hm1.get(t));
-                prices2_h90 = hourlyTimestamps.slice(-(90 * 24)).map(t => hm2.get(t));
+        // Process daily data for Hurst
+        let prices1_d60 = null, prices2_d60 = null;
+        if (d1?.length && d2?.length) {
+            const dm1 = new Map(), dm2 = new Map();
+            d1.forEach(c => dm1.set(new Date(c.t).toISOString().split('T')[0], parseFloat(c.c)));
+            d2.forEach(c => dm2.set(new Date(c.t).toISOString().split('T')[0], parseFloat(c.c)));
+            const dates = [...dm1.keys()].filter(d => dm2.has(d)).sort();
+            if (dates.length >= 40) {
+                prices1_d60 = dates.slice(-60).map(d => dm1.get(d));
+                prices2_d60 = dates.slice(-60).map(d => dm2.get(d));
             }
         }
 
+        // Hourly windows
+        const prices1_h90 = timestamps.slice(-(90 * 24)).map(t => hm1.get(t));
+        const prices2_h90 = timestamps.slice(-(90 * 24)).map(t => hm2.get(t));
+        const prices1_h60 = timestamps.slice(-(60 * 24)).map(t => hm1.get(t));
+        const prices2_h60 = timestamps.slice(-(60 * 24)).map(t => hm2.get(t));
+        const prices1_h30 = timestamps.slice(-(30 * 24)).map(t => hm1.get(t));
+        const prices2_h30 = timestamps.slice(-(30 * 24)).map(t => hm2.get(t));
+        const prices1_h7 = timestamps.slice(-(7 * 24)).map(t => hm1.get(t));
+        const prices2_h7 = timestamps.slice(-(7 * 24)).map(t => hm2.get(t));
+
+        const lastTs = timestamps[timestamps.length - 1];
+
         return {
-            prices1_90d: dates.slice(-90).map(d => m1.get(d)),
-            prices2_90d: dates.slice(-90).map(d => m2.get(d)),
-            prices1_60d: dates.slice(-60).map(d => m1.get(d)),
-            prices2_60d: dates.slice(-60).map(d => m2.get(d)),
-            prices1_30d: dates.slice(-30).map(d => m1.get(d)),
-            prices2_30d: dates.slice(-30).map(d => m2.get(d)),
-            prices1_7d: dates.slice(-7).map(d => m1.get(d)),
-            prices2_7d: dates.slice(-7).map(d => m2.get(d)),
-            // Hourly data for cointegration (2160 points for 90 days)
-            prices1_h90,
-            prices2_h90,
-            currentPrice1: m1.get(dates[dates.length - 1]),
-            currentPrice2: m2.get(dates[dates.length - 1])
+            // Hourly windows for statistical power
+            prices1_h90, prices2_h90,  // 2160 pts: Cointegration, Beta, Z-score, Half-life
+            prices1_h60, prices2_h60,  // 1440 pts: Correlation
+            prices1_h30, prices2_h30,  // 720 pts: Divergence analysis
+            prices1_h7, prices2_h7,    // 168 pts: Week validation
+            // Daily for Hurst (trading-horizon behavior)
+            prices1_d60, prices2_d60,
+            currentPrice1: hm1.get(lastTs),
+            currentPrice2: hm2.get(lastTs)
         };
     } catch (e) {
         return null;
@@ -305,97 +313,85 @@ async function fetchPrices(sdk, sym1, sym2) {
 }
 
 function validateEntry(prices, entryThreshold = DEFAULT_ENTRY_THRESHOLD) {
-    // REACTIVE METRICS (30-day) - for trading decisions
-    const fit30d = checkPairFitness(prices.prices1_30d, prices.prices2_30d);
-
-    // STRUCTURAL COINTEGRATION TEST using HOURLY data (90 days = 2160 points)
-    // This provides much stronger statistical power for ADF test
-    let isCointegrated90d = false;
-    let adfStat90d = -2.5; // Default fallback
-    let cointDataPoints = 0;
+    // All metrics use hourly data for granularity
     
-    if (prices.prices1_h90 && prices.prices2_h90 && prices.prices1_h90.length >= 500) {
-        // Use hourly data for cointegration (stronger ADF with ~2000+ points)
-        const coint = testCointegration(prices.prices1_h90, prices.prices2_h90);
-        isCointegrated90d = coint.isCointegrated;
-        adfStat90d = coint.adfStat || -2.5;
-        cointDataPoints = Math.min(prices.prices1_h90.length, prices.prices2_h90.length);
-    } else if (prices.prices1_90d && prices.prices1_90d.length >= 60) {
-        // Fallback to daily if hourly not available
-        const coint90d = testCointegration(prices.prices1_90d, prices.prices2_90d);
-        isCointegrated90d = coint90d.isCointegrated;
-        adfStat90d = coint90d.adfStat || -2.5;
-        cointDataPoints = prices.prices1_90d.length;
-    } else {
-        // Final fallback to 30d
-        isCointegrated90d = fit30d.isCointegrated;
-        cointDataPoints = prices.prices1_30d?.length || 0;
+    // COINTEGRATION (90-day hourly = 2160 points)
+    // Returns: beta, z-score, half-life (in hours)
+    if (!prices.prices1_h90 || !prices.prices2_h90 || prices.prices1_h90.length < 500) {
+        return { valid: false, reason: 'insufficient_data' };
     }
-
-    // Calculate 7d Z-score using 30d mean/std as baseline (same as analyzePair)
-    // This ensures 7d check validates "is divergence still active?" not "is 7d internally diverged?"
+    const coint = testCointegration(prices.prices1_h90, prices.prices2_h90);
+    const halfLifeDays = coint.halfLife / 24;  // Convert hours to days
+    
+    // CORRELATION (60-day hourly = 1440 points)
+    const { correlation } = calculateCorrelation(prices.prices1_h60, prices.prices2_h60);
+    
+    // 7-day Z-score using 90-day baseline for validation
     let zScore7d = null;
-    let fit7d = null;
     try {
-        if (prices.prices1_7d.length >= 7 && prices.prices2_7d.length >= 7) {
-            fit7d = checkPairFitness(prices.prices1_7d, prices.prices2_7d);
-            
-            // Calculate 7d Z-score using 30d baseline (consistent with analyzePair)
-            // Use the 30d spreads for mean/std, but current (7d endpoint) price for current spread
-            const beta30d = fit30d.beta;
-            const spreads30d = prices.prices1_30d.map((p1, i) => 
-                Math.log(p1) - beta30d * Math.log(prices.prices2_30d[i])
+        if (prices.prices1_h7 && prices.prices1_h7.length >= 100) {
+            // Use 90d spreads for mean/std, current price for z-score
+            const beta = coint.beta;
+            const spreads90d = prices.prices1_h90.map((p1, i) => 
+                Math.log(p1) - beta * Math.log(prices.prices2_h90[i])
             );
-            const mean30d = spreads30d.reduce((a, b) => a + b, 0) / spreads30d.length;
-            const std30d = Math.sqrt(
-                spreads30d.reduce((sum, s) => sum + Math.pow(s - mean30d, 2), 0) / spreads30d.length
+            const mean90d = spreads90d.reduce((a, b) => a + b, 0) / spreads90d.length;
+            const std90d = Math.sqrt(
+                spreads90d.reduce((sum, s) => sum + Math.pow(s - mean90d, 2), 0) / spreads90d.length
             );
             
-            // Current spread from most recent price (end of 7d window)
-            const currentPrice1 = prices.prices1_7d[prices.prices1_7d.length - 1];
-            const currentPrice2 = prices.prices2_7d[prices.prices2_7d.length - 1];
-            const currentSpread = Math.log(currentPrice1) - beta30d * Math.log(currentPrice2);
+            // Current spread from most recent hourly price
+            const currentPrice1 = prices.prices1_h7[prices.prices1_h7.length - 1];
+            const currentPrice2 = prices.prices2_h7[prices.prices2_h7.length - 1];
+            const currentSpread = Math.log(currentPrice1) - beta * Math.log(currentPrice2);
             
-            zScore7d = std30d > 0 ? (currentSpread - mean30d) / std30d : null;
+            zScore7d = std90d > 0 ? (currentSpread - mean90d) / std90d : null;
         }
     } catch (e) { }
 
-    const signal30d = Math.abs(fit30d.zScore) >= entryThreshold;
-    // Use 30d-baseline Z-score for 7d validation (consistent with analyzePair)
+    const signal90d = Math.abs(coint.zScore) >= entryThreshold;
     const signal7d = zScore7d !== null && Math.abs(zScore7d) >= entryThreshold * 0.8;
-    const sameDirection = zScore7d !== null && (fit30d.zScore * zScore7d > 0);
+    const sameDirection = zScore7d !== null && (coint.zScore * zScore7d > 0);
 
-    const valid = signal30d &&
-        fit30d.correlation >= MIN_CORRELATION_30D &&
-        isCointegrated90d &&  // Use 90-day cointegration test
-        fit30d.halfLife <= 10 &&  // Max 10 days - HL 5-10 has higher win rate than < 5
-        (!fit7d || (signal7d && sameDirection));
+    const valid = signal90d &&
+        correlation >= MIN_CORRELATION_30D &&
+        coint.isCointegrated &&
+        halfLifeDays <= 10 &&  // Max 10 days
+        (!zScore7d || (signal7d && sameDirection));
 
     // Determine rejection reason (for debugging)
     let reason = 'ok';
-    if (!signal30d) {
+    if (!signal90d) {
         reason = 'no_signal';
-    } else if (fit30d.correlation < MIN_CORRELATION_30D) {
+    } else if (correlation < MIN_CORRELATION_30D) {
         reason = 'low_corr';
-    } else if (!isCointegrated90d) {
-        reason = 'not_coint_90d';
-    } else if (fit30d.halfLife > 5) {
+    } else if (!coint.isCointegrated) {
+        reason = 'not_cointegrated';
+    } else if (halfLifeDays > 10) {
         reason = 'slow_reversion';
-    } else if (fit7d && !signal7d) {
+    } else if (zScore7d && !signal7d) {
         reason = '7d_weak_signal';
-    } else if (fit7d && !sameDirection) {
+    } else if (zScore7d && !sameDirection) {
         reason = '7d_conflict';
     }
 
     return {
         valid,
-        fit30d,
-        fit7d,
-        zScore7d,  // 7d Z-score calculated using 30d baseline
-        isCointegrated90d,
-        adfStat90d,
+        // Hourly-based metrics
+        correlation,
+        beta: coint.beta,
+        zScore: coint.zScore,
+        halfLife: halfLifeDays,         // In days
+        halfLifeHours: coint.halfLife,  // Raw hours
+        isCointegrated: coint.isCointegrated,
+        adfStat: coint.adfStat,
+        pValue: coint.pValue,
+        // 7-day validation
+        zScore7d,
         signal7d,
         sameDirection,
+        // Data points used
+        cointDataPoints: prices.prices1_h90.length,
         reason
     };
 }
@@ -1022,32 +1018,38 @@ async function main() {
         const prices = await fetchPrices(sdk, trade.asset1, trade.asset2);
         if (!prices) continue;
 
-        const fit = checkPairFitness(prices.prices1_30d, prices.prices2_30d);
-        trade.currentZ = fit.zScore;
+        // Get current metrics from 90-day hourly cointegration
+        const coint = testCointegration(prices.prices1_h90, prices.prices2_h90);
+        trade.currentZ = coint.zScore;
         trade.currentPnL = calcPnL(trade, prices);
-        trade.currentCorrelation = fit.correlation;
-        trade.currentBeta = fit.beta;
+        trade.currentCorrelation = calculateCorrelation(prices.prices1_h60, prices.prices2_h60).correlation;
+        trade.currentBeta = coint.beta;
         
-        // Current half-life uses current market conditions (fit.halfLife from checkPairFitness)
-        // This shows real-time mean-reversion speed - may differ from entry
-        // Entry half-life (trade.halfLife) is preserved from trade creation
-        trade.currentHalfLife = fit.halfLife === Infinity ? null : fit.halfLife;
+        // Half-life in days (converted from hourly)
+        trade.currentHalfLife = coint.halfLife === Infinity ? null : coint.halfLife / 24;
 
-        // Calculate current Hurst (60d) - on SPREAD, not individual asset
-        if (prices.prices1_60d && prices.prices2_60d &&
-            prices.prices1_60d.length >= 40 && prices.prices2_60d.length >= 40) {
-            // Use current beta from fit (30d)
-            const currentBeta = fit.beta;
-            const hurstLen = Math.min(prices.prices1_60d.length, prices.prices2_60d.length);
+        // Calculate current Hurst (60d DAILY) - trading-horizon behavior
+        if (prices.prices1_d60 && prices.prices2_d60 && prices.prices1_d60.length >= 40) {
+            const currentBeta = coint.beta;
+            const hurstLen = Math.min(prices.prices1_d60.length, prices.prices2_d60.length);
             const spreads60d = [];
             for (let i = 0; i < hurstLen; i++) {
-                spreads60d.push(Math.log(prices.prices1_60d[i]) - currentBeta * Math.log(prices.prices2_60d[i]));
+                spreads60d.push(Math.log(prices.prices1_d60[i]) - currentBeta * Math.log(prices.prices2_d60[i]));
             }
             const hurstResult = calculateHurst(spreads60d);
             if (hurstResult.isValid) {
                 trade.currentHurst = hurstResult.hurst;
             }
         }
+        
+        // Create fit-like object for compatibility with existing code
+        const fit = {
+            zScore: coint.zScore,
+            beta: coint.beta,
+            correlation: trade.currentCorrelation,
+            halfLife: trade.currentHalfLife,
+            isCointegrated: coint.isCointegrated
+        };
 
         // Calculate beta drift (% change from entry)
         if (trade.beta && trade.beta !== 0) {
@@ -1152,23 +1154,21 @@ async function main() {
             continue;
         }
 
-        const z = validation.fit30d.zScore;
-        const fit = validation.fit30d;
+        // Use hourly-based metrics from validation
+        const z = validation.zScore;
         const signal = Math.abs(z) >= entryThreshold;
         const signalStrength = Math.min(Math.abs(z) / entryThreshold, 1.0);
         const direction = z < 0 ? 'long' : 'short';
         const isReady = signal;
 
-        // Calculate Hurst exponent (requires 60d data) - on SPREAD, not individual asset
+        // Calculate Hurst exponent (60d DAILY) - trading-horizon behavior
         let hurst = null;
         let hurstClassification = null;
-        if (prices.prices1_60d && prices.prices2_60d &&
-            prices.prices1_60d.length >= 40 && prices.prices2_60d.length >= 40) {
-            // Use current beta from fit (30d)
-            const hurstLen = Math.min(prices.prices1_60d.length, prices.prices2_60d.length);
+        if (prices.prices1_d60 && prices.prices2_d60 && prices.prices1_d60.length >= 40) {
+            const hurstLen = Math.min(prices.prices1_d60.length, prices.prices2_d60.length);
             const spreads60d = [];
             for (let i = 0; i < hurstLen; i++) {
-                spreads60d.push(Math.log(prices.prices1_60d[i]) - fit.beta * Math.log(prices.prices2_60d[i]));
+                spreads60d.push(Math.log(prices.prices1_d60[i]) - validation.beta * Math.log(prices.prices2_d60[i]));
             }
             const hurstResult = calculateHurst(spreads60d);
             if (hurstResult.isValid) {
@@ -1178,58 +1178,52 @@ async function main() {
         }
 
         // Calculate quality score (same formula as scanner)
-        const halfLifeFactor = 1 / Math.max(fit.halfLife, 0.5);
-        const qualityScore = fit.correlation * halfLifeFactor * (fit.meanReversionRate || 0.5) * 100;
+        const halfLifeFactor = 1 / Math.max(validation.halfLife, 0.5);
+        const meanReversionRate = validation.halfLife > 0 ? 1 / validation.halfLife : 0.5;
+        const qualityScore = validation.correlation * halfLifeFactor * meanReversionRate * 100;
 
         // Calculate beta drift for watchlist pair
-        // Only use initialBeta if already set (by scanner), otherwise DON'T set it
-        // This preserves the "beta at discovery" meaning
         const hasInitialBeta = pair.initialBeta !== null && pair.initialBeta !== undefined;
         const initialBeta = hasInitialBeta ? pair.initialBeta : null;
         let betaDrift = null;
 
         if (initialBeta && initialBeta !== 0) {
-            betaDrift = Math.abs(fit.beta - initialBeta) / Math.abs(initialBeta);
+            betaDrift = Math.abs(validation.beta - initialBeta) / Math.abs(initialBeta);
         }
 
-        // Calculate dual beta for accurate R² (matches scanner approach)
-        // Uses 90d prices with reactive half-life for consistency
+        // Calculate dual beta for accurate R² (90d hourly)
         let dualBeta = null;
         let actualR2 = 0.7; // Fallback default
         let dualBetaDrift = betaDrift || 0;
         
-        if (prices.prices1_90d && prices.prices2_90d && 
-            prices.prices1_90d.length >= 60 && prices.prices2_90d.length >= 60) {
+        if (prices.prices1_h90 && prices.prices2_h90 && prices.prices1_h90.length >= 500) {
             try {
-                dualBeta = calculateDualBeta(prices.prices1_90d, prices.prices2_90d, fit.halfLife);
+                dualBeta = calculateDualBeta(prices.prices1_h90, prices.prices2_h90, validation.halfLifeHours);
                 actualR2 = dualBeta.structural.r2;
-                // Use dualBeta drift if available (more accurate), otherwise fall back to manual calculation
                 if (dualBeta.drift !== undefined && dualBeta.drift !== null) {
                     dualBetaDrift = dualBeta.drift;
                 }
             } catch (e) {
-                // Fallback to default R² if calculation fails
                 console.error(`[MONITOR] Dual beta calculation failed for ${pair.pair}:`, e.message);
             }
         }
 
-        // Calculate conviction score using 90d cointegration result for consistency with scanner
+        // Calculate conviction score using hourly cointegration result
         let conviction = null;
         if (hurst !== null) {
             const convictionResult = calculateConvictionScore({
-                correlation: fit.correlation,
-                r2: actualR2, // Use actual R² from dual beta (matches scanner)
-                halfLife: fit.halfLife,
+                correlation: validation.correlation,
+                r2: actualR2,
+                halfLife: validation.halfLife,
                 hurst: hurst,
-                isCointegrated: validation.isCointegrated90d,  // Use 90d structural test
-                adfStat: validation.adfStat90d,  // Use 90d ADF stat (matches scanner)
+                isCointegrated: validation.isCointegrated,
+                adfStat: validation.adfStat,
                 betaDrift: dualBetaDrift
             });
             conviction = convictionResult.score;
         }
 
-        // Always update watchlist with fresh metrics (including active trades)
-        // Preserve scanner-set fields that monitor doesn't recalculate
+        // Always update watchlist with fresh metrics (all hourly-based)
         const watchlistUpdate = {
             pair: pair.pair,
             asset1: pair.asset1,
@@ -1239,10 +1233,10 @@ async function main() {
             conviction: conviction,
             hurst: hurst,
             hurstClassification: hurstClassification,
-            correlation: parseFloat(fit.correlation.toFixed(4)),
-            beta: parseFloat(fit.beta.toFixed(4)),
-            halfLife: isFinite(fit.halfLife) ? parseFloat(fit.halfLife.toFixed(2)) : null,
-            meanReversionRate: parseFloat((fit.meanReversionRate || 0.5).toFixed(4)),
+            correlation: parseFloat(validation.correlation.toFixed(4)),
+            beta: parseFloat(validation.beta.toFixed(4)),
+            halfLife: isFinite(validation.halfLife) ? parseFloat(validation.halfLife.toFixed(2)) : null,
+            meanReversionRate: parseFloat(meanReversionRate.toFixed(4)),
             zScore: parseFloat(z.toFixed(4)),
             signalStrength: parseFloat(signalStrength.toFixed(4)),
             direction,
@@ -1304,7 +1298,7 @@ async function main() {
             assetTradeCount.set(actualLongAsset, (assetTradeCount.get(actualLongAsset) || 0) + 1);
             assetTradeCount.set(actualShortAsset, (assetTradeCount.get(actualShortAsset) || 0) + 1);
         } else if (Math.abs(z) >= entryThreshold * 0.5) {
-            const absBeta = Math.abs(fit.beta);
+            const absBeta = Math.abs(validation.beta);
             const w1 = (1 / (1 + absBeta)) * 100;
             const w2 = (absBeta / (1 + absBeta)) * 100;
             
@@ -1339,7 +1333,7 @@ async function main() {
                 hurst: hurst,
                 hurstBlocked: hurst !== null && hurst >= 0.5,
                 volRatioBlocked: pair.volRatio !== null && pair.volRatio !== undefined && pair.volRatio > MAX_VOL_RATIO,
-                halfLife: fit.halfLife,
+                halfLife: validation.halfLife,
                 direction,
                 longAsset: z < 0 ? pair.asset1 : pair.asset2,
                 shortAsset: z < 0 ? pair.asset2 : pair.asset1,

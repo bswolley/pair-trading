@@ -175,10 +175,12 @@ const QUALITY_MULTIPLIERS = {
 };
 
 // Time windows for different metrics
+// All metrics use 1-hour candles for granularity and statistical power
 const WINDOWS = {
-    cointegration: 90,  // Structural test - longer window for confidence
-    hurst: 60,          // Needs 40+ data points for R/S analysis
-    reactive: 30        // Z-score, correlation, beta - responsive to recent market
+    cointegration: 90,  // Beta, Z-score, half-life: 90 days × 24h = 2160 points
+    correlation: 60,    // Correlation: 60 days × 24h = 1440 points
+    hurst: 60,          // Hurst: 60 days × 24h = 1440 points (needs 40+ for R/S)
+    risk: 180           // Risk metrics: 180 days × 24h = 4320 points (future use)
 };
 const TOP_PER_SECTOR = 3;
 const TOP_CROSS_SECTOR = 5; // Top 5 cross-sector pairs total
@@ -353,10 +355,10 @@ async function fetchUniverse() {
 async function fetchHistoricalPrices(sdk, symbols) {
     const priceMap = new Map();
     const endTime = Date.now();
-    // Fetch enough data for the longest window (cointegration = 90 days) + buffer
-    const startTimeDaily = endTime - ((WINDOWS.cointegration + 5) * 24 * 60 * 60 * 1000);
-    // For hourly cointegration: 90 days of hourly data = 2160 data points
-    const startTimeHourly = endTime - ((WINDOWS.cointegration + 2) * 24 * 60 * 60 * 1000);
+    // Hourly: 90 days for cointegration, correlation, z-score, half-life
+    // Daily: 60 days for Hurst (trading-horizon mean reversion check)
+    const startTimeHourly = endTime - ((WINDOWS.cointegration + 5) * 24 * 60 * 60 * 1000);
+    const startTimeDaily = endTime - ((WINDOWS.hurst + 5) * 24 * 60 * 60 * 1000);
 
     const batchSize = 5;
     for (let i = 0; i < symbols.length; i += batchSize) {
@@ -364,33 +366,32 @@ async function fetchHistoricalPrices(sdk, symbols) {
 
         const promises = batch.map(async (symbol) => {
             try {
-                // Fetch both daily (for reactive metrics) and hourly (for cointegration)
-                const [dailyData, hourlyData] = await Promise.all([
-                    sdk.info.getCandleSnapshot(`${symbol}-PERP`, '1d', startTimeDaily, endTime),
-                    sdk.info.getCandleSnapshot(`${symbol}-PERP`, '1h', startTimeHourly, endTime)
+                // Fetch both hourly (stat power) and daily (Hurst) data
+                const [hourlyData, dailyData] = await Promise.all([
+                    sdk.info.getCandleSnapshot(`${symbol}-PERP`, '1h', startTimeHourly, endTime),
+                    sdk.info.getCandleSnapshot(`${symbol}-PERP`, '1d', startTimeDaily, endTime)
                 ]);
 
-                if (dailyData && dailyData.length > 0) {
-                    const sortedDaily = dailyData.sort((a, b) => a.t - b.t);
-                    const allDailyPrices = sortedDaily.map(c => parseFloat(c.c));
+                if (hourlyData && hourlyData.length > 0) {
+                    const sortedHourly = hourlyData.sort((a, b) => a.t - b.t);
+                    const allHourlyPrices = sortedHourly.map(c => parseFloat(c.c));
 
-                    // Process hourly data for cointegration (90 days = 2160 hours)
-                    let hourlyPrices = null;
-                    if (hourlyData && hourlyData.length > 0) {
-                        const sortedHourly = hourlyData.sort((a, b) => a.t - b.t);
-                        hourlyPrices = sortedHourly.map(c => parseFloat(c.c));
+                    // Daily for Hurst (trading-horizon behavior)
+                    let dailyPrices = null;
+                    if (dailyData && dailyData.length > 0) {
+                        const sortedDaily = dailyData.sort((a, b) => a.t - b.t);
+                        dailyPrices = sortedDaily.map(c => parseFloat(c.c));
                     }
 
-                    // Return multi-window structure with both daily and hourly
                     return {
                         symbol,
                         prices: {
-                            all: allDailyPrices,
-                            d90: allDailyPrices.slice(-90),  // Daily for Hurst calculation
-                            d60: allDailyPrices.slice(-60),  // Hurst
-                            d30: allDailyPrices.slice(-30),  // Reactive metrics (correlation, z-score)
-                            // Hourly data for cointegration (2160 points for 90 days)
-                            h90: hourlyPrices ? hourlyPrices.slice(-(90 * 24)) : null
+                            // Hourly windows for statistical power
+                            h90: allHourlyPrices.slice(-(90 * 24)),   // 2160 pts: Cointegration, Beta, Z-score, Half-life
+                            h60: allHourlyPrices.slice(-(60 * 24)),   // 1440 pts: Correlation
+                            h30: allHourlyPrices.slice(-(30 * 24)),   // 720 pts: Divergence analysis
+                            // Daily for Hurst (trading-horizon mean reversion)
+                            d60: dailyPrices ? dailyPrices.slice(-60) : null
                         }
                     };
                 }
@@ -402,8 +403,8 @@ async function fetchHistoricalPrices(sdk, symbols) {
 
         const results = await Promise.all(promises);
         for (const { symbol, prices } of results) {
-            // Need at least 30 days of daily data for reactive metrics
-            if (prices && prices.d30.length >= 25) {
+            // Need hourly data for core metrics
+            if (prices && prices.h90 && prices.h90.length >= 500) {
                 priceMap.set(symbol, prices);
             }
         }
@@ -556,90 +557,86 @@ function evaluatePairs(candidatePairs, priceMap, minCorrelation, crossSectorMinC
         if (!priceData1 || !priceData2) continue;
 
         // Align each window separately
+        // Align hourly windows (all metrics now use 1-hour candles)
         const align = (arr1, arr2) => {
             if (!arr1 || !arr2) return [null, null];
             const len = Math.min(arr1.length, arr2.length);
             return [arr1.slice(-len), arr2.slice(-len)];
         };
 
-        const [prices1_30d, prices2_30d] = align(priceData1.d30, priceData2.d30);
-        const [prices1_60d, prices2_60d] = align(priceData1.d60, priceData2.d60);
-        const [prices1_90d, prices2_90d] = align(priceData1.d90, priceData2.d90);
-        // Hourly data for cointegration (90 days = 2160 hours for stronger ADF)
-        const [prices1_h90, prices2_h90] = align(priceData1.h90, priceData2.h90);
+        // All windows are now hourly for granularity
+        const [prices1_h90, prices2_h90] = align(priceData1.h90, priceData2.h90); // 2160 pts
+        const [prices1_h60, prices2_h60] = align(priceData1.h60, priceData2.h60); // 1440 pts
+        const [prices1_h30, prices2_h30] = align(priceData1.h30, priceData2.h30); // 720 pts
 
-        if (!prices1_30d || prices1_30d.length < 15) continue;
+        // Need at least 500 hourly points (~20 days) for reliable analysis
+        if (!prices1_h90 || prices1_h90.length < 500) continue;
 
         // Use higher correlation threshold for cross-sector pairs
         const requiredCorr = pair.isCrossSector ? crossSectorMinCorrelation : minCorrelation;
 
         try {
-            // REACTIVE METRICS (30-day window) - responsive to recent market
-            const { correlation, beta } = calculateCorrelation(prices1_30d, prices2_30d);
+            // CORRELATION (60-day hourly window = 1440 points)
+            // Captures recent co-movement with intra-day granularity
+            const { correlation, beta: beta60d } = calculateCorrelation(prices1_h60, prices2_h60);
 
-            // STRUCTURAL COINTEGRATION TEST using HOURLY data (90 days = 2160 points)
-            // This provides much stronger statistical power for ADF test
-            // Falls back to daily if hourly not available
-            let coint;
-            let cointDataPoints = 0;
-            
-            if (prices1_h90 && prices2_h90 && prices1_h90.length >= 500) {
-                // Use hourly data for cointegration (stronger ADF with ~2000+ points)
-                coint = testCointegration(prices1_h90, prices2_h90);
-                cointDataPoints = Math.min(prices1_h90.length, prices2_h90.length);
-            } else if (prices1_90d && prices2_90d) {
-                // Fallback to daily if hourly not available
-                const cointLen = Math.min(prices1_90d.length, 90);
-                coint = testCointegration(
-                    prices1_90d.slice(-cointLen),
-                    prices2_90d.slice(-cointLen)
-                );
-                cointDataPoints = cointLen;
-            } else {
-                continue; // Skip if no data for cointegration
-            }
+            // COINTEGRATION TEST (90-day hourly = 2160 points)
+            // Beta, Z-score, half-life all from same window for consistency
+            const coint = testCointegration(prices1_h90, prices2_h90);
+            const cointDataPoints = Math.min(prices1_h90.length, prices2_h90.length);
 
-            // Also get 30-day Z-score and half-life for trading (daily data)
-            const reactive = testCointegration(prices1_30d, prices2_30d, beta);
+            // Use 90-day beta from cointegration for spread calculations
+            const beta = coint.beta || beta60d;
 
-            // Must pass correlation AND 90-day cointegration test
-            // Half-life 5-10 days has higher win rate than < 5 days (based on performance data)
-            if (correlation >= requiredCorr && coint.isCointegrated && reactive.halfLife <= 10) {
+            // Must pass correlation AND cointegration test
+            // Half-life check: 5-10 days has higher win rate (based on performance data)
+            // Note: half-life from hourly data is in HOURS, convert to days
+            const halfLifeDays = coint.halfLife / 24;
+            if (correlation >= requiredCorr && coint.isCointegrated && halfLifeDays <= 10) {
 
-                // HURST (60-day window) - calculated on SPREAD, not individual asset
-                // Use 30-day beta (same as reactive metrics) for consistency
-                const hurstLen = Math.min(prices1_60d.length, prices2_60d.length, 60);
-                const spreads60d = [];
-                for (let i = 0; i < hurstLen; i++) {
-                    const p1 = prices1_60d[prices1_60d.length - hurstLen + i];
-                    const p2 = prices2_60d[prices2_60d.length - hurstLen + i];
-                    spreads60d.push(Math.log(p1) - beta * Math.log(p2));
+                // HURST (60-day DAILY data) - measures trading-horizon mean reversion
+                // Using daily data because Hurst should reflect behavior at trade duration (days)
+                // Hourly Hurst captures short-term noise that doesn't affect multi-day trades
+                const prices1_d60 = priceData1.d60;
+                const prices2_d60 = priceData2.d60;
+                let hurst = { isValid: false, hurst: 0.5 };
+                let hurstLen = 0;
+                
+                if (prices1_d60 && prices2_d60 && prices1_d60.length >= 40) {
+                    hurstLen = Math.min(prices1_d60.length, prices2_d60.length);
+                    const spreads60d = [];
+                    for (let i = 0; i < hurstLen; i++) {
+                        const p1 = prices1_d60[prices1_d60.length - hurstLen + i];
+                        const p2 = prices2_d60[prices2_d60.length - hurstLen + i];
+                        spreads60d.push(Math.log(p1) - beta * Math.log(p2));
+                    }
+                    hurst = calculateHurst(spreads60d);
                 }
-                const hurst = calculateHurst(spreads60d);
 
-                // Skip pairs that are not mean-reverting (H >= 0.5)
+                // Skip pairs that are not mean-reverting (H >= threshold)
                 if (hurst.isValid && hurst.hurst >= MAX_HURST_THRESHOLD) {
                     continue; // Skip trending/random walk pairs
                 }
 
-                // Calculate dual beta for regression quality metrics (uses all data)
-                const dualBeta = calculateDualBeta(prices1_90d, prices2_90d, reactive.halfLife);
+                // Calculate dual beta for regression quality (90-day hourly)
+                const dualBeta = calculateDualBeta(prices1_h90, prices2_h90, coint.halfLife);
 
                 // Calculate conviction score
                 const conviction = calculateConvictionScore({
                     correlation: correlation,
                     r2: dualBeta.structural.r2,
-                    halfLife: reactive.halfLife,  // Use 30-day half-life for trading relevance
+                    halfLife: halfLifeDays,  // Convert to days for scoring
                     hurst: hurst.hurst,
                     isCointegrated: coint.isCointegrated,
-                    adfStat: coint.adfStat,  // Use 90-day ADF stat for confidence
+                    adfStat: coint.adfStat,
                     betaDrift: dualBeta.drift
                 });
 
-                const divergenceProfile = analyzeLocalDivergences(prices1_30d, prices2_30d, beta);
+                // Divergence analysis (30-day hourly for recent patterns)
+                const divergenceProfile = analyzeLocalDivergences(prices1_h30, prices2_h30, beta);
 
-                // Calculate volatility metrics for beta neutralization analysis
-                const volMetrics = calculateVolatilityMetrics(prices1_30d, prices2_30d, beta);
+                // Calculate volatility metrics (30-day hourly for recent vol)
+                const volMetrics = calculateVolatilityMetrics(prices1_h30, prices2_h30, beta);
 
                 fittingPairs.push({
                     sector: pair.sector,
@@ -652,12 +649,13 @@ function evaluatePairs(candidatePairs, priceMap, minCorrelation, crossSectorMinC
                     fundingSpread: pair.asset1.fundingAnnualized - pair.asset2.fundingAnnualized,
                     correlation: correlation,
                     beta: beta,
-                    isCointegrated: coint.isCointegrated,  // Hourly cointegration test (2000+ points)
+                    isCointegrated: coint.isCointegrated,  // Hourly cointegration test (2160 points)
                     adfStat: coint.adfStat,                // ADF statistic from proper test
                     pValue: coint.pValue,                  // P-value category
-                    halfLife: reactive.halfLife,           // 30-day for trading
-                    zScore: reactive.zScore,               // 30-day current state
-                    meanReversionRate: reactive.meanReversionRate,
+                    halfLife: halfLifeDays,                // Half-life in DAYS (converted from hourly)
+                    halfLifeHours: coint.halfLife,         // Raw half-life in hours
+                    zScore: coint.zScore,                  // Z-score from 90-day hourly
+                    meanReversionRate: coint.meanReversionRate,
                     optimalEntry: divergenceProfile.optimalEntry,
                     maxHistoricalZ: divergenceProfile.maxHistoricalZ,
                     divergenceProfile: divergenceProfile.thresholds,
@@ -675,11 +673,12 @@ function evaluatePairs(candidatePairs, priceMap, minCorrelation, crossSectorMinC
                     // Volatility metrics (beta neutralization)
                     spreadVol: volMetrics.spreadVol,
                     volRatio: volMetrics.volRatio,
-                    // Window info for transparency
+                    // Window info for transparency (all hourly)
                     windows: {
-                        cointegration: cointDataPoints,  // Hourly points used (target: 2160 for 90 days)
-                        hurst: hurstLen,
-                        reactive: prices1_30d.length
+                        cointegration: cointDataPoints,  // 90d × 24h = 2160 target
+                        correlation: prices1_h60.length, // 60d × 24h = 1440 target
+                        hurst: hurstLen,                 // 60d × 24h = 1440 target
+                        reactive: prices1_h30.length     // 30d × 24h = 720 target
                     }
                 });
             }
@@ -831,39 +830,7 @@ async function main(options = {}) {
     }
 
     console.log(`[SCANNER] Selected ${watchlistPairs.length} pairs (conviction + signal hybrid)`);
-
-    // Fetch hourly data for accurate threshold calculation (like Full Analysis)
-    // This replaces the daily-based analyzeLocalDivergences with proper hourly analysis
-    console.log(`[SCANNER] Fetching hourly data for ${watchlistPairs.length} watchlist pairs...`);
-    for (const pair of watchlistPairs) {
-        try {
-            const hourlyResult = await analyzeHistoricalDivergences(pair.asset1, pair.asset2, sdk);
-
-            // Update with hourly-derived thresholds (enforce minimum floor)
-            if (hourlyResult && hourlyResult.optimalEntry) {
-                pair.optimalEntry = Math.max(hourlyResult.optimalEntry, MIN_ENTRY_THRESHOLD);
-
-                // Also update maxHistoricalZ if available from hourly data
-                // Find max Z from the threshold profiles
-                const maxZFromProfile = Math.max(...Object.keys(hourlyResult.profilePercent || {})
-                    .filter(k => hourlyResult.profilePercent[k].events > 0)
-                    .map(k => parseFloat(k)));
-                if (!isNaN(maxZFromProfile) && maxZFromProfile > 0) {
-                    pair.maxHistoricalZ = Math.max(pair.maxHistoricalZ || 0, maxZFromProfile);
-                }
-
-                // Store profile for safety check later
-                pair.divergenceProfilePercent = hourlyResult.profilePercent;
-            }
-
-            // Small delay to avoid rate limiting
-            await new Promise(r => setTimeout(r, 300));
-        } catch (err) {
-            console.log(`[SCANNER] Hourly analysis failed for ${pair.asset1}/${pair.asset2}: ${err.message}`);
-            // Keep daily-based defaults from analyzeLocalDivergences
-        }
-    }
-    console.log(`[SCANNER] Hourly threshold analysis complete`);
+    // Note: Entry thresholds already calculated from 30-day hourly data in analyzeLocalDivergences
 
     // Disconnect SDK
     const saved = suppressConsole();
