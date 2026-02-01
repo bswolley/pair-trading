@@ -31,13 +31,13 @@ router.get('/', async (req, res) => {
         // Get active trades to mark pairs that are already being traded
         const activeTrades = await db.getTrades();
         const activePairs = new Set(activeTrades.map(t => t.pair));
-        
+
         // Smart overlap tracking: track which assets are long vs short
         const MAX_TRADES_PER_ASSET = 2;
         const assetsLong = new Map();  // asset -> count of times it's long
         const assetsShort = new Map(); // asset -> count of times it's short
         const assetTradeCount = new Map(); // asset -> total trade count
-        
+
         activeTrades.forEach(t => {
             if (t.longAsset) {
                 assetsLong.set(t.longAsset, (assetsLong.get(t.longAsset) || 0) + 1);
@@ -48,26 +48,26 @@ router.get('/', async (req, res) => {
                 assetTradeCount.set(t.shortAsset, (assetTradeCount.get(t.shortAsset) || 0) + 1);
             }
         });
-        
+
         // Helper function to check smart overlap for a pair
         function checkSmartOverlap(pairLongAsset, pairShortAsset) {
             // Check for conflicting positions (same asset on opposite sides)
             const longConflict = assetsShort.has(pairLongAsset); // We want to long it, but it's already short
             const shortConflict = assetsLong.has(pairShortAsset); // We want to short it, but it's already long
-            
+
             // Check max trades per asset limit
             const longAssetCount = assetTradeCount.get(pairLongAsset) || 0;
             const shortAssetCount = assetTradeCount.get(pairShortAsset) || 0;
             const exceedsLimit = longAssetCount >= MAX_TRADES_PER_ASSET || shortAssetCount >= MAX_TRADES_PER_ASSET;
-            
+
             return {
                 hasConflict: longConflict || shortConflict,
                 exceedsLimit,
                 isBlocked: longConflict || shortConflict || exceedsLimit,
                 conflictType: longConflict ? 'long_conflict' : shortConflict ? 'short_conflict' : exceedsLimit ? 'max_exposure' : null,
-                conflictAsset: longConflict ? pairLongAsset : shortConflict ? pairShortAsset : 
-                               (longAssetCount >= MAX_TRADES_PER_ASSET ? pairLongAsset : 
-                                shortAssetCount >= MAX_TRADES_PER_ASSET ? pairShortAsset : null),
+                conflictAsset: longConflict ? pairLongAsset : shortConflict ? pairShortAsset :
+                    (longAssetCount >= MAX_TRADES_PER_ASSET ? pairLongAsset :
+                        shortAssetCount >= MAX_TRADES_PER_ASSET ? pairShortAsset : null),
                 sameDirectionCount: {
                     long: assetsLong.get(pairLongAsset) || 0,
                     short: assetsShort.get(pairShortAsset) || 0
@@ -78,15 +78,15 @@ router.get('/', async (req, res) => {
         // Enrich pairs with trade status
         pairs = pairs.map(p => {
             const isActive = activePairs.has(p.pair);
-            
+
             // Determine direction based on z-score
             const pairDir = p.direction || (p.zScore < 0 ? 'long' : 'short');
             const pairLong = pairDir === 'long' ? p.asset1 : p.asset2;
             const pairShort = pairDir === 'long' ? p.asset2 : p.asset1;
-            
+
             // Check smart overlap
             const overlapCheck = isActive ? { isBlocked: true, conflictType: 'active_trade' } : checkSmartOverlap(pairLong, pairShort);
-            
+
             return {
                 ...p,
                 isActive,

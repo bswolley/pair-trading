@@ -1,0 +1,108 @@
+
+╔══════════════════════════════════════════════════════════════════╗
+║              AI PAIR ANALYSIS REPORT                             ║
+║              LINEA/POL            2025-12-16             ║
+╚══════════════════════════════════════════════════════════════════╝
+
+
+┌──────────────────────────────────────────────────────────────────┐
+│  ⚠️  AI SYNTHESIS UNAVAILABLE - AUTOMATED RISK CHECK ONLY        │
+└──────────────────────────────────────────────────────────────────┘
+
+DETECTED RISKS:
+  🟡 [MEDIUM] Market Cap Disparity: Infinityx difference in market cap
+
+═══════════════════════════════════════════════════════════════════
+STATISTICAL CONTEXT
+═══════════════════════════════════════════════════════════════════
+  Source: Watchlist
+  Correlation: 0.655
+  Half-Life: N/A days
+  Z-Score: -1.97
+  Hurst: 0.612
+  Cointegrated: Yes
+
+═══════════════════════════════════════════════════════════════════
+ASSET 1: LINEA
+═══════════════════════════════════════════════════════════════════
+
+MARKET METRICS:
+  Market Cap: $114.07M
+  24h Volume: $39.25M
+  Price: $0.006728
+  
+  Price Changes:
+    24h: -6.9%
+    7d:  -13.1%
+    30d: -38.8%
+  
+  Supply: 23.6% circulating
+  ATH: $0.0467 (-85.7% from ATH)
+  
+  Dev Activity: N/A commits (4w)
+  Twitter: N/A followers
+  Categories: Smart Contract Platform, Ethereum Ecosystem, Layer 2 (L2), Linea Ecosystem, Consensys Portfolio
+
+TVL DATA: Not available (No DeFiLlama mapping for this token)
+
+HYPERLIQUID:
+  Funding (8h): -0.0015%
+  Funding (Ann): -1.6%
+  Open Interest: $1.79M
+  24h Volume: $824.20K
+
+TOKEN UNLOCKS: No unlock data available (need TokenUnlocks API for comprehensive data)
+
+═══════════════════════════════════════════════════════════════════
+ASSET 2: POL
+═══════════════════════════════════════════════════════════════════
+
+MARKET METRICS:
+  Market Cap: N/A
+  24h Volume: $115.73K
+  Price: $N/A
+  
+  Price Changes:
+    24h: undefined%
+    7d:  0.0%
+    30d: 0.0%
+  
+  Supply: 0.0% circulating
+  ATH: $2.9200 (0.0% from ATH)
+  
+  Dev Activity: N/A commits (4w)
+  Twitter: N/A followers
+  Categories: Smart Contract Platform, Polygon Ecosystem, Layer 2 (L2), Zero Knowledge (ZK), Animoca Brands Portfolio
+
+TVL DATA: Not available (Request failed with status code 400)
+
+HYPERLIQUID:
+  Funding (8h): -0.0016%
+  Funding (Ann): -1.7%
+  Open Interest: $2.01M
+  24h Volume: $571.84K
+
+TOKEN UNLOCKS: No unlock data available (need TokenUnlocks API for comprehensive data)
+
+═══════════════════════════════════════════════════════════════════
+COMPARISON
+═══════════════════════════════════════════════════════════════════
+
+Market Cap Ratio: Infinityx (LINEA/POL)
+  LINEA: $114.07M
+  POL: N/A
+
+Volume Ratio: 339.11x
+  LINEA: $39.25M
+  POL: $115.73K
+
+Funding Spread: 0.0001% per 8h (0.1% annualized)
+  LINEA: -0.0015%
+  POL: -0.0016%
+  Net (Long LINEA): You PAY 0.0001%
+
+═══════════════════════════════════════════════════════════════════
+Generated: 2025-12-16T11:27:52.805Z
+Data Sources: CoinGecko, DeFiLlama, Hyperliquid
+AI: Not configured
+═══════════════════════════════════════════════════════════════════

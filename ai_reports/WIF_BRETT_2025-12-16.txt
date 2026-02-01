@@ -1,0 +1,237 @@
+
+╔══════════════════════════════════════════════════════════════════╗
+║              AI PAIR ANALYSIS REPORT                             ║
+║              WIF/BRETT            2025-12-16             ║
+╚══════════════════════════════════════════════════════════════════╝
+
+
+┌──────────────────────────────────────────────────────────────────┐
+│  AI RECOMMENDATION: ❌ REJECT     (Confidence: 40%)         │
+├──────────────────────────────────────────────────────────────────┤
+│  The pair shows cointegration but current Z-score is weakly posit
+│  ive, misaligning with the long WIF/short BRETT trade; wait for n
+└──────────────────────────────────────────────────────────────────┘
+
+ENTRY TIMING (Z-Score Analysis):
+  Current Z: 1.0658
+  Signal: WEAK
+  🟡 WAIT: Current positive Z-score indicates WIF is overvalued relative to BRETT, suggesting the opposite trade (short WIF, long BRETT). For the specified long WIF/short BRETT, wait for negative Z-score to confirm undervaluation of WIF.
+  Target Entry Z: -1.5 to -2.0
+
+RISK FACTORS:
+  🔴 [HIGH] Opposite Z-score direction: Current positive Z contradicts the long WIF/short BRETT trade setup, increasing reversal risk.
+  🔴 [HIGH] Meme coin volatility: Both assets are memes with no fundamentals (no TVL, dev activity), prone to sentiment-driven swings unrelated to pair dynamics.
+  🟡 [MEDIUM] Chain differences: WIF on Solana vs BRETT on Base/BNB may lead to ecosystem-specific events causing decoupling.
+  🟡 [MEDIUM] Volume disparity: WIF's higher volume ($173M vs $19M) could amplify liquidity risks in the short BRETT leg.
+
+TOKEN UNLOCKS (from AI web search):
+  WIF: No major unlocks found in next 90 days
+  BRETT: No major unlocks found in next 90 days
+  Note: No upcoming unlocks found for either asset in the next 90 days; full circulation reduces supply pressure risks.
+
+SENTIMENT ANALYSIS (from X/Twitter):
+  WIF: ⚪ NEUTRAL
+    News: Community promotions and airdrop mentions involving $WIF derivatives like $KWIF; Posts hyping $WIF's history and potential
+  BRETT: ⚪ NEUTRAL
+  Divergence: WIF has more community activity and promotional posts, while BRETT shows minimal recent mentions; slight positive tilt for WIF but no major news divergence.
+  Trade Impact: Neutral sentiment across both does not strongly support or oppose the trade; WIF's mild hype could pressure the long WIF position if it fades.
+
+MONITORING POINTS:
+  • Z-score crossing -1.5 for entry signal
+  • Any chain-specific news or partnerships
+  • Funding rate changes indicating positioning shifts
+
+═══════════════════════════════════════════════════════════════════
+STATISTICAL CONTEXT
+═══════════════════════════════════════════════════════════════════
+  Source: Watchlist
+  Correlation: 0.800
+  Half-Life: 1.2 days
+  Z-Score: 1.07
+  Hurst: 0.469
+  Cointegrated: Yes
+
+═══════════════════════════════════════════════════════════════════
+ASSET 1: WIF
+═══════════════════════════════════════════════════════════════════
+
+MARKET METRICS:
+  Market Cap: $373.41M
+  24h Volume: $172.89M
+  Price: $0.372385
+  
+  Price Changes:
+    24h: -5.9%
+    7d:  -3.4%
+    30d: -11.3%
+  
+  Supply: 100.0% circulating
+  ATH: $4.8300 (-92.3% from ATH)
+  
+  
+  Categories: Solana Ecosystem, Meme, Dog-Themed, Solana Meme, GMCI Meme Index
+
+TVL DATA: Not available (No DeFiLlama mapping for this token)
+
+HYPERLIQUID:
+  Funding (8h): 0.0013%
+  Funding (Ann): 1.4%
+  Open Interest: $6.68M
+  24h Volume: $3.20M
+
+TOKEN UNLOCK ESTIMATE (from supply data):
+  Circulating: 100.0%
+  Remaining to Vest: 0.0%
+  Most supply already circulating
+  → Visit tokenomist.ai for detailed schedule
+
+═══════════════════════════════════════════════════════════════════
+ASSET 2: BRETT
+═══════════════════════════════════════════════════════════════════
+
+MARKET METRICS:
+  Market Cap: $152.34M
+  24h Volume: $19.30M
+  Price: $0.015375
+  
+  Price Changes:
+    24h: -4.4%
+    7d:  -16.7%
+    30d: -15.7%
+  
+  Supply: 100.0% circulating
+  ATH: $0.2342 (-93.5% from ATH)
+  
+  
+  Categories: BNB Chain Ecosystem, Meme, Base Ecosystem, Frog-Themed, Base Meme
+
+TVL DATA: Not available (No DeFiLlama mapping for this token)
+
+HYPERLIQUID:
+  Funding (8h): 0.0013%
+  Funding (Ann): 1.4%
+  Open Interest: $1.67M
+  24h Volume: $1.53M
+
+TOKEN UNLOCK ESTIMATE (from supply data):
+  Circulating: 100.0%
+  Remaining to Vest: 0.0%
+  Most supply already circulating
+  → Visit tokenomist.ai for detailed schedule
+
+═══════════════════════════════════════════════════════════════════
+COMPARISON
+═══════════════════════════════════════════════════════════════════
+
+Market Cap Ratio: 2.45x (WIF/BRETT)
+  WIF: $373.41M
+  BRETT: $152.34M
+
+Volume Ratio: 8.96x
+  WIF: $172.89M
+  BRETT: $19.30M
+
+Funding Spread: 0.0000% per 8h (0.0% annualized)
+  WIF: 0.0013%
+  BRETT: 0.0013%
+  Net (Long WIF): You PAY 0.0000%
+
+Token Vesting Analysis:
+  WIF: 100.0% circulating (0.0% locked)
+  BRETT: 100.0% circulating (0.0% locked)
+  → Check tokenomist.ai for detailed schedules
+
+═══════════════════════════════════════════════════════════════════
+Generated: 2025-12-16T13:35:30.683Z
+Data Sources: CoinGecko, DeFiLlama, Hyperliquid
+AI: Grok (xAI)
+═══════════════════════════════════════════════════════════════════
+
+
+═══════════════════════════════════════════════════════════════════
+RAW AI RESPONSE (for debugging)
+═══════════════════════════════════════════════════════════════════
+{
+  "recommendation": "REJECT",
+  "confidence": 0.4,
+  "entryTiming": {
+    "currentZScore": 1.0658,
+    "signal": "WEAK",
+    "recommendation": "WAIT",
+    "targetZScore": "-1.5 to -2.0",
+    "reasoning": "Current positive Z-score indicates WIF is overvalued relative to BRETT, suggesting the opposite trade (short WIF, long BRETT). For the specified long WIF/short BRETT, wait for negative Z-score to confirm undervaluation of WIF."
+  },
+  "fundamentalAlignment": {
+    "score": "MODERATE",
+    "reasoning": "Both are meme tokens with high correlation (0.80), but on different chains (WIF on Solana, BRETT on Base/BNB), limiting perfect alignment. Similar circulating supply (100%) and no dev activity data, but meme category supports co-movement in bull markets."
+  },
+  "tokenUnlocks": {
+    "asset1": {
+      "hasUpcoming": false,
+      "nextUnlock": null,
+      "amount": null,
+      "type": null,
+      "source": "tokenomist.ai and web search"
+    },
+    "asset2": {
+      "hasUpcoming": false,
+      "nextUnlock": null,
+      "amount": null,
+      "type": null,
+      "source": "tokenomist.ai and web search"
+    },
+    "asymmetryRisk": "NONE",
+    "notes": "No upcoming unlocks found for either asset in the next 90 days; full circulation reduces supply pressure risks."
+  },
+  "sentiment": {
+    "asset1": {
+      "sentiment": "NEUTRAL",
+      "keyNews": ["Community promotions and airdrop mentions involving $WIF derivatives like $KWIF", "Posts hyping $WIF's history and potential"],
+      "redFlags": [],
+      "source": "X/Twitter search"
+    },
+    "asset2": {
+      "sentiment": "NEUTRAL",
+      "keyNews": [],
+      "redFlags": [],
+      "source": "X/Twitter search"
+    },
+    "divergence": "WIF has more community activity and promotional posts, while BRETT shows minimal recent mentions; slight positive tilt for WIF but no major news divergence.",
+    "tradingImplication": "Neutral sentiment across both does not strongly support or oppose the trade; WIF's mild hype could pressure the long WIF position if it fades."
+  },
+  "riskFactors": [
+    {
+      "factor": "Opposite Z-score direction",
+      "severity": "HIGH",
+      "description": "Current positive Z contradicts the long WIF/short BRETT trade setup, increasing reversal risk."
+    },
+    {
+      "factor": "Meme coin volatility",
+      "severity": "HIGH",
+      "description": "Both assets are memes with no fundamentals (no TVL, dev activity), prone to sentiment-driven swings unrelated to pair dynamics."
+    },
+    {
+      "factor": "Chain differences",
+      "severity": "MEDIUM",
+      "description": "WIF on Solana vs BRETT on Base/BNB may lead to ecosystem-specific events causing decoupling."
+    },
+    {
+      "factor": "Volume disparity",
+      "severity": "MEDIUM",
+      "description": "WIF's higher volume ($173M vs $19M) could amplify liquidity risks in the short BRETT leg."
+    }
+  ],
+  "dataQuality": {
+    "asset1": "PARTIAL",
+    "asset2": "PARTIAL"
+  },
+  "keyMetrics": {
+    "fundingSpread": "0.0%",
+    "tvlDivergence": "N/A",
+    "volumeRatio": "8.96 (WIF/BRETT)",
+    "marketCapRatio": "2.45 (WIF/BRETT)"
+  },
+  "monitoringPoints": ["Z-score crossing -1.5 for entry signal", "Any chain-specific news or partnerships", "Funding rate changes indicating positioning shifts"],
+  "summary": "The pair shows cointegration but current Z-score is weakly positive, misaligning with the long WIF/short BRETT trade; wait for negative deviation. No unlock risks and neutral sentiment provide no catalysts, but meme nature and chain differences heighten volatility. Data gaps in TVL and dev activity reduce confidence in the setup."
+}
+═══════════════════════════════════════════════════════════════════

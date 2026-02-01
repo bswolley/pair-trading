@@ -239,7 +239,7 @@ function checkPairCooldown(pairName, history) {
 
 // Time windows - must match scanner for consistency
 const WINDOWS = {
-    cointegration: 90,  // Structural test - longer window for confidence
+    cointegration: 90,  // Structural test - 90 days of HOURLY data (2160 points)
     hurst: 60,          // Needs 40+ data points for R/S analysis
     reactive: 30        // Z-score, correlation, beta - responsive to recent market
 };
@@ -247,22 +247,42 @@ const WINDOWS = {
 async function fetchPrices(sdk, sym1, sym2) {
     const endTime = Date.now();
     // Fetch enough data for cointegration window (90 days) + buffer
-    const startTime = endTime - ((WINDOWS.cointegration + 5) * 24 * 60 * 60 * 1000);
+    const startTimeDaily = endTime - ((WINDOWS.cointegration + 5) * 24 * 60 * 60 * 1000);
+    // For hourly cointegration: 90 days of hourly data
+    const startTimeHourly = endTime - ((WINDOWS.cointegration + 2) * 24 * 60 * 60 * 1000);
 
     try {
-        const [d1, d2] = await Promise.all([
-            sdk.info.getCandleSnapshot(`${sym1}-PERP`, '1d', startTime, endTime),
-            sdk.info.getCandleSnapshot(`${sym2}-PERP`, '1d', startTime, endTime)
+        // Fetch both daily (for reactive metrics) and hourly (for cointegration)
+        const [d1, d2, h1, h2] = await Promise.all([
+            sdk.info.getCandleSnapshot(`${sym1}-PERP`, '1d', startTimeDaily, endTime),
+            sdk.info.getCandleSnapshot(`${sym2}-PERP`, '1d', startTimeDaily, endTime),
+            sdk.info.getCandleSnapshot(`${sym1}-PERP`, '1h', startTimeHourly, endTime),
+            sdk.info.getCandleSnapshot(`${sym2}-PERP`, '1h', startTimeHourly, endTime)
         ]);
 
         if (!d1?.length || !d2?.length) return null;
 
+        // Process daily data
         const m1 = new Map(), m2 = new Map();
         d1.forEach(c => m1.set(new Date(c.t).toISOString().split('T')[0], parseFloat(c.c)));
         d2.forEach(c => m2.set(new Date(c.t).toISOString().split('T')[0], parseFloat(c.c)));
 
         const dates = [...m1.keys()].filter(d => m2.has(d)).sort();
         if (dates.length < 10) return null;
+
+        // Process hourly data for cointegration (90 days = 2160 hours)
+        let prices1_h90 = null, prices2_h90 = null;
+        if (h1?.length && h2?.length) {
+            const hm1 = new Map(), hm2 = new Map();
+            h1.forEach(c => hm1.set(c.t, parseFloat(c.c)));
+            h2.forEach(c => hm2.set(c.t, parseFloat(c.c)));
+            
+            const hourlyTimestamps = [...hm1.keys()].filter(t => hm2.has(t)).sort((a, b) => a - b);
+            if (hourlyTimestamps.length >= 500) {
+                prices1_h90 = hourlyTimestamps.slice(-(90 * 24)).map(t => hm1.get(t));
+                prices2_h90 = hourlyTimestamps.slice(-(90 * 24)).map(t => hm2.get(t));
+            }
+        }
 
         return {
             prices1_90d: dates.slice(-90).map(d => m1.get(d)),
@@ -273,6 +293,9 @@ async function fetchPrices(sdk, sym1, sym2) {
             prices2_30d: dates.slice(-30).map(d => m2.get(d)),
             prices1_7d: dates.slice(-7).map(d => m1.get(d)),
             prices2_7d: dates.slice(-7).map(d => m2.get(d)),
+            // Hourly data for cointegration (2160 points for 90 days)
+            prices1_h90,
+            prices2_h90,
             currentPrice1: m1.get(dates[dates.length - 1]),
             currentPrice2: m2.get(dates[dates.length - 1])
         };
@@ -285,18 +308,28 @@ function validateEntry(prices, entryThreshold = DEFAULT_ENTRY_THRESHOLD) {
     // REACTIVE METRICS (30-day) - for trading decisions
     const fit30d = checkPairFitness(prices.prices1_30d, prices.prices2_30d);
 
-    // STRUCTURAL TEST (90-day) - internally consistent with 90d beta
+    // STRUCTURAL COINTEGRATION TEST using HOURLY data (90 days = 2160 points)
+    // This provides much stronger statistical power for ADF test
     let isCointegrated90d = false;
     let adfStat90d = -2.5; // Default fallback
-    if (prices.prices1_90d && prices.prices1_90d.length >= 60) {
-        const { beta: beta90d } = calculateCorrelation(prices.prices1_90d, prices.prices2_90d);
-        const coint90d = testCointegration(prices.prices1_90d, prices.prices2_90d, beta90d);
+    let cointDataPoints = 0;
+    
+    if (prices.prices1_h90 && prices.prices2_h90 && prices.prices1_h90.length >= 500) {
+        // Use hourly data for cointegration (stronger ADF with ~2000+ points)
+        const coint = testCointegration(prices.prices1_h90, prices.prices2_h90);
+        isCointegrated90d = coint.isCointegrated;
+        adfStat90d = coint.adfStat || -2.5;
+        cointDataPoints = Math.min(prices.prices1_h90.length, prices.prices2_h90.length);
+    } else if (prices.prices1_90d && prices.prices1_90d.length >= 60) {
+        // Fallback to daily if hourly not available
+        const coint90d = testCointegration(prices.prices1_90d, prices.prices2_90d);
         isCointegrated90d = coint90d.isCointegrated;
         adfStat90d = coint90d.adfStat || -2.5;
+        cointDataPoints = prices.prices1_90d.length;
     } else {
-        // Fallback to 30d if not enough data (fit30d doesn't have adfStat, use default)
+        // Final fallback to 30d
         isCointegrated90d = fit30d.isCointegrated;
-        // Keep default -2.5 since checkPairFitness doesn't return adfStat
+        cointDataPoints = prices.prices1_30d?.length || 0;
     }
 
     // Calculate 7d Z-score using 30d mean/std as baseline (same as analyzePair)

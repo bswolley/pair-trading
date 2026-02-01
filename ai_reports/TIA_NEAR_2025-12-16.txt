@@ -1,0 +1,245 @@
+
+╔══════════════════════════════════════════════════════════════════╗
+║              AI PAIR ANALYSIS REPORT                             ║
+║              TIA/NEAR             2025-12-16             ║
+╚══════════════════════════════════════════════════════════════════╝
+
+
+┌──────────────────────────────────────────────────────────────────┐
+│  AI RECOMMENDATION: ⚠️ CAUTION    (Confidence: 65%)         │
+├──────────────────────────────────────────────────────────────────┤
+│  The TIA/NEAR pair shows cointegration and mean-reversion potenti
+│  al, but the weak Z-score (-1.4668) suggests waiting for a strong
+└──────────────────────────────────────────────────────────────────┘
+
+ENTRY TIMING (Z-Score Analysis):
+  Current Z: -1.4668
+  Signal: WEAK
+  🟡 WAIT: Z-score is below the typical entry threshold of |Z| > 1.5-2.0, indicating insufficient spread divergence for entry. Wait for stronger mean-reversion signal to reduce false entry risk.
+  Target Entry Z: -2
+
+RISK FACTORS:
+  🟡 [MEDIUM] Weak Z-Score Signal: Current |Z| = 1.4668 is below entry threshold, increasing risk of premature entry without mean-reversion confirmation.
+  🟢 [LOW] Funding Rate Imbalance: TIA shows negative funding (-0.0021%) indicating short bias, while NEAR positive (0.0013%) suggests long crowding; could amplify short NEAR but risks squeeze.
+  🟡 [MEDIUM] TVL and Dev Activity Divergence: NEAR has higher TVL ($132M, -15.8% 7d) and dev commits (138 vs TIA 16), potentially supporting NEAR resilience against the proposed short.
+  🟢 [LOW] Market Cap Disparity: NEAR's $1.97B cap vs TIA's $435M may lead to asymmetric volatility, with NEAR less sensitive to pair trades.
+
+TOKEN UNLOCKS (from AI web search):
+  TIA: No major unlocks found in next 90 days
+  NEAR: No major unlocks found in next 90 days
+  Note: No upcoming unlocks in next 90 days for either asset; TIA has 26.1% remaining to vest overall but none scheduled post-2025-12-16, NEAR fully circulating.
+
+SENTIMENT ANALYSIS (from X/Twitter):
+  TIA: 🟢 BULLISH
+    News: TIA listed on Bitunix Futures for trading; Bitwise expresses bullish stance on Celestia
+  NEAR: 🟢 BULLISH
+    News: NEAR Protocol highlights sharding for scalability advantages over competitors like Ethereum and Solana; Rediscovery of NEAR with mentions of interesting developments alongside Zcash
+  Divergence: Minimal divergence; both assets receive positive attention on tech advancements and ecosystem growth from verified accounts, with no clear favoritism.
+  Trade Impact: Balanced bullish sentiment supports pair stability but does not strongly favor long TIA/short NEAR direction; monitor for NEAR-specific hype that could widen spread.
+
+MONITORING POINTS:
+  • Z-score crossing -2.0 for entry
+  • Upcoming NEAR sharding updates or TIA integrations
+  • Funding rate shifts indicating positioning changes
+
+═══════════════════════════════════════════════════════════════════
+STATISTICAL CONTEXT
+═══════════════════════════════════════════════════════════════════
+  Source: Watchlist
+  Correlation: 0.833
+  Half-Life: 0.7 days
+  Z-Score: -1.47
+  Hurst: 0.334
+  Cointegrated: Yes
+
+═══════════════════════════════════════════════════════════════════
+ASSET 1: TIA
+═══════════════════════════════════════════════════════════════════
+
+MARKET METRICS:
+  Market Cap: $435.69M
+  24h Volume: $77.14M
+  Price: $0.510275
+  
+  Price Changes:
+    24h: -7.1%
+    7d:  -12.3%
+    30d: -40.0%
+  
+  Supply: 73.9% circulating
+  ATH: $20.8500 (-97.6% from ATH)
+  
+  Dev Activity: 16 commits (4w)
+  Twitter: N/A followers
+  Categories: Smart Contract Platform, Cosmos Ecosystem, Layer 1 (L1), Data Availability, Modular Blockchain
+
+TVL DATA: Not available (No DeFiLlama mapping for this token)
+
+HYPERLIQUID:
+  Funding (8h): -0.0021%
+  Funding (Ann): -2.3%
+  Open Interest: $5.82M
+  24h Volume: $5.09M
+
+TOKEN UNLOCK ESTIMATE (from supply data):
+  Circulating: 73.9%
+  Remaining to Vest: 26.1%
+  26% remaining to unlock
+  → Visit tokenomist.ai for detailed schedule
+
+═══════════════════════════════════════════════════════════════════
+ASSET 2: NEAR
+═══════════════════════════════════════════════════════════════════
+
+MARKET METRICS:
+  Market Cap: $1.97B
+  24h Volume: $239.25M
+  Price: $1.540000
+  
+  Price Changes:
+    24h: -4.8%
+    7d:  -11.9%
+    30d: -38.3%
+  
+  Supply: 100.0% circulating
+  ATH: $20.4400 (-92.5% from ATH)
+  
+  Dev Activity: 138 commits (4w)
+  Twitter: N/A followers
+  Categories: Artificial Intelligence (AI), Smart Contract Platform, Layer 1 (L1), Near Protocol Ecosystem, Ethereum Ecosystem
+
+CHAIN TVL (DeFiLlama):
+  Chain: Near
+  Total TVL: $132.71M
+  7d Change: -15.8%
+  30d Change: -26.3%
+
+HYPERLIQUID:
+  Funding (8h): 0.0013%
+  Funding (Ann): 1.4%
+  Open Interest: $10.75M
+  24h Volume: $3.83M
+
+TOKEN UNLOCK ESTIMATE (from supply data):
+  Circulating: 100.0%
+  Remaining to Vest: 0.0%
+  Most supply already circulating
+  → Visit tokenomist.ai for detailed schedule
+
+═══════════════════════════════════════════════════════════════════
+COMPARISON
+═══════════════════════════════════════════════════════════════════
+
+Market Cap Ratio: 0.22x (TIA/NEAR)
+  TIA: $435.69M
+  NEAR: $1.97B
+
+Volume Ratio: 0.32x
+  TIA: $77.14M
+  NEAR: $239.25M
+
+Funding Spread: -0.0033% per 8h (-3.7% annualized)
+  TIA: -0.0021%
+  NEAR: 0.0013%
+  Net (Long TIA): You RECEIVE 0.0033%
+
+Token Vesting Analysis:
+  TIA: 73.9% circulating (26.1% locked)
+  NEAR: 100.0% circulating (0.0% locked)
+  ⚠️ TIA has significantly more supply locked - higher dilution risk
+  → Check tokenomist.ai for detailed schedules
+
+═══════════════════════════════════════════════════════════════════
+Generated: 2025-12-16T13:26:30.799Z
+Data Sources: CoinGecko, DeFiLlama, Hyperliquid
+AI: Grok (xAI)
+═══════════════════════════════════════════════════════════════════
+
+
+═══════════════════════════════════════════════════════════════════
+RAW AI RESPONSE (for debugging)
+═══════════════════════════════════════════════════════════════════
+{
+  "recommendation": "CAUTION",
+  "confidence": 0.65,
+  "entryTiming": {
+    "currentZScore": -1.4668,
+    "signal": "WEAK",
+    "recommendation": "WAIT",
+    "targetZScore": -2.0,
+    "reasoning": "Z-score is below the typical entry threshold of |Z| > 1.5-2.0, indicating insufficient spread divergence for entry. Wait for stronger mean-reversion signal to reduce false entry risk."
+  },
+  "fundamentalAlignment": {
+    "score": "MODERATE",
+    "reasoning": "Both are Layer 1 smart contract platforms with high correlation (0.833) and cointegration, but TIA focuses on modular data availability (Cosmos ecosystem) while NEAR emphasizes AI and scalability (Near ecosystem). Fundamentals like dev activity (TIA 16 commits vs NEAR 138 in 4w) and TVL (TIA unavailable vs NEAR $132M) show some alignment in price movement but divergence in adoption metrics."
+  },
+  "tokenUnlocks": {
+    "asset1": {
+      "hasUpcoming": false,
+      "nextUnlock": null,
+      "amount": null,
+      "type": null,
+      "source": "web search and tokenomist.ai"
+    },
+    "asset2": {
+      "hasUpcoming": false,
+      "nextUnlock": null,
+      "amount": null,
+      "type": null,
+      "source": "web search and tokenomist.ai"
+    },
+    "asymmetryRisk": "NONE",
+    "notes": "No upcoming unlocks in next 90 days for either asset; TIA has 26.1% remaining to vest overall but none scheduled post-2025-12-16, NEAR fully circulating."
+  },
+  "sentiment": {
+    "asset1": {
+      "sentiment": "BULLISH",
+      "keyNews": ["TIA listed on Bitunix Futures for trading", "Bitwise expresses bullish stance on Celestia", "SpiceNet launches as on-chain brokerage on Celestia"],
+      "redFlags": [],
+      "source": "X/Twitter search"
+    },
+    "asset2": {
+      "sentiment": "BULLISH",
+      "keyNews": ["NEAR Protocol highlights sharding for scalability advantages over competitors like Ethereum and Solana", "Rediscovery of NEAR with mentions of interesting developments alongside Zcash"],
+      "redFlags": [],
+      "source": "X/Twitter search"
+    },
+    "divergence": "Minimal divergence; both assets receive positive attention on tech advancements and ecosystem growth from verified accounts, with no clear favoritism.",
+    "tradingImplication": "Balanced bullish sentiment supports pair stability but does not strongly favor long TIA/short NEAR direction; monitor for NEAR-specific hype that could widen spread."
+  },
+  "riskFactors": [
+    {
+      "factor": "Weak Z-Score Signal",
+      "severity": "MEDIUM",
+      "description": "Current |Z| = 1.4668 is below entry threshold, increasing risk of premature entry without mean-reversion confirmation."
+    },
+    {
+      "factor": "Funding Rate Imbalance",
+      "severity": "LOW",
+      "description": "TIA shows negative funding (-0.0021%) indicating short bias, while NEAR positive (0.0013%) suggests long crowding; could amplify short NEAR but risks squeeze."
+    },
+    {
+      "factor": "TVL and Dev Activity Divergence",
+      "severity": "MEDIUM",
+      "description": "NEAR has higher TVL ($132M, -15.8% 7d) and dev commits (138 vs TIA 16), potentially supporting NEAR resilience against the proposed short."
+    },
+    {
+      "factor": "Market Cap Disparity",
+      "severity": "LOW",
+      "description": "NEAR's $1.97B cap vs TIA's $435M may lead to asymmetric volatility, with NEAR less sensitive to pair trades."
+    }
+  ],
+  "dataQuality": {
+    "asset1": "PARTIAL",
+    "asset2": "GOOD"
+  },
+  "keyMetrics": {
+    "fundingSpread": "-0.0034%",
+    "tvlDivergence": "N/A (TIA no TVL data)",
+    "volumeRatio": "0.32 (TIA/NEAR)",
+    "marketCapRatio": "0.22 (TIA/NEAR)"
+  },
+  "monitoringPoints": ["Z-score crossing -2.0 for entry", "Upcoming NEAR sharding updates or TIA integrations", "Funding rate shifts indicating positioning changes"],
+  "summary": "The TIA/NEAR pair shows cointegration and mean-reversion potential, but the weak Z-score (-1.4668) suggests waiting for a stronger signal before entering long TIA/short NEAR. Fundamentals align moderately as L1 platforms, with no unlock risks and balanced bullish sentiment from recent X posts on tech developments. Key risks include TVL/dev divergence favoring NEAR and data gaps for TIA."
+}
+═══════════════════════════════════════════════════════════════════

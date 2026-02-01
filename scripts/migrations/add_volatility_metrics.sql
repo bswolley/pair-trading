@@ -11,3 +11,13 @@ ALTER TABLE watchlist ADD COLUMN IF NOT EXISTS vol_ratio DECIMAL(5,3);
 COMMENT ON COLUMN watchlist.spread_vol IS 'Annualized spread volatility (%)';
 COMMENT ON COLUMN watchlist.vol_ratio IS 'Spread vol / avg directional vol - lower = better beta neutralization';
 
+
+
+
+
+
+
+
+
+
+

@@ -10,3 +10,13 @@ ALTER TABLE watchlist ADD COLUMN IF NOT EXISTS volume2 DECIMAL(20,2);
 COMMENT ON COLUMN watchlist.volume1 IS '24h trading volume for asset1 in USD';
 COMMENT ON COLUMN watchlist.volume2 IS '24h trading volume for asset2 in USD';
 
+
+
+
+
+
+
+
+
+
+

@@ -222,3 +222,13 @@ ALTER TABLE watchlist ADD COLUMN IF NOT EXISTS relative_vol2 DECIMAL(5,2);
 4. Implement in order of priority
 
 
+
+
+
+
+
+
+
+
+
+

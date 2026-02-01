@@ -9,6 +9,7 @@
     "Gaming",
     "Infrastructure",
     "Exchange",
+    "Privacy",
     "RWA",
     "NFT",
     "Other"
@@ -41,7 +42,6 @@
     "MINA",
     "NEO",
     "XLM",
-    "ZEC",
     "BCH",
     "BSV",
     "LTC",
@@ -52,8 +52,8 @@
     "S",
     "MON",
     "HYPER",
-    "ZEN",
-    "CANTO"
+    "CANTO",
+    "FOGO"
   ],
   "L2": [
     "ARB",
@@ -242,7 +242,13 @@
     "RLB",
     "HYPE",
     "ASTER",
-    "APEX"
+    "APEX",
+    "LIT"
+  ],
+  "Privacy": [
+    "XMR",
+    "ZEC",
+    "ZEN"
   ],
   "RWA": [
     "ONDO",
@@ -273,6 +279,7 @@
     "STRAX",
     "ORDI",
     "AI16Z",
-    "LAUNCHCOIN"
+    "LAUNCHCOIN",
+    "STABLE"
   ]
 }
