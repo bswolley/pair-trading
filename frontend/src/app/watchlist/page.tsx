@@ -26,7 +26,7 @@ const METRIC_TOOLTIPS = {
   weights: "Position sizing from hedge ratio (β). Calculated: w1 = 1/(1+β), w2 = β/(1+β). Uses 30-day β from OLS regression.",
   betaDrift: "% change in beta since scanner discovered pair. High drift (>15%) = hedge ratio unstable since discovery. Note: Trade drift is measured from trade entry, not discovery.",
   volume: "24h trading volume (USD). Low volume divergences may revert better than high volume (liquidity noise vs fundamental shift).",
-  volRatio: "Spread volatility / Directional volatility. Lower = better beta neutralization. <0.3 excellent, 0.3-0.5 good, >0.5 poor.",
+  volRatio: "Spread volatility / Directional volatility. Lower = better beta neutralization. <0.5 excellent, 0.5-0.75 good, >0.75 blocked.",
 };
 
 // Format volume as compact string (e.g. $1.2M, $500K)
@@ -129,8 +129,8 @@ export default function WatchlistPage() {
       reasons.push('slow_reversion');
     }
 
-    // Check 5: Vol ratio <= 0.5 (good beta neutralization)
-    if (pair.volRatio !== null && pair.volRatio !== undefined && pair.volRatio > 0.5) {
+    // Check 5: Vol ratio <= 0.75 (decent beta neutralization)
+    if (pair.volRatio !== null && pair.volRatio !== undefined && pair.volRatio > 0.75) {
       reasons.push('high_vol_ratio');
     }
 
@@ -321,7 +321,7 @@ export default function WatchlistPage() {
                 'low_correlation': `Low correlation (${((pair.correlation ?? 0) * 100).toFixed(0)}%)`,
                 'slow_reversion': `Slow reversion (HL=${pair.halfLife?.toFixed(1) ?? '?'}d)`,
                 'low_reversion': `Low reversion rate (${pair.reversionRate !== null && pair.reversionRate !== undefined ? pair.reversionRate.toFixed(0) + '%' : '?'})`,
-                'high_vol_ratio': `High vol ratio (${pair.volRatio?.toFixed(2) ?? '?'} > 0.5)`,
+                'high_vol_ratio': `High vol ratio (${pair.volRatio?.toFixed(2) ?? '?'} > 0.75)`,
                 'active_trade': 'Already in trade',
                 'asset_overlap': `Asset overlap (${pair.overlapAsset || pair.asset1})`,
                 'long_conflict': `${pair.overlapAsset} already short elsewhere`,
@@ -567,7 +567,7 @@ export default function WatchlistPage() {
                                 )}
                                 {pair.validation.reasons?.includes('high_vol_ratio') && (
                                   <>
-                                    <p className="text-red-400">• Vol ratio {pair.volRatio?.toFixed(2) ?? '?'} &gt; 0.5</p>
+                                    <p className="text-red-400">• Vol ratio {pair.volRatio?.toFixed(2) ?? '?'} &gt; 0.75</p>
                                     <p className="text-gray-400 text-[10px] ml-2">Poor beta neutralization - spread too volatile vs direction</p>
                                   </>
                                 )}
@@ -740,8 +740,8 @@ export default function WatchlistPage() {
                       {pair.volRatio !== undefined && pair.volRatio !== null ? (
                         <span className={cn(
                           "font-mono text-xs",
-                          pair.volRatio < 0.3 ? "text-emerald-400" :
-                          pair.volRatio < 0.5 ? "text-yellow-400" :
+                          pair.volRatio < 0.5 ? "text-emerald-400" :
+                          pair.volRatio < 0.75 ? "text-yellow-400" :
                           "text-red-400"
                         )}>
                           {pair.volRatio.toFixed(2)}
