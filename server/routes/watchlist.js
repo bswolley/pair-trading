@@ -253,23 +253,13 @@ router.post('/:pair/refresh', async (req, res) => {
         // Calculate fitness
         const fitness = checkPairFitness(prices1, prices2);
 
-        // Calculate optimal entry using HOURLY data (60 days) for accurate divergence analysis
-        // This is critical - daily data (30 points) produces unreliable thresholds
-        const MIN_ENTRY_THRESHOLD = 2.5; // Safety floor - never enter below this (raised from 2.0 based on performance data)
-        let optimalEntry = MIN_ENTRY_THRESHOLD;
-        try {
-            const divergenceProfile = await analyzeHistoricalDivergences(asset1, asset2, sdk);
-            if (divergenceProfile?.optimalEntry) {
-                // Enforce minimum threshold floor
-                optimalEntry = Math.max(divergenceProfile.optimalEntry, MIN_ENTRY_THRESHOLD);
-            }
-        } catch (divErr) {
-            console.warn(`[WATCHLIST] Divergence analysis failed for ${pair}, using default threshold:`, divErr.message);
-        }
+        // Use fixed entry threshold for all pairs (2.5)
+        const MIN_ENTRY_THRESHOLD = 2.5;
+        const entryThreshold = MIN_ENTRY_THRESHOLD;
 
-        // Calculate signal strength
-        const signalStrength = Math.min(Math.abs(fitness.zScore) / optimalEntry, 1.0);
-        const isReady = Math.abs(fitness.zScore) >= optimalEntry;
+        // Calculate signal strength using fixed threshold
+        const signalStrength = Math.min(Math.abs(fitness.zScore) / entryThreshold, 1.0);
+        const isReady = Math.abs(fitness.zScore) >= entryThreshold;
         const direction = fitness.zScore < 0 ? 'long' : 'short';
 
         // Update in DB
@@ -279,7 +269,7 @@ router.post('/:pair/refresh', async (req, res) => {
             correlation: parseFloat(fitness.correlation.toFixed(3)),
             beta: parseFloat(fitness.beta.toFixed(3)),
             halfLife: fitness.halfLife ? parseFloat(fitness.halfLife.toFixed(1)) : null,
-            entryThreshold: optimalEntry,
+            entryThreshold: entryThreshold,
             signalStrength: parseFloat(signalStrength.toFixed(2)),
             direction,
             isReady
@@ -290,7 +280,7 @@ router.post('/:pair/refresh', async (req, res) => {
         res.json({
             success: true,
             pair: updatedPair,
-            message: `Updated entry threshold to ${optimalEntry}`
+            message: `Refreshed pair metrics (entry threshold: ${entryThreshold})`
         });
 
     } catch (err) {

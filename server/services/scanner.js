@@ -423,7 +423,7 @@ async function fetchHistoricalPrices(sdk, symbols, verbose = false) {
                 fetchFailed++;
                 if (verbose) console.log(`  ✗ ${symbol}: no data`);
             }
-        } catch (error) {
+            } catch (error) {
             fetchFailed++;
             if (verbose) console.log(`  ✗ ${symbol}: ${error.message}`);
         }
@@ -677,7 +677,7 @@ function evaluatePairs(candidatePairs, priceMap, minCorrelation, crossSectorMinC
             }
 
             // Skip pairs that are not mean-reverting (H >= threshold)
-            if (hurst.isValid && hurst.hurst >= MAX_HURST_THRESHOLD) {
+                if (hurst.isValid && hurst.hurst >= MAX_HURST_THRESHOLD) {
                 failedHurst++;
                 if (verbose) console.log(`    → FAIL: Hurst ${hurst.hurst.toFixed(2)} >= ${MAX_HURST_THRESHOLD}`);
                 continue;
@@ -830,9 +830,9 @@ async function main(options = {}) {
     }
 
     // Calculate signal strength for each pair (how close to entry threshold)
+    // Use fixed MIN_ENTRY_THRESHOLD (2.5) for all pairs - simpler and comparable
     for (const pair of fittingPairs) {
-        const entryThreshold = Math.max(pair.optimalEntry || MIN_ENTRY_THRESHOLD, MIN_ENTRY_THRESHOLD);
-        pair.signalStrength = Math.abs(pair.zScore) / entryThreshold;
+        pair.signalStrength = Math.abs(pair.zScore) / MIN_ENTRY_THRESHOLD;
     }
 
     // HYBRID SELECTION: Top by conviction + Top by signal strength
@@ -968,7 +968,8 @@ async function main(options = {}) {
 
     // Build watchlist pairs
     const watchlistData = watchlistPairs.map(p => {
-        const entryThreshold = Math.max(p.optimalEntry || MIN_ENTRY_THRESHOLD, MIN_ENTRY_THRESHOLD);
+        // Use fixed MIN_ENTRY_THRESHOLD (2.5) for all pairs
+        const entryThreshold = MIN_ENTRY_THRESHOLD;
         const signalStrength = Math.min(Math.abs(p.zScore) / entryThreshold, 1.0);
         const direction = p.zScore < 0 ? 'long' : 'short';
         const atThreshold = Math.abs(p.zScore) >= entryThreshold;

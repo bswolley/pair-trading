@@ -1143,9 +1143,9 @@ async function main() {
         const prices = await fetchPrices(sdk, pair.asset1, pair.asset2);
         if (!prices) continue;
 
-        // Use scanner-set threshold only - scanner has hourly data for meaningful calculation
-        // Enforce minimum floor to prevent entering at weak signals
-        const entryThreshold = Math.max(pair.entryThreshold || DEFAULT_ENTRY_THRESHOLD, MIN_ENTRY_THRESHOLD);
+        // Use fixed entry threshold for all pairs (simpler, more consistent)
+        // Dynamic optimalEntry is still stored for reference but not used for entry decisions
+        const entryThreshold = MIN_ENTRY_THRESHOLD;
 
         let validation;
         try {
