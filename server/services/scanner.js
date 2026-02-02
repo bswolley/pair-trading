@@ -119,7 +119,7 @@ const DEFAULT_MIN_VOLUME = 500_000;
 const DEFAULT_MIN_OI = 100_000;
 const DEFAULT_MIN_CORR = 0.6;
 const DEFAULT_CROSS_SECTOR_MIN_CORR = 0.7; // Higher threshold for cross-sector
-const MAX_HURST_THRESHOLD = 0.45; // Only keep mean-reverting pairs (H < 0.45) - tightened from 0.5 based on data
+const MAX_HURST_THRESHOLD = 0.50; // Only keep mean-reverting pairs (H < 0.5) - random walk threshold
 
 // Asset tier definitions - based on market cap, liquidity, and reliability
 // Updated based on actual Hyperliquid liquidity and market structure
@@ -453,35 +453,31 @@ function generateCandidatePairs(sectorGroups, includeCrossSector = false) {
     allAssets.sort((a, b) => b.volume24h - a.volume24h);
 
     // STRATEGY 1: Major-Anchored Pairs (highest priority)
-    // Pair each Major (BTC, ETH, SOL) with top bluechip and established altcoins
+    // Pair each Major (BTC, ETH, SOL) with ALL bluechip and established altcoins
+    // Majors are most liquid - best anchors for stat arb
     const majors = allAssets.filter(a => ASSET_TIERS.majors.includes(a.symbol));
     const bluechips = allAssets.filter(a => ASSET_TIERS.bluechip.includes(a.symbol));
     const established = allAssets.filter(a => ASSET_TIERS.established.includes(a.symbol));
+    const qualityAltcoins = [...bluechips, ...established];
 
-    console.log(`[SCANNER] Major-anchored pairs: ${majors.length} majors × ${bluechips.length + established.length} quality altcoins`);
+    console.log(`[SCANNER] Major-anchored pairs: ${majors.length} majors × ${qualityAltcoins.length} quality altcoins`);
 
     for (const major of majors) {
-        // Pair each major with top 20 bluechips
-        for (const alt of bluechips.slice(0, 20)) {
+        // Pair each major with ALL bluechips and established
+        for (const alt of qualityAltcoins) {
+            // Skip if same asset
+            if (major.symbol === alt.symbol) continue;
+            
             const sector = major.sector === alt.sector ? major.sector : `${major.sector}×${alt.sector}`;
+            const tier = ASSET_TIERS.bluechip.includes(alt.symbol) ? 'bluechip' : 'established';
             pairs.push({
                 sector,
                 asset1: major,
                 asset2: alt,
-                isCrossSector: major.sector !== alt.sector,
-                pairType: 'major_bluechip'
-            });
-        }
-
-        // Pair each major with top 15 established
-        for (const alt of established.slice(0, 15)) {
-            const sector = major.sector === alt.sector ? major.sector : `${major.sector}×${alt.sector}`;
-            pairs.push({
-                sector,
-                asset1: major,
-                asset2: alt,
-                isCrossSector: major.sector !== alt.sector,
-                pairType: 'major_established'
+                // Major-anchored pairs use lower correlation threshold (0.6)
+                // They're intentionally cross-sector by design - majors are best anchors
+                isCrossSector: false,
+                pairType: `major_${tier}`
             });
         }
     }
@@ -543,7 +539,7 @@ function generateCandidatePairs(sectorGroups, includeCrossSector = false) {
         }
     }
 
-    console.log(`[SCANNER] Generated ${pairs.length} candidate pairs (major-anchored: ~${majors.length * 35}, same-sector quality, cross-sector bluechip)`);
+    console.log(`[SCANNER] Generated ${pairs.length} candidate pairs (major-anchored: ${majors.length} × ${qualityAltcoins.length}, same-sector, cross-sector)`);
     return pairs;
 }
 
