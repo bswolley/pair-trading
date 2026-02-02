@@ -33,7 +33,7 @@ const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN;
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID;
 const MAX_CONCURRENT_TRADES = parseInt(process.env.MAX_CONCURRENT_TRADES) || 8;
 const MAX_TRADES_PER_ASSET = 2; // Allow same-side overlap but limit exposure
-const MAX_VOL_RATIO = 0.5; // Only enter pairs with good beta neutralization (lower = better)
+const MAX_VOL_RATIO = 0.75; // Only enter pairs with decent beta neutralization (lower = better, crypto typically 0.5-0.7)
 const PAIR_COOLDOWN_HOURS = 48; // Hours to wait before re-entering same pair after exit
 
 // Thresholds
@@ -818,7 +818,7 @@ function formatStatusReport(activeTrades, entries, exits, history, approaching =
             const minVol = formatVolume(Math.min(p.volume1 || 0, p.volume2 || 0));
             const volStr = minVol ? ` | Vol: ${minVol}` : '';
             // Show volatility ratio with emoji indicator
-            const vrEmoji = p.volRatio < 0.3 ? '🟢' : p.volRatio < 0.5 ? '🟡' : '🔴';
+            const vrEmoji = p.volRatio < 0.5 ? '🟢' : p.volRatio < 0.75 ? '🟡' : '🔴';
             const vrStr = p.volRatio ? ` | VR: ${p.volRatio.toFixed(2)}${vrEmoji}` : '';
             msg += `   Z: ${p.zScore.toFixed(2)} → entry@${p.entryThreshold} [${pct}%]${volStr}${vrStr}\n\n`;
         }
