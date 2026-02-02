@@ -1289,7 +1289,7 @@ async function main() {
         const finalHasOverlap = finalOverlapCheck.isBlocked;
         
         if (signal && validation.valid && hurstValid && volRatioValid && reversionSafe && !finalHasOverlap && !currentlyAtMax && !inCooldown) {
-            const trade = await enterTrade(pair, fit, prices, activeTrades, hurst, entryThreshold);
+            const trade = await enterTrade(pair, validation, prices, activeTrades, hurst, entryThreshold);
             entries.push(trade);
             activePairs.add(pair.pair);
             // Update smart overlap tracking
