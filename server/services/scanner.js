@@ -352,7 +352,7 @@ async function fetchUniverse() {
     }
 }
 
-async function fetchHistoricalPrices(sdk, symbols) {
+async function fetchHistoricalPrices(sdk, symbols, verbose = false) {
     const priceMap = new Map();
     const endTime = Date.now();
     // Hourly: 90 days for cointegration, correlation, z-score, half-life
@@ -360,58 +360,85 @@ async function fetchHistoricalPrices(sdk, symbols) {
     const startTimeHourly = endTime - ((WINDOWS.cointegration + 5) * 24 * 60 * 60 * 1000);
     const startTimeDaily = endTime - ((WINDOWS.hurst + 5) * 24 * 60 * 60 * 1000);
 
-    const batchSize = 5;
-    for (let i = 0; i < symbols.length; i += batchSize) {
-        const batch = symbols.slice(i, i + batchSize);
+    let fetchSuccess = 0;
+    let fetchFailed = 0;
+    let insufficientData = 0;
 
-        const promises = batch.map(async (symbol) => {
-            try {
-                // Fetch both hourly (stat power) and daily (Hurst) data
-                const [hourlyData, dailyData] = await Promise.all([
-                    sdk.info.getCandleSnapshot(`${symbol}-PERP`, '1h', startTimeHourly, endTime),
-                    sdk.info.getCandleSnapshot(`${symbol}-PERP`, '1d', startTimeDaily, endTime)
-                ]);
+    if (verbose) console.log(`\n[FETCHING prices for ${symbols.length} symbols...]`);
 
-                if (hourlyData && hourlyData.length > 0) {
-                    const sortedHourly = hourlyData.sort((a, b) => a.t - b.t);
-                    const allHourlyPrices = sortedHourly.map(c => parseFloat(c.c));
+    // Rate limit calculation (from Hyperliquid docs):
+    // - candleSnapshot weight = 20 + floor(items / 60)
+    // - 2160 hourly candles = 20 + 36 = 56 weight
+    // - 60 daily candles = 20 + 1 = 21 weight
+    // - Per symbol = ~77 weight (hourly + daily)
+    // - Limit = 1200 weight/minute
+    // - Safe rate = ~15 symbols/minute = 1 symbol every 4 seconds
+    // - Being slightly aggressive: 3 seconds per symbol
 
-                    // Daily for Hurst (trading-horizon behavior)
-                    let dailyPrices = null;
-                    if (dailyData && dailyData.length > 0) {
-                        const sortedDaily = dailyData.sort((a, b) => a.t - b.t);
-                        dailyPrices = sortedDaily.map(c => parseFloat(c.c));
-                    }
+    const symbolDelayMs = 3000;  // 3 seconds between symbols (~20 symbols/min)
 
-                    return {
-                        symbol,
-                        prices: {
-                            // Hourly windows for statistical power
-                            h90: allHourlyPrices.slice(-(90 * 24)),   // 2160 pts: Cointegration, Beta, Z-score, Half-life
-                            h60: allHourlyPrices.slice(-(60 * 24)),   // 1440 pts: Correlation
-                            h30: allHourlyPrices.slice(-(30 * 24)),   // 720 pts: Divergence analysis
-                            // Daily for Hurst (trading-horizon mean reversion)
-                            d60: dailyPrices ? dailyPrices.slice(-60) : null
-                        }
-                    };
+    if (verbose) {
+        const estimatedTime = Math.ceil(symbols.length * symbolDelayMs / 1000);
+        console.log(`  Rate limit safe mode: ~${estimatedTime}s estimated (${symbols.length} symbols × 3s)`);
+    }
+
+    for (let i = 0; i < symbols.length; i++) {
+        const symbol = symbols[i];
+        
+        try {
+            // Sequential calls to respect rate limits
+            const hourlyData = await sdk.info.getCandleSnapshot(`${symbol}-PERP`, '1h', startTimeHourly, endTime);
+            
+            // Small delay between hourly and daily calls
+            await new Promise(resolve => setTimeout(resolve, 300));
+            
+            const dailyData = await sdk.info.getCandleSnapshot(`${symbol}-PERP`, '1d', startTimeDaily, endTime);
+
+            if (hourlyData && hourlyData.length > 0) {
+                const sortedHourly = hourlyData.sort((a, b) => a.t - b.t);
+                const allHourlyPrices = sortedHourly.map(c => parseFloat(c.c));
+
+                // Daily for Hurst (trading-horizon behavior)
+                let dailyPrices = null;
+                if (dailyData && dailyData.length > 0) {
+                    const sortedDaily = dailyData.sort((a, b) => a.t - b.t);
+                    dailyPrices = sortedDaily.map(c => parseFloat(c.c));
                 }
-                return { symbol, prices: null };
-            } catch (error) {
-                return { symbol, prices: null };
-            }
-        });
 
-        const results = await Promise.all(promises);
-        for (const { symbol, prices } of results) {
-            // Need hourly data for core metrics
-            if (prices && prices.h90 && prices.h90.length >= 500) {
-                priceMap.set(symbol, prices);
+                // Need at least 500 hourly points
+                if (allHourlyPrices.length >= 500) {
+                    priceMap.set(symbol, {
+                        h90: allHourlyPrices.slice(-(90 * 24)),
+                        h60: allHourlyPrices.slice(-(60 * 24)),
+                        h30: allHourlyPrices.slice(-(30 * 24)),
+                        d60: dailyPrices ? dailyPrices.slice(-60) : null
+                    });
+                    fetchSuccess++;
+                    if (verbose) console.log(`  ✓ ${symbol} (${i + 1}/${symbols.length})`);
+                } else {
+                    insufficientData++;
+                    if (verbose) console.log(`  ✗ ${symbol}: insufficient (${allHourlyPrices.length} pts)`);
+                }
+            } else {
+                fetchFailed++;
+                if (verbose) console.log(`  ✗ ${symbol}: no data`);
             }
+        } catch (error) {
+            fetchFailed++;
+            if (verbose) console.log(`  ✗ ${symbol}: ${error.message}`);
         }
 
-        if (i + batchSize < symbols.length) {
-            await new Promise(resolve => setTimeout(resolve, 500));
+        // Rate limit delay between symbols
+        if (i < symbols.length - 1) {
+            await new Promise(resolve => setTimeout(resolve, symbolDelayMs));
         }
+    }
+
+    if (verbose) {
+        console.log(`\n[FETCH SUMMARY]`);
+        console.log(`  Success: ${fetchSuccess}/${symbols.length}`);
+        console.log(`  Failed: ${fetchFailed}`);
+        console.log(`  Insufficient data: ${insufficientData}`);
     }
 
     return priceMap;
@@ -543,14 +570,27 @@ function generateCandidatePairs(sectorGroups, includeCrossSector = false) {
     return pairs;
 }
 
-function evaluatePairs(candidatePairs, priceMap, minCorrelation, crossSectorMinCorrelation) {
+function evaluatePairs(candidatePairs, priceMap, minCorrelation, crossSectorMinCorrelation, verbose = false) {
     const fittingPairs = [];
+    let evaluated = 0;
+    let skippedNoData = 0;
+    let skippedInsufficientData = 0;
+    let failedCorr = 0;
+    let failedCoint = 0;
+    let failedHalfLife = 0;
+    let failedHurst = 0;
+    let errors = 0;
 
     for (const pair of candidatePairs) {
+        const pairName = `${pair.asset1.symbol}/${pair.asset2.symbol}`;
         const priceData1 = priceMap.get(pair.asset1.symbol);
         const priceData2 = priceMap.get(pair.asset2.symbol);
 
-        if (!priceData1 || !priceData2) continue;
+        if (!priceData1 || !priceData2) {
+            skippedNoData++;
+            if (verbose) console.log(`  ${pairName}: SKIP (no price data)`);
+            continue;
+        }
 
         // Align each window separately
         // Align hourly windows (all metrics now use 1-hour candles)
@@ -566,10 +606,15 @@ function evaluatePairs(candidatePairs, priceMap, minCorrelation, crossSectorMinC
         const [prices1_h30, prices2_h30] = align(priceData1.h30, priceData2.h30); // 720 pts
 
         // Need at least 500 hourly points (~20 days) for reliable analysis
-        if (!prices1_h90 || prices1_h90.length < 500) continue;
+        if (!prices1_h90 || prices1_h90.length < 500) {
+            skippedInsufficientData++;
+            if (verbose) console.log(`  ${pairName}: SKIP (insufficient data: ${prices1_h90?.length || 0} pts)`);
+            continue;
+        }
 
         // Use higher correlation threshold for cross-sector pairs
         const requiredCorr = pair.isCrossSector ? crossSectorMinCorrelation : minCorrelation;
+        evaluated++;
 
         try {
             // CORRELATION (60-day hourly window = 1440 points)
@@ -588,31 +633,57 @@ function evaluatePairs(candidatePairs, priceMap, minCorrelation, crossSectorMinC
             // Half-life check: 5-10 days has higher win rate (based on performance data)
             // Note: half-life from hourly data is in HOURS, convert to days
             const halfLifeDays = coint.halfLife / 24;
-            if (correlation >= requiredCorr && coint.isCointegrated && halfLifeDays <= 10) {
+            
+            // Verbose logging for each filter step
+            if (verbose) {
+                console.log(`  ${pairName}: Corr=${correlation.toFixed(2)} (need>=${requiredCorr}) | ADF=${coint.adfStat.toFixed(2)} (coint=${coint.isCointegrated}) | HL=${halfLifeDays.toFixed(1)}d`);
+            }
+            
+            if (correlation < requiredCorr) {
+                failedCorr++;
+                if (verbose) console.log(`    → FAIL: Correlation ${correlation.toFixed(2)} < ${requiredCorr}`);
+                continue;
+            }
+            
+            if (!coint.isCointegrated) {
+                failedCoint++;
+                if (verbose) console.log(`    → FAIL: Not cointegrated (ADF=${coint.adfStat.toFixed(2)})`);
+                continue;
+            }
+            
+            if (halfLifeDays > 10) {
+                failedHalfLife++;
+                if (verbose) console.log(`    → FAIL: Half-life ${halfLifeDays.toFixed(1)}d > 10d`);
+                continue;
+            }
 
-                // HURST (60-day DAILY data) - measures trading-horizon mean reversion
-                // Using daily data because Hurst should reflect behavior at trade duration (days)
-                // Hourly Hurst captures short-term noise that doesn't affect multi-day trades
-                const prices1_d60 = priceData1.d60;
-                const prices2_d60 = priceData2.d60;
-                let hurst = { isValid: false, hurst: 0.5 };
-                let hurstLen = 0;
-                
-                if (prices1_d60 && prices2_d60 && prices1_d60.length >= 40) {
-                    hurstLen = Math.min(prices1_d60.length, prices2_d60.length);
-                    const spreads60d = [];
-                    for (let i = 0; i < hurstLen; i++) {
-                        const p1 = prices1_d60[prices1_d60.length - hurstLen + i];
-                        const p2 = prices2_d60[prices2_d60.length - hurstLen + i];
-                        spreads60d.push(Math.log(p1) - beta * Math.log(p2));
-                    }
-                    hurst = calculateHurst(spreads60d);
+            // HURST (60-day DAILY data) - measures trading-horizon mean reversion
+            // Using daily data because Hurst should reflect behavior at trade duration (days)
+            // Hourly Hurst captures short-term noise that doesn't affect multi-day trades
+            const prices1_d60 = priceData1.d60;
+            const prices2_d60 = priceData2.d60;
+            let hurst = { isValid: false, hurst: 0.5 };
+            let hurstLen = 0;
+            
+            if (prices1_d60 && prices2_d60 && prices1_d60.length >= 40) {
+                hurstLen = Math.min(prices1_d60.length, prices2_d60.length);
+                const spreads60d = [];
+                for (let i = 0; i < hurstLen; i++) {
+                    const p1 = prices1_d60[prices1_d60.length - hurstLen + i];
+                    const p2 = prices2_d60[prices2_d60.length - hurstLen + i];
+                    spreads60d.push(Math.log(p1) - beta * Math.log(p2));
                 }
+                hurst = calculateHurst(spreads60d);
+            }
 
-                // Skip pairs that are not mean-reverting (H >= threshold)
-                if (hurst.isValid && hurst.hurst >= MAX_HURST_THRESHOLD) {
-                    continue; // Skip trending/random walk pairs
-                }
+            // Skip pairs that are not mean-reverting (H >= threshold)
+            if (hurst.isValid && hurst.hurst >= MAX_HURST_THRESHOLD) {
+                failedHurst++;
+                if (verbose) console.log(`    → FAIL: Hurst ${hurst.hurst.toFixed(2)} >= ${MAX_HURST_THRESHOLD}`);
+                continue;
+            }
+            
+            if (verbose) console.log(`    → PASS: All filters passed! Hurst=${hurst.hurst.toFixed(2)}`);
 
                 // Calculate dual beta for regression quality (90-day hourly)
                 const dualBeta = calculateDualBeta(prices1_h90, prices2_h90, coint.halfLife);
@@ -677,8 +748,25 @@ function evaluatePairs(candidatePairs, priceMap, minCorrelation, crossSectorMinC
                         reactive: prices1_h30.length     // 30d × 24h = 720 target
                     }
                 });
-            }
-        } catch (error) { }
+        } catch (error) {
+            errors++;
+            if (verbose) console.log(`  ${pairName}: ERROR - ${error.message}`);
+        }
+    }
+
+    // Log summary statistics
+    if (verbose) {
+        console.log(`\n[EVAL SUMMARY]`);
+        console.log(`  Total candidates: ${candidatePairs.length}`);
+        console.log(`  Skipped (no data): ${skippedNoData}`);
+        console.log(`  Skipped (insufficient): ${skippedInsufficientData}`);
+        console.log(`  Evaluated: ${evaluated}`);
+        console.log(`  Failed Correlation: ${failedCorr}`);
+        console.log(`  Failed Cointegration: ${failedCoint}`);
+        console.log(`  Failed Half-Life: ${failedHalfLife}`);
+        console.log(`  Failed Hurst: ${failedHurst}`);
+        console.log(`  Errors: ${errors}`);
+        console.log(`  PASSED: ${fittingPairs.length}`);
     }
 
     return fittingPairs;
@@ -688,9 +776,10 @@ function evaluatePairs(candidatePairs, priceMap, minCorrelation, crossSectorMinC
  * Main scan function - returns structured result
  * @param {Object} options - Scan options
  * @param {boolean} options.crossSector - Include cross-sector pairs (default: false)
+ * @param {boolean} options.verbose - Log each pair evaluation (default: false)
  */
 async function main(options = {}) {
-    const { crossSector = false } = options;
+    const { crossSector = false, verbose = false } = options;
 
     const { symbolToSector, sectors } = loadSectorMap();
 
@@ -723,10 +812,11 @@ async function main(options = {}) {
         symbolsNeeded.add(pair.asset2.symbol);
     }
 
-    const priceMap = await fetchHistoricalPrices(sdk, [...symbolsNeeded]);
+    const priceMap = await fetchHistoricalPrices(sdk, [...symbolsNeeded], verbose);
 
     // Evaluate pairs
-    const fittingPairs = evaluatePairs(candidatePairs, priceMap, DEFAULT_MIN_CORR, DEFAULT_CROSS_SECTOR_MIN_CORR);
+    if (verbose) console.log(`\n[EVALUATING ${candidatePairs.length} pairs...]`);
+    const fittingPairs = evaluatePairs(candidatePairs, priceMap, DEFAULT_MIN_CORR, DEFAULT_CROSS_SECTOR_MIN_CORR, verbose);
 
     // Use conviction score for ranking (already calculated in evaluatePairs)
     // Fallback to simple score if conviction not available
