@@ -17,8 +17,8 @@ import { PairAnalysisModal } from "@/components/PairAnalysisModal";
 // Metric tooltips with time windows
 const METRIC_TOOLTIPS = {
   zScore: "Standard deviations from the mean spread (30-day window). Negative = long signal, Positive = short signal.",
-  entry: "Z-Score threshold for entry. Dynamic based on historical divergence analysis.",
-  signal: "Progress toward entry threshold. 100% = ready to trade.",
+  entry: "Z-Score threshold for entry. DYNAMIC: optimized per-pair based on historical reversion analysis (rate, time, confidence).",
+  signal: "Progress toward dynamic entry threshold. 100% = ready to trade.",
   hurst: "Mean-reversion strength (60-day R/S analysis). H < 0.5 = mean-reverting, H > 0.5 = trending. Only pairs with H < 0.5 are kept.",
   conviction: "Trade quality score (0-100) combining: correlation (30d), R² (90d), half-life (30d), Hurst (60d), cointegration (90d), beta stability.",
   halfLife: "Expected days for spread to revert halfway to mean (30-day window). Matches trading horizon.",
@@ -27,6 +27,7 @@ const METRIC_TOOLTIPS = {
   betaDrift: "% change in beta since scanner discovered pair. High drift (>15%) = hedge ratio unstable since discovery. Note: Trade drift is measured from trade entry, not discovery.",
   volume: "24h trading volume (USD). Low volume divergences may revert better than high volume (liquidity noise vs fundamental shift).",
   volRatio: "Spread volatility / Directional volatility. Lower = better beta neutralization. <0.5 excellent, 0.5-0.75 good, >0.75 blocked.",
+  dynamicEntry: "Entry threshold optimized from 60-day reversion analysis. Shows: threshold, reversion rate, avg time to revert. Confidence: high/low/default.",
 };
 
 // Format volume as compact string (e.g. $1.2M, $500K)
@@ -137,6 +138,14 @@ export default function WatchlistPage() {
     // Check 6: Reversion safety (from scanner hourly analysis)
     if (pair.reversionWarning) {
       reasons.push('low_reversion');
+    }
+
+    // Check 7: Dynamic threshold regime warning (NEW)
+    if (pair.dynamicEntry?.hasRegimeWarning) {
+      reasons.push('regime_change_risk');
+    }
+    if (pair.dynamicEntry?.flags?.includes('slow_reversion')) {
+      reasons.push('slow_dynamic_reversion');
     }
 
     // Return all reasons
@@ -322,6 +331,8 @@ export default function WatchlistPage() {
                 'slow_reversion': `Slow reversion (HL=${pair.halfLife?.toFixed(1) ?? '?'}d)`,
                 'low_reversion': `Low reversion rate (${pair.reversionRate !== null && pair.reversionRate !== undefined ? pair.reversionRate.toFixed(0) + '%' : '?'})`,
                 'high_vol_ratio': `High vol ratio (${pair.volRatio?.toFixed(2) ?? '?'} > 0.75)`,
+                'regime_change_risk': 'Regime change risk (rate drops at higher Z)',
+                'slow_dynamic_reversion': 'Slow dynamic reversion (>10d avg)',
                 'active_trade': 'Already in trade',
                 'asset_overlap': `Asset overlap (${pair.overlapAsset || pair.asset1})`,
                 'long_conflict': `${pair.overlapAsset} already short elsewhere`,
@@ -664,7 +675,51 @@ export default function WatchlistPage() {
                         {pair.zScore.toFixed(2)}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-right font-mono">{pair.entryThreshold.toFixed(1)}</td>
+                    <td className="px-4 py-3 text-right font-mono">
+                      {/* Dynamic entry threshold with tooltip */}
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <span className={cn(
+                            "cursor-help",
+                            pair.dynamicEntry?.confidence === 'high' ? "text-emerald-400" :
+                            pair.dynamicEntry?.confidence === 'low' ? "text-yellow-400" :
+                            "text-muted-foreground"
+                          )}>
+                            {pair.entryThreshold.toFixed(1)}
+                            {pair.dynamicEntry?.hasRegimeWarning && (
+                              <AlertTriangle className="inline w-3 h-3 ml-1 text-orange-400" />
+                            )}
+                          </span>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="max-w-xs bg-black text-white border-gray-700">
+                          <div className="space-y-1 text-xs">
+                            <p className="font-semibold">Dynamic Entry Analysis</p>
+                            {!pair.dynamicEntry ? (
+                              <p className="text-gray-400">Using default threshold</p>
+                            ) : (
+                              <>
+                                <p><span className="text-gray-400">Confidence:</span> <span className={
+                                  pair.dynamicEntry.confidence === 'high' ? 'text-emerald-400' :
+                                  pair.dynamicEntry.confidence === 'low' ? 'text-yellow-400' : 'text-gray-400'
+                                }>{pair.dynamicEntry.confidence || 'default'}</span></p>
+                                {pair.dynamicEntry.reversionRate && (
+                                  <p><span className="text-gray-400">Reversion rate:</span> {pair.dynamicEntry.reversionRate}</p>
+                                )}
+                                {pair.dynamicEntry.avgReversionTime && (
+                                  <p><span className="text-gray-400">Avg revert time:</span> {pair.dynamicEntry.avgReversionTime}d</p>
+                                )}
+                                {pair.dynamicEntry.flags && pair.dynamicEntry.flags.length > 0 && (
+                                  <p className="text-orange-400">⚠️ {pair.dynamicEntry.flags.join(', ')}</p>
+                                )}
+                                {pair.dynamicEntry.hasRegimeWarning && (
+                                  <p className="text-orange-400 font-semibold">⚠️ Regime change risk detected</p>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        </TooltipContent>
+                      </Tooltip>
+                    </td>
                     <td className="px-4 py-3 text-right">
                       <span className={cn(
                         "font-medium",

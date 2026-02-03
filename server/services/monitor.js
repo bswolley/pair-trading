@@ -1143,9 +1143,15 @@ async function main() {
         const prices = await fetchPrices(sdk, pair.asset1, pair.asset2);
         if (!prices) continue;
 
-        // Use fixed entry threshold for all pairs (simpler, more consistent)
-        // Dynamic optimalEntry is still stored for reference but not used for entry decisions
-        const entryThreshold = MIN_ENTRY_THRESHOLD;
+        // Use DYNAMIC entry threshold from scanner analysis (NEW)
+        // Falls back to MIN_ENTRY_THRESHOLD if dynamic not available
+        const dynamicEntry = pair.dynamicEntry || {};
+        const entryThreshold = dynamicEntry.threshold || pair.entryThreshold || MIN_ENTRY_THRESHOLD;
+        
+        // Log dynamic threshold usage
+        if (dynamicEntry.threshold && dynamicEntry.threshold !== MIN_ENTRY_THRESHOLD) {
+            console.log(`[MONITOR] ${pair.pair}: Using dynamic entry ${entryThreshold} (confidence: ${dynamicEntry.confidence})`);
+        }
 
         let validation;
         try {
@@ -1282,13 +1288,19 @@ async function main() {
         // Safety check: don't enter if reversion rate at current Z is too low
         const reversionSafe = !pair.reversionWarning;
         
+        // Dynamic threshold safety checks (NEW)
+        const dynamicFlags = dynamicEntry.flags || [];
+        const hasRegimeWarning = dynamicEntry.hasRegimeWarning || dynamicFlags.includes('regime_change_risk');
+        const hasSlowReversion = dynamicFlags.includes('slow_reversion');
+        const dynamicSafe = !hasRegimeWarning; // Allow slow reversion with warning, block regime change
+        
         // Re-check overlap with actual direction from current Z-score
         const actualLongAsset = z < 0 ? pair.asset1 : pair.asset2;
         const actualShortAsset = z < 0 ? pair.asset2 : pair.asset1;
         const finalOverlapCheck = checkSmartOverlap(actualLongAsset, actualShortAsset);
         const finalHasOverlap = finalOverlapCheck.isBlocked;
         
-        if (signal && validation.valid && hurstValid && volRatioValid && reversionSafe && !finalHasOverlap && !currentlyAtMax && !inCooldown) {
+        if (signal && validation.valid && hurstValid && volRatioValid && reversionSafe && dynamicSafe && !finalHasOverlap && !currentlyAtMax && !inCooldown) {
             const trade = await enterTrade(pair, validation, prices, activeTrades, hurst, entryThreshold);
             entries.push(trade);
             activePairs.add(pair.pair);
@@ -1316,6 +1328,8 @@ async function main() {
                 blockReason = 'high_vol_ratio';
             } else if (!reversionSafe) {
                 blockReason = 'low_reversion';
+            } else if (!dynamicSafe) {
+                blockReason = hasRegimeWarning ? 'regime_change_risk' : 'dynamic_warning';
             } else if (finalHasOverlap) {
                 blockReason = finalOverlapCheck.conflictType || 'asset_overlap';
             } else if (currentlyAtMax) {
@@ -1350,6 +1364,16 @@ async function main() {
                 lastExitTime: cooldownCheck.lastExitTime,
                 lastExitReason: cooldownCheck.lastExitReason,
                 lastExitPnL: cooldownCheck.lastExitPnL,
+                // Dynamic threshold info (NEW)
+                dynamicEntry: {
+                    threshold: entryThreshold,
+                    confidence: dynamicEntry.confidence || 'default',
+                    flags: dynamicFlags,
+                    hasRegimeWarning,
+                    hasSlowReversion,
+                    reversionRate: dynamicEntry.reversionRate || null,
+                    avgReversionTime: dynamicEntry.avgReversionTime || null
+                },
                 // Volume data (for volume-informed signal analysis)
                 volume1: pair.volume1,
                 volume2: pair.volume2,

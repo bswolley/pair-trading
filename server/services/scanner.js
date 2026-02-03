@@ -17,7 +17,8 @@ const {
     calculateDualBeta,
     calculateConvictionScore,
     calculateVolatilityMetrics,
-    analyzeHistoricalDivergences
+    analyzeHistoricalDivergences,
+    calculateDynamicThreshold
 } = require('../../lib/pairAnalysis');
 const db = require('../db/queries');
 
@@ -744,6 +745,27 @@ function evaluatePairs(candidatePairs, priceMap, minCorrelation, crossSectorMinC
                 // Calculate volatility metrics (30-day hourly for recent vol)
                 const volMetrics = calculateVolatilityMetrics(prices1_h30, prices2_h30, beta);
 
+                // Calculate dynamic entry threshold (NEW)
+                // Use 60-day hourly data for rolling Z-scores with 30-day lookback
+                const windowSize = 30 * 24; // 30-day rolling window
+                const rollingZScores = [];
+                
+                if (prices1_h60.length >= windowSize + 100) {
+                    for (let i = windowSize; i < prices1_h60.length; i++) {
+                        const windowP1 = prices1_h60.slice(i - windowSize, i);
+                        const windowP2 = prices2_h60.slice(i - windowSize, i);
+                        const spreads = windowP1.map((p1, j) => Math.log(p1) - beta * Math.log(windowP2[j]));
+                        const mean = spreads.reduce((a, b) => a + b, 0) / spreads.length;
+                        const std = Math.sqrt(spreads.reduce((s, x) => s + Math.pow(x - mean, 2), 0) / spreads.length);
+                        const currentSpread = Math.log(prices1_h60[i]) - beta * Math.log(prices2_h60[i]);
+                        rollingZScores.push(std > 0 ? (currentSpread - mean) / std : 0);
+                    }
+                }
+                
+                const dynamicThreshold = rollingZScores.length >= 100 
+                    ? calculateDynamicThreshold(rollingZScores, { hoursPerCandle: 1 })
+                    : { threshold: MIN_ENTRY_THRESHOLD, confidence: 'default', flags: ['insufficient_history'], recommendation: 'use_default' };
+
                 fittingPairs.push({
                     sector: pair.sector,
                     asset1: pair.asset1.symbol,
@@ -789,6 +811,17 @@ function evaluatePairs(candidatePairs, priceMap, minCorrelation, crossSectorMinC
                     // Volatility metrics (beta neutralization)
                     spreadVol: volMetrics.spreadVol,
                     volRatio: volMetrics.volRatio,
+                    // Dynamic entry threshold (NEW)
+                    dynamicEntry: {
+                        threshold: dynamicThreshold.threshold,
+                        confidence: dynamicThreshold.confidence,
+                        score: dynamicThreshold.score || 0,
+                        flags: dynamicThreshold.flags || [],
+                        recommendation: dynamicThreshold.recommendation,
+                        stats: dynamicThreshold.stats || null,
+                        zeroCrossFreq: dynamicThreshold.zeroCrossFreq || null,
+                        hasRegimeWarning: dynamicThreshold.hasRegimeWarning || false
+                    },
                     // Window info for transparency (all hourly)
                     windows: {
                         cointegration: cointDataPoints,  // 90d × 24h = 2160 target
@@ -1020,8 +1053,9 @@ async function main(options = {}) {
 
     // Build watchlist pairs
     const watchlistData = watchlistPairs.map(p => {
-        // Use fixed MIN_ENTRY_THRESHOLD (2.5) for all pairs
-        const entryThreshold = MIN_ENTRY_THRESHOLD;
+        // Use DYNAMIC threshold from historical analysis (NEW)
+        const dynamicEntry = p.dynamicEntry || {};
+        const entryThreshold = dynamicEntry.threshold || MIN_ENTRY_THRESHOLD;
         const signalStrength = Math.min(Math.abs(p.zScore) / entryThreshold, 1.0);
         const direction = p.zScore < 0 ? 'long' : 'short';
         const atThreshold = Math.abs(p.zScore) >= entryThreshold;
@@ -1029,7 +1063,11 @@ async function main(options = {}) {
 
         // Safety check: don't mark READY if reversion rate at current Z is poor
         const safety = checkReversionSafety(p.zScore, p.divergenceProfilePercent);
-        const isReady = atThreshold && safety.isSafe;
+        
+        // Additional check: if dynamic threshold has regime warning or slow reversion, be cautious
+        const hasDynamicWarning = dynamicEntry.hasRegimeWarning || 
+            (dynamicEntry.flags && dynamicEntry.flags.includes('slow_reversion'));
+        const isReady = atThreshold && safety.isSafe && !hasDynamicWarning;
 
         return {
             pair: `${p.asset1}/${p.asset2}`,
@@ -1054,6 +1092,17 @@ async function main(options = {}) {
             exitThreshold: EXIT_THRESHOLD,
             maxHistoricalZ: parseFloat(p.maxHistoricalZ.toFixed(2)),
             fundingSpread: parseFloat(p.fundingSpread.toFixed(2)),
+            // Dynamic threshold data (NEW)
+            dynamicEntry: {
+                threshold: entryThreshold,
+                confidence: dynamicEntry.confidence || 'default',
+                score: dynamicEntry.score || 0,
+                flags: dynamicEntry.flags || [],
+                recommendation: dynamicEntry.recommendation || 'use_default',
+                reversionRate: dynamicEntry.stats?.ratePercent || null,
+                avgReversionTime: dynamicEntry.stats?.avgTime || null,
+                zeroCrossFreq: dynamicEntry.zeroCrossFreq || null
+            },
             // Volume data (for volume-informed signal analysis)
             volume1: p.volume1 ? parseFloat(p.volume1.toFixed(2)) : null,
             volume2: p.volume2 ? parseFloat(p.volume2.toFixed(2)) : null,

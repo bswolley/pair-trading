@@ -45,6 +45,18 @@ export interface Trade {
     source?: string;
 }
 
+export interface DynamicEntry {
+    threshold: number;
+    confidence: 'high' | 'low' | 'default';
+    score?: number;
+    flags?: string[];
+    recommendation?: string;
+    reversionRate?: string | null;
+    avgReversionTime?: number | null;
+    zeroCrossFreq?: number | null;
+    hasRegimeWarning?: boolean;
+}
+
 export interface WatchlistPair {
     pair: string;
     asset1: string;
@@ -73,6 +85,8 @@ export interface WatchlistPair {
     volRatio?: number;
     reversionWarning?: string | null;
     reversionRate?: number | null;
+    // Dynamic entry threshold (NEW)
+    dynamicEntry?: DynamicEntry;
     // Trade status (from backend)
     isActive?: boolean;           // Pair is currently being traded
     hasAssetOverlap?: boolean;    // Smart overlap: conflict or max exposure
