@@ -505,7 +505,9 @@ function transformWatchlistFromDB(row) {
     addedManually: row.added_manually,
     lastScan: row.last_scan,
     createdAt: row.created_at,
-    updatedAt: row.updated_at
+    updatedAt: row.updated_at,
+    // Dynamic entry threshold (JSONB column)
+    dynamicEntry: row.dynamic_entry || null
   };
 }
 
@@ -540,7 +542,9 @@ function transformWatchlistToDB(pair) {
     reversion_warning: pair.reversionWarning,
     reversion_rate: pair.reversionRate,
     added_manually: pair.addedManually,
-    last_scan: pair.lastScan || new Date().toISOString()
+    last_scan: pair.lastScan || new Date().toISOString(),
+    // Dynamic entry threshold (JSONB)
+    dynamic_entry: pair.dynamicEntry || null
   };
 }
 
