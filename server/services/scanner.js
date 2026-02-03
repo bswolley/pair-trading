@@ -746,25 +746,25 @@ function evaluatePairs(candidatePairs, priceMap, minCorrelation, crossSectorMinC
                 const volMetrics = calculateVolatilityMetrics(prices1_h30, prices2_h30, beta);
 
                 // Calculate dynamic entry threshold (NEW)
-                // Use 60-day hourly data for rolling Z-scores with 30-day lookback
-                const windowSize = 30 * 24; // 30-day rolling window
-                const rollingZScores = [];
+                // Use 60-day hourly data with GLOBAL mean/stdDev (same method as analyzeLocalDivergences)
+                // This captures the full Z-score range, unlike rolling which stays constrained
+                let dynamicThreshold = { threshold: MIN_ENTRY_THRESHOLD, confidence: 'default', flags: ['insufficient_history'], recommendation: 'use_default' };
                 
-                if (prices1_h60.length >= windowSize + 100) {
-                    for (let i = windowSize; i < prices1_h60.length; i++) {
-                        const windowP1 = prices1_h60.slice(i - windowSize, i);
-                        const windowP2 = prices2_h60.slice(i - windowSize, i);
-                        const spreads = windowP1.map((p1, j) => Math.log(p1) - beta * Math.log(windowP2[j]));
-                        const mean = spreads.reduce((a, b) => a + b, 0) / spreads.length;
-                        const std = Math.sqrt(spreads.reduce((s, x) => s + Math.pow(x - mean, 2), 0) / spreads.length);
-                        const currentSpread = Math.log(prices1_h60[i]) - beta * Math.log(prices2_h60[i]);
-                        rollingZScores.push(std > 0 ? (currentSpread - mean) / std : 0);
+                if (prices1_h60.length >= 100 && prices2_h60.length >= 100) {
+                    // Calculate spreads and Z-scores with GLOBAL mean/stdDev (matches analyzeLocalDivergences)
+                    const len = Math.min(prices1_h60.length, prices2_h60.length);
+                    const spreads = [];
+                    for (let i = 0; i < len; i++) {
+                        spreads.push(Math.log(prices1_h60[i]) - beta * Math.log(prices2_h60[i]));
+                    }
+                    const meanSpread = spreads.reduce((a, b) => a + b, 0) / spreads.length;
+                    const stdSpread = Math.sqrt(spreads.reduce((s, x) => s + Math.pow(x - meanSpread, 2), 0) / spreads.length);
+                    
+                    if (stdSpread > 0) {
+                        const zScores = spreads.map(s => (s - meanSpread) / stdSpread);
+                        dynamicThreshold = calculateDynamicThreshold(zScores, { hoursPerCandle: 1 });
                     }
                 }
-                
-                const dynamicThreshold = rollingZScores.length >= 100 
-                    ? calculateDynamicThreshold(rollingZScores, { hoursPerCandle: 1 })
-                    : { threshold: MIN_ENTRY_THRESHOLD, confidence: 'default', flags: ['insufficient_history'], recommendation: 'use_default' };
 
                 fittingPairs.push({
                     sector: pair.sector,
