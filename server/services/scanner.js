@@ -118,8 +118,17 @@ function analyzeLocalDivergences(prices1, prices2, beta) {
 const DEFAULT_MIN_VOLUME = 500_000;
 const DEFAULT_MIN_OI = 100_000;
 const DEFAULT_MIN_CORR = 0.6;
-const DEFAULT_CROSS_SECTOR_MIN_CORR = 0.7; // Higher threshold for cross-sector
+const DEFAULT_CROSS_SECTOR_MIN_CORR = 0.6; // Same threshold for all pairs
 const MAX_HURST_THRESHOLD = 0.50; // Only keep mean-reverting pairs (H < 0.5) - random walk threshold
+
+// Multi-window consistency thresholds
+// Ensures cointegration is stable across different time horizons
+const CONSISTENCY_CONFIG = {
+    adf90d: -3.29,    // 90-day: Full statistical power, strict threshold
+    adf30d: -2.50,    // 30-day: Medium-term stability check
+    adf14d: -2.00,    // 14-day: Recent health (soft warning, not hard filter)
+    maxBetaDrift: 0.25 // Max 25% beta drift between 90d and 30d
+};
 
 // Asset tier definitions - based on market cap, liquidity, and reliability
 // Updated based on actual Hyperliquid liquidity and market structure
@@ -577,8 +586,11 @@ function evaluatePairs(candidatePairs, priceMap, minCorrelation, crossSectorMinC
     let skippedInsufficientData = 0;
     let failedCorr = 0;
     let failedCoint = 0;
+    let failedCoint30d = 0;  // NEW: 30-day consistency check
+    let failedBetaDrift = 0; // NEW: Beta stability check
     let failedHalfLife = 0;
     let failedHurst = 0;
+    let warned14d = 0;       // NEW: 14-day warning counter
     let errors = 0;
 
     for (const pair of candidatePairs) {
@@ -649,6 +661,33 @@ function evaluatePairs(candidatePairs, priceMap, minCorrelation, crossSectorMinC
                 failedCoint++;
                 if (verbose) console.log(`    → FAIL: Not cointegrated (ADF=${coint.adfStat.toFixed(2)})`);
                 continue;
+            }
+            
+            // === MULTI-WINDOW CONSISTENCY CHECKS (NEW) ===
+            // 30-day cointegration check - ensures medium-term stability
+            const coint30 = testCointegration(prices1_h30, prices2_h30);
+            if (coint30.adfStat > CONSISTENCY_CONFIG.adf30d) {
+                failedCoint30d++;
+                if (verbose) console.log(`    → FAIL: 30d ADF weak (${coint30.adfStat.toFixed(2)} > ${CONSISTENCY_CONFIG.adf30d})`);
+                continue;
+            }
+            
+            // Beta drift check - ensures hedge ratio is stable
+            const betaDrift = Math.abs(coint.beta - coint30.beta) / Math.abs(coint.beta);
+            if (betaDrift > CONSISTENCY_CONFIG.maxBetaDrift) {
+                failedBetaDrift++;
+                if (verbose) console.log(`    → FAIL: Beta drift ${(betaDrift * 100).toFixed(0)}% > ${CONSISTENCY_CONFIG.maxBetaDrift * 100}%`);
+                continue;
+            }
+            
+            // 14-day check - warning only (soft filter for recent health)
+            const prices1_h14 = prices1_h90.slice(-336);  // 14 days × 24 hours
+            const prices2_h14 = prices2_h90.slice(-336);
+            const coint14 = testCointegration(prices1_h14, prices2_h14);
+            const has14dWarning = coint14.adfStat > CONSISTENCY_CONFIG.adf14d;
+            if (has14dWarning) {
+                warned14d++;
+                if (verbose) console.log(`    ⚠️ WARNING: 14d ADF weak (${coint14.adfStat.toFixed(2)})`);
             }
             
             if (halfLifeDays > 10) {
@@ -727,6 +766,16 @@ function evaluatePairs(candidatePairs, priceMap, minCorrelation, crossSectorMinC
                     maxHistoricalZ: divergenceProfile.maxHistoricalZ,
                     divergenceProfile: divergenceProfile.thresholds,
                     isCrossSector: pair.isCrossSector,
+                    // Multi-window consistency data (NEW)
+                    consistency: {
+                        adf90d: coint.adfStat,
+                        adf30d: coint30.adfStat,
+                        adf14d: coint14.adfStat,
+                        beta90d: coint.beta,
+                        beta30d: coint30.beta,
+                        betaDrift: betaDrift,
+                        has14dWarning: has14dWarning
+                    },
                     // Advanced metrics
                     hurst: hurst.hurst,
                     hurstClassification: hurst.classification,
@@ -762,9 +811,12 @@ function evaluatePairs(candidatePairs, priceMap, minCorrelation, crossSectorMinC
         console.log(`  Skipped (insufficient): ${skippedInsufficientData}`);
         console.log(`  Evaluated: ${evaluated}`);
         console.log(`  Failed Correlation: ${failedCorr}`);
-        console.log(`  Failed Cointegration: ${failedCoint}`);
+        console.log(`  Failed 90d Cointegration: ${failedCoint}`);
+        console.log(`  Failed 30d Consistency: ${failedCoint30d} ← NEW`);
+        console.log(`  Failed Beta Drift: ${failedBetaDrift} ← NEW`);
         console.log(`  Failed Half-Life: ${failedHalfLife}`);
         console.log(`  Failed Hurst: ${failedHurst}`);
+        console.log(`  14d Warnings: ${warned14d}`);
         console.log(`  Errors: ${errors}`);
         console.log(`  PASSED: ${fittingPairs.length}`);
     }
